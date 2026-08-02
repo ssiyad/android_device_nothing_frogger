@@ -595,6 +595,7 @@
             <samplerate>48000</samplerate>
             <bit_width>32</bit_width>
             <snd_device_name>vi-feedback</snd_device_name>
+            <supported_bit_format>PAL_AUDIO_FMT_PCM_S32_LE</supported_bit_format>
             <usecase>
                 <name>PAL_STREAM_VOICE_CALL</name>
                 <channels>2</channels>
@@ -733,7 +734,7 @@
             <samplerate>48000</samplerate>
             <bit_width>32</bit_width>
             <snd_device_name>speaker</snd_device_name>
-            <speaker_protection_enabled>0</speaker_protection_enabled>
+            <speaker_protection_enabled>1</speaker_protection_enabled>
             <fractional_sr>0</fractional_sr>
             <!-- To enable external EC reference the flag extec_ref_enabled must be added as 1 -->
             <ext_ec_ref_enabled>0</ext_ec_ref_enabled>
@@ -763,7 +764,6 @@
             <quick_cal_time>0</quick_cal_time>
             <usecase>
                 <name>PAL_STREAM_LOW_LATENCY</name>
-                <priority>1</priority>
                 <custom-config key="cit-speaker-top">
                     <snd_device_name>speaker-mono</snd_device_name>
                 </custom-config>

@@ -92,7 +92,6 @@ on property:vendor.all.modules.ready=1
     chown system system /proc/touchpanel/fod_mode
     chown system system /sys/panel_feature/fp_status
 
-    start frogger_nfc_detect
 
 on property:sys.boot_completed=1 && property:persist.sys.sltntc.enable=0
 	stop sltntc
@@ -100,19 +99,6 @@ on property:sys.boot_completed=1 && property:persist.sys.sltntc.enable=0
 on property:sys.boot_completed=1 && property:persist.sys.sltntc.enable=1
 	start sltntc
     
-on property:vendor.nfc.config_file_name=*
-    setprop persist.vendor.nfc.config_file_name ${vendor.nfc.config_file_name}
-
-on property:vendor.nfc_model=*
-    setprop persist.vendor.nfc_model ${vendor.nfc_model}
-
-service frogger_nfc_detect /odm/bin/init.frogger.nfc.sh
-    class main
-    user shell
-    group shell
-    disabled
-    oneshot
-
 service sltntc /system_ext/bin/sltntc
     class hal
     user system

@@ -1179,16 +1179,6 @@ vendor/lib64/qti.video.utils.videobufferlayout.so
 vendor/lib64/libpasrutils.so
 vendor/lib64/libvmmem.so
 
-# NFC
-vendor/etc/st21nfc_conf_base.txt
-vendor/etc/st54j_conf.txt
-vendor/etc/st54l_conf.txt
-vendor/etc/st54l_conf_felica.txt
-vendor/firmware/st21nfc_fw.bin
-vendor/firmware/st21nfc_fw7.bin
-vendor/firmware/st54j_fw.bin
-vendor/firmware/st54l_fw.bin
-
 # NTF
 system_ext/lib64/libntf.so;SYMLINK=system_ext/priv-app/qcrilmsgtunnel/lib/arm64/libntf.so
 vendor/bin/ntf-service

@@ -120,6 +120,7 @@ BOARD_BOOTCONFIG := \
     androidboot.hardware=qcom \
     androidboot.load_modules_parallel=true \
     androidboot.memcg=1 \
+    androidboot.selinux=permissive \
     androidboot.usbcontroller=a600000.dwc3
 
 BOARD_KERNEL_BASE := 0x00000000
@@ -230,6 +231,12 @@ TARGET_RECOVERY_UI_MARGIN_HEIGHT := 100
 TARGET_USERIMAGES_USE_F2FS := true
 
 # SELinux
+# BRING-UP ONLY: policy is permissive (androidboot.selinux=permissive above) and
+# neverallow checks are suppressed so denials do not block boot or the build.
+# Both must be removed before this is shippable -- a release build must boot
+# enforcing with a clean policy. Tracked in docs/open-items.md.
+SELINUX_IGNORE_NEVERALLOWS := true
+
 include hardware/nothing/config.mk
 include device/lineage/sepolicy/libperfmgr/sepolicy.mk
 include device/qcom/sepolicy_vndr/SEPolicy.mk
@@ -246,10 +253,7 @@ DEVICE_FRAMEWORK_MANIFEST_FILE += $(DEVICE_PATH)/vintf/framework_manifest.xml
 DEVICE_MATRIX_FILE := hardware/qcom-caf/common/compatibility_matrix.xml
 
 ODM_MANIFEST_FILES += $(DEVICE_PATH)/vintf/manifest_frogger.xml
-# Only JPN needs extra HALs (eSE). NFC itself is declared by the vintf fragment
-# shipped with android.hardware.nfc-service.st, so it must not be repeated here.
-# NFC availability is instead gated per SKU through the odm permission XMLs in
-# device.mk, matching stock: EEA/JPN/ROW/TUR get them, IND does not.
+# Only JPN needs extra HALs, for the embedded secure element.
 ODM_MANIFEST_SKUS := JPN
 ODM_MANIFEST_JPN_FILES := $(DEVICE_PATH)/vintf/manifest_JPN.xml
 

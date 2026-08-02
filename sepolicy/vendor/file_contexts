@@ -18,10 +18,6 @@
 # Lights
 /dev/led_strips    u:object_r:led_device:s0
 
-# NFC
-/odm/bin/init\.frogger\.nfc\.sh                    u:object_r:vendor_qti_init_shell_exec:s0
-/vendor/bin/hw/android\.hardware\.nfc-service\.st    u:object_r:hal_nfc_default_exec:s0
-
 # Partitions
 /dev/block/platform/soc/1d84000\.ufshc/by-name/vbmeta_vendor_[ab]    u:object_r:vendor_custom_ab_block_device:s0
 

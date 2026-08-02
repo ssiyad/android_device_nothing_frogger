@@ -129,34 +129,42 @@ SPI address, so porting should be mechanical — but confirm after syncing
 `/proc/touchpanel/gesture_code` **was** confirmed present on stock, so
 `tp_single_tap_coords_path` is fine as-is.
 
-## Blocking working audio: the mixer paths are still Asteroids'
+## Audio: rebased on Frogger stock (needs on-device verification)
 
-`audio/*.xml` in this tree were **not** adapted and are wrong for Frogger.
+All six `audio/*.xml` were Asteroids' and wrong for Frogger. They have now been
+replaced with Frogger's stock files, with the Lineage delta re-applied
+selectively rather than wholesale.
 
-The device tree's `mixer_paths_volcano_qrd.xml` drives an NXP TFA98xx smart amp
-(9 × `TFA`, 9 × `TFA_CHIP_SELECTOR` controls). Frogger's stock file contains
-**zero** TFA references — it uses the Qualcomm path instead (`WSA2` × 11,
-`WCD9378` codec, `SpkrLeft`/`Spkr2Right` COMP/CPS/PBR/VISENSE controls). This
-matches the blob-level finding that Frogger ships `aw882xx_acf.bin` where
-Asteroids ships `tfa98xx.cnt`.
+The core problem: Asteroids' `mixer_paths_volcano_qrd.xml` drove an NXP TFA98xx
+smart amp (9 × `TFA`, 9 × `TFA_CHIP_SELECTOR`). Frogger's has **zero** TFA
+references and uses the Qualcomm path (`WSA2`, `WCD9378` codec,
+`SpkrLeft`/`Spkr2Right` COMP/CPS/PBR/VISENSE), matching the blob-level finding
+that Frogger ships `aw882xx_acf.bin` where Asteroids ships `tfa98xx.cnt`.
 
-All four differ from stock:
+The Lineage delta was isolated from git history and evaluated per commit:
 
-| File | device tree | Frogger stock |
+| Lineage commit | Ported? | Why |
 |---|---|---|
-| `mixer_paths_volcano_qrd.xml` | 1507 lines, TFA | 1501 lines, WSA2/WCD9378 |
-| `resourcemanager_volcano_qrd.xml` | 1870 | 1869 |
-| `audio_policy_configuration.xml` | 527 | 278 |
-| `audio_effects.xml` | 170 | 162 |
+| `0387e40` mixer_paths import | n/a | no edits on top of stock — replaced outright |
+| `8eba5bf` nuke haptics output | **no** | Frogger's stock policy has no haptics output |
+| `b77bc2f` drop `bluetooth_qti` | **no** | not present in Frogger's stock policy |
+| `4284c18` trim A2DP formats | **no** | Frogger's stock already lists only SBC/AAC/APTX/APTX_HD/LDAC |
+| `932734d` enable LVACFS mic | **yes** | LVACFS blobs confirmed present on Frogger (31 entries) |
+| `1df56d0` disable speaker protection | **no** — see below | |
+| `6a1be28` dolby effects | **no** | Frogger has **zero** Dolby files anywhere |
 
-Left as-is deliberately: these are not straight copies. Asteroids' versions carry
-LineageOS edits on top of stock (the policy config is nearly twice stock's
-length), so replacing them wholesale would drop that work. The fix is to start
-from Frogger's stock four and re-apply the Lineage delta — diff Asteroids' copies
-against *Asteroids'* stock to isolate it. Extracted stock copies are under
-`~/sources/android/downloads/firmwares/frogger/extracted/vendor/etc/`.
+### Two things to check on first boot
 
-Expect speaker/earpiece audio to be broken or absent until this is done.
+**Speaker protection.** Frogger's stock sets `speaker_protection_enabled=1` and
+its mixer paths do expose `SpkrLeft/Spkr2Right VISENSE` controls, so V/I sense is
+genuinely wired — unlike Asteroids, where Lineage turned it off. Stock's `1` was
+kept. If speaker playback is silent or distorted, flipping it to `0` in
+`audio/resourcemanager_volcano_qrd.xml` is the first thing to try.
+
+**Dolby.** `device.mk` still has
+`$(call inherit-product-if-exists, hardware/dolby/dolby.mk)`. It is an
+`-if-exists` call and Frogger has no Dolby, so it is inert — but it can be
+dropped if it ever resolves to something.
 
 ## Verified fine: vibrator
 
@@ -165,23 +173,28 @@ Expect speaker/earpiece audio to be broken or absent until this is done.
 HAL carry over unchanged. `100_Haptic.bin` / `101_Haptic.bin` / `libics_haptic.so`
 are in both blob sets.
 
-## Needs verification: NFC, on hardware that has it
+## NFC: removed, not supported
 
-Everything NFC in this tree is derived from stock config files, not observed.
-The reference device is an IND unit with no NFC hardware at all
-(`pm list features` lists no `android.hardware.nfc`; the `1-0008/hw_version` node
-Asteroids probes is absent; `vendor.nfc.config_file_name` is unset).
+NFC support has been **deleted** from this tree, not deferred. Removed:
+`configs/nfc/`, `init/init.frogger.nfc.sh` (+ its `sh_binary` and `PRODUCT_PACKAGES`
+entry), the `frogger_nfc_detect` service and property triggers in
+`init.frogger.rc`, the `android.hardware.nfc-service.st` package, the per-SKU NFC
+permission gating, the NFC `file_contexts` / `property_contexts` / `.te` rules
+(including `sepolicy/vendor/vendor_qti_init_shell.te`, which existed only for
+NFC), the `# NFC` blob-list section, and `st21nfc.ko` from
+`modules.load.vendor_dlkm`.
 
-Specifically unverified:
+Left alone deliberately: NFC lines in `init/init.qcom.rc` and
+`init/ueventd.qcom.rc` (upstream QCOM boilerplate, inert without a HAL), the
+`nfc` group in `init.frogger.hw.rc`, and `nfc.ko` in `modules.load.system_dlkm`
+(a standard GKI module).
 
-* `init/init.frogger.nfc.sh` — the JPN/non-JPN split and the
-  `vendor.nfc_model=ST54L` value are inferred from the shipped filenames.
-* Whether `libnfc-nci-felica.conf` is selected by the same mechanism, or by a
-  separate property.
-* Whether the per-SKU permission gating in `device.mk` produces working NFC on an
-  EEA/JPN/ROW/TUR unit.
+The embedded secure element is **not** affected —
+`android.hardware.secure_element-service.thales` and the JPN `eSE1` odm manifest
+remain.
 
-Test on a non-IND device before trusting any of it.
+To restore NFC later, `git revert` this change: Frogger's ST54L config files, the
+per-SKU gating design and the notes on what was unverified are all in the history.
 
 ## Needs verification: display brightness curve
 
@@ -229,9 +242,12 @@ and drop whatever the build does not produce.
 * **`FroggerEuiccOverlay` device list.** `sim_slot_mappings_json` now lists
   `Frogger` with `esim-slot-ids:[1]`. eUICC permission ships only on JPN, so this
   is inert elsewhere, but it has not been tested on a JPN unit.
-* **Blob list drift.** Validated against build `2603091830` images unioned with
-  the live `2606301839` listing. Re-run `extract-files.py` and fix anything it
-  reports.
+* **Blob list drift.** All 1616 entries resolve against the `2603091830` factory
+  images alone, so no live-device files are needed to extract. (An earlier note
+  claimed three `system/` files were missing from the dump — that was a path bug
+  in the checker: `system.img` is system-as-root, so `system/<x>` lives at
+  `<dump>/system/system/<x>`, not `<dump>/system/<x>`.) The dump is one build
+  older than the phone, so re-run `extract-files.py` and check its output.
 * **Second touch panel driver.** Frogger ships `goodix_ts.ko` alongside
   `focaltech_fts.ko`, suggesting a dual-sourced touch panel. The reference unit
   is Focaltech (its sysfs exposes `fts_*` nodes), and `modules.load.vendor_dlkm`

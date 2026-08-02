@@ -233,7 +233,6 @@ PRODUCT_PACKAGES += \
     fstab.default.vendor_ramdisk \
     fstab.zram.2g \
     init.frogger.hw.rc \
-    init.frogger.nfc.sh \
     init.frogger.rc \
     init.class_main.sh \
     init.qcom.early_boot.sh \
@@ -295,40 +294,12 @@ PRODUCT_COPY_FILES += \
 PRODUCT_PACKAGES += \
     vendor.qti.hardware.memtrack-service
 
-# NFC
-# Frogger uses an ST54L (not the st21/st54j split Asteroids ships). The -felica
-# variants are picked up on JPN.
-PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/nfc/libnfc-nci.conf:$(TARGET_COPY_OUT_VENDOR)/etc/libnfc-nci.conf \
-    $(LOCAL_PATH)/configs/nfc/libnfc-nci-felica.conf:$(TARGET_COPY_OUT_VENDOR)/etc/libnfc-nci-felica.conf \
-    $(LOCAL_PATH)/configs/nfc/libnfc-hal-st.conf:$(TARGET_COPY_OUT_VENDOR)/etc/libnfc-hal-st.conf \
-    $(LOCAL_PATH)/configs/nfc/libnfc-hal-st-st54l-felica.conf:$(TARGET_COPY_OUT_VENDOR)/etc/libnfc-hal-st-st54l-felica.conf \
-    $(LOCAL_PATH)/configs/nfc/st21nfc_conf_base.txt:$(TARGET_COPY_OUT_VENDOR)/etc/st21nfc_conf_base.txt
-
 # Nothing-fwk
 PRODUCT_PACKAGES += \
     nothing-fwk
 
 PRODUCT_BOOT_JARS += \
     nothing-fwk
-
-# NFC feature permissions are per-SKU on Frogger, unlike Asteroids which declares
-# them unconditionally in vendor. Stock ships sku_EEA/JPN/ROW/TUR only -- there is
-# no sku_IND, because the Indian variant has no NFC hardware. Keeping this gating
-# is what stops the framework advertising NFC on a device that cannot do it.
-FROGGER_NFC_SKUS := EEA JPN ROW TUR
-
-PRODUCT_COPY_FILES += \
-    $(foreach s,$(FROGGER_NFC_SKUS), \
-        frameworks/native/data/etc/android.hardware.nfc.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_$(s)/android.hardware.nfc.xml \
-        frameworks/native/data/etc/android.hardware.nfc.hce.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_$(s)/android.hardware.nfc.hce.xml \
-        frameworks/native/data/etc/android.hardware.nfc.hcef.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_$(s)/android.hardware.nfc.hcef.xml)
-
-PRODUCT_COPY_FILES += \
-    frameworks/native/data/etc/android.hardware.nfc.ese.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_JPN/android.hardware.nfc.ese.xml
-
-PRODUCT_PACKAGES += \
-    android.hardware.nfc-service.st
 
 # Overlays
 DEVICE_PACKAGE_OVERLAYS += \
