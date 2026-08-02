@@ -9,14 +9,22 @@ their rationale lives in git history and in [decisions.md](decisions.md),
 In dependency order. Nothing below "flash and boot" can be checked until the
 device actually comes up.
 
+**Status:** the kernel side is complete and verified — Frogger drivers, device
+trees, display/touch conditionals, the AW882xx codec and the module lists all
+build and package together, `boot.img` at 96 MB with zero errors and zero
+unresolved symbols. That validates compilation and packaging only; nothing has
+been flashed.
+
 ### Get to a flashable image
 
-- [ ] **Port the 36 `CONFIG_NOTHING_IS_FROGGER` hunks** in `sm7635-modules`
-      (display 2 files, touch 6, audio 7) — display and touch are boot-relevant
 - [ ] **`brunch frogger`** — system/vendor/product images have never been built;
-      only `boot.img` exists, so there is nothing to flash yet
-- [ ] **Verify the `CONFIG_NFC_SE_STM` fix** took effect — falls out of the above,
-      since only a real `mka`/`brunch` run regenerates the kernel `.config`
+      only `boot.img` exists, so there is nothing to flash yet. Expect a fresh
+      crop of failures the kernel work never exercised: sepolicy, missing
+      packages, blob issues
+- [ ] **Port the 13 audio `CONFIG_NOTHING_IS_FROGGER` hunks** — `wcd9378` (5),
+      `wcd9378-mbhc` (2), `aw882xx` (2), and one each in `wcd-mbhc-v2.c`,
+      `wcd-mbhc-v2.h`, `msm_dailink.h`, `internal.h`. Not boot-critical; easier
+      to reason about once audio can be watched failing on a running device
 
 ### First boot
 
@@ -44,37 +52,37 @@ device actually comes up.
 
 ---
 
-## Frogger-conditional code in the external modules
+## Frogger-conditional code in the external modules — audio remains
 
 The OEM guards Frogger behaviour with `#if IS_ENABLED(CONFIG_NOTHING_IS_FROGGER)`
-in `vendor/qcom/opensource/`, which maps to `kernel/nothing/sm7635-modules`:
+in `vendor/qcom/opensource/`, mapping to `kernel/nothing/sm7635-modules`.
 
-| Module | Files |
+**Display and touch are done** (commit `dd79941698`) and build clean:
+
+* `dsi_display.c` — DSI reads in low-power mode; record the booted panel name
+  (`nt37706a` 120Hz FHD+, BOE or Visionox) into `panel_name_find`
+* `sde_connector.c` — skip `backlight_update_status()` during a fingerprint scan
+* `focaltech_core.{c,h}` — `vendor_name` field; Frogger FOD-recovery semantics
+* `focaltech_flash.c` — publish TP firmware as `ft3683g-<vendor>-0x<ver>`
+
+Two OEM sites were correctly *not* ported: `sde_connector.c` declares
+`fp_status` extern, but this tree already defines and exports it there with the
+LHBM integration Asteroids added and Frogger reuses. Four more are skipped
+permanently — they call `fts_test_init`/`fts_test_exit` from `focaltech_test.c`,
+a factory self-test this tree does not carry; referencing them would break the
+link.
+
+**Audio is outstanding — 13 sites:**
+
+| File | Sites |
 |---|---|
-| `audio-kernel` | 7 |
-| `touch-drivers` | 6 |
-| `display-drivers` | 2 |
-| **total** | **15 files, 36 sites** |
+| `asoc/codecs/wcd9378/wcd9378.c` | 5 |
+| `asoc/codecs/wcd9378/wcd9378-mbhc.c` | 2 |
+| `asoc/codecs/aw882xx/aw882xx.c` | 2 |
+| `asoc/codecs/wcd-mbhc-v2.c`, `include/asoc/wcd-mbhc-v2.h`, `asoc/msm_dailink.h`, `wcd9378/internal.h` | 1 each |
 
-Small enough to port by hand, but it crosses 6.1 → 6.6, so each hunk needs
-checking against the fork's version of the file rather than applied blind.
-
-## Verify the NFC config fix
-
-`CONFIG_NFC_SE_STM=m` arrives from **`pineapple_perf.config`** — the shared
-platform fragment, not a Nothing one — so `st54spi.ko` was built and installed
-into `vendor_dlkm` despite NFC being removed and the module being absent from
-`modules.load`. `frogger_perf.config` now sets `# CONFIG_NFC_SE_STM is not set`.
-
-Unproven: the kernel `.config` is regenerated from defconfig fragments by a
-ninja rule that only a real `mka` run drives. After the next `mka bootimage`:
-
-```
-grep CONFIG_NFC_SE_STM out/target/product/frogger/obj/KERNEL_OBJ/.config
-find out/target/product/frogger/obj/PACKAGING -name 'st54spi*.ko'
-```
-
-Both should come back empty.
+It crosses 6.1 → 6.6, so each hunk needs checking against this tree's version of
+the file rather than applied blind.
 
 ## Touchscreen sysfs nodes
 
@@ -135,7 +143,12 @@ vmw_vsock_virtio_transport.ko  xhci-sideband.ko
 Probably fine — GKI/virtualisation modules, or drivers stock compiles *into* the
 kernel. A few look like cross-branch renames (stock has `pmic_glink.ko` /
 `ucsi_glink.ko` where the list wants `qti_pmic_glink.ko` / `ucsi_qti_glink.ko`).
-Re-run the comparison once the kernel builds and drop whatever it doesn't produce.
+
+The kernel now builds, and depmod reports **no** unresolved symbols, so nothing
+here breaks the build. Re-run the comparison against
+`out/target/product/frogger/obj/PACKAGING/kernel_modules_intermediates` and drop
+whatever the kernel does not actually produce — cosmetic, but it keeps the load
+lists honest.
 
 ## Camera — entirely unexamined
 
@@ -200,6 +213,17 @@ re-run `extract-files.py` and check its output.
   `AppDirectedSMSService`) were dropped — absent from both Frogger inventories.
 
 ---
+
+## Note on validating module-list changes
+
+`BOARD_VENDOR_*_KERNEL_MODULES_LOAD` is expanded at config time via
+`$(shell cat modules.load.*)` and baked into the generated
+`Image.gz.rsp`. Re-running that `.rsp` directly rebuilds the image from an
+existing `.config` and an existing module list, so it **cannot** validate
+changes to either `modules.load.*` or `arch/arm64/configs/vendor/*.config`.
+
+Only a real `mka`/`brunch` run regenerates them. This cost three wasted
+debugging rounds; don't shortcut it.
 
 ## Reference: repositories
 
