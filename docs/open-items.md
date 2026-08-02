@@ -129,6 +129,42 @@ SPI address, so porting should be mechanical — but confirm after syncing
 `/proc/touchpanel/gesture_code` **was** confirmed present on stock, so
 `tp_single_tap_coords_path` is fine as-is.
 
+## Blocking working audio: the mixer paths are still Asteroids'
+
+`audio/*.xml` in this tree were **not** adapted and are wrong for Frogger.
+
+The device tree's `mixer_paths_volcano_qrd.xml` drives an NXP TFA98xx smart amp
+(9 × `TFA`, 9 × `TFA_CHIP_SELECTOR` controls). Frogger's stock file contains
+**zero** TFA references — it uses the Qualcomm path instead (`WSA2` × 11,
+`WCD9378` codec, `SpkrLeft`/`Spkr2Right` COMP/CPS/PBR/VISENSE controls). This
+matches the blob-level finding that Frogger ships `aw882xx_acf.bin` where
+Asteroids ships `tfa98xx.cnt`.
+
+All four differ from stock:
+
+| File | device tree | Frogger stock |
+|---|---|---|
+| `mixer_paths_volcano_qrd.xml` | 1507 lines, TFA | 1501 lines, WSA2/WCD9378 |
+| `resourcemanager_volcano_qrd.xml` | 1870 | 1869 |
+| `audio_policy_configuration.xml` | 527 | 278 |
+| `audio_effects.xml` | 170 | 162 |
+
+Left as-is deliberately: these are not straight copies. Asteroids' versions carry
+LineageOS edits on top of stock (the policy config is nearly twice stock's
+length), so replacing them wholesale would drop that work. The fix is to start
+from Frogger's stock four and re-apply the Lineage delta — diff Asteroids' copies
+against *Asteroids'* stock to isolate it. Extracted stock copies are under
+`~/sources/android/downloads/firmwares/frogger/extracted/vendor/etc/`.
+
+Expect speaker/earpiece audio to be broken or absent until this is done.
+
+## Verified fine: vibrator
+
+`/dev/aac_richtap` exists on Frogger (`crw-rw-rw- system system 10, 114`), so
+`vendor.vibrator.device` and the `android.hardware.vibrator.service.nothing-rt_ics`
+HAL carry over unchanged. `100_Haptic.bin` / `101_Haptic.bin` / `libics_haptic.so`
+are in both blob sets.
+
 ## Needs verification: NFC, on hardware that has it
 
 Everything NFC in this tree is derived from stock config files, not observed.
