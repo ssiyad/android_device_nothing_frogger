@@ -153,10 +153,14 @@ BOARD_VENDOR_RAMDISK_KERNEL_MODULES_LOAD := $(strip $(shell cat $(DEVICE_PATH)/m
 BOARD_VENDOR_RAMDISK_RECOVERY_KERNEL_MODULES_LOAD := $(strip $(shell cat $(DEVICE_PATH)/modules.load.recovery))
 BOOT_KERNEL_MODULES := $(BOARD_VENDOR_RAMDISK_RECOVERY_KERNEL_MODULES_LOAD)
 
-TARGET_KERNEL_EXT_MODULE_ROOT := kernel/nothing/sm7635-modules
+# The OEM kernel (NothingOSS msm-6.1 sm7635) ships its external modules inside
+# the kernel repo under vendor/, rather than as the separate sm7635-modules repo
+# with a noth/ namespace that Asteroids used. Pointing the root at the OEM layout
+# means every module resolves natively, with no symlink shim.
+TARGET_KERNEL_EXT_MODULE_ROOT := kernel/nothing/sm7635/vendor
 TARGET_KERNEL_EXT_MODULES := \
-    noth/fingerprint \
-    noth/touchscreen \
+    qcom/opensource/fingerprint \
+    qcom/opensource/touch-drivers \
     qcom/opensource/mm-drivers/hw_fence \
     qcom/opensource/mm-drivers/msm_ext_display \
     qcom/opensource/mm-drivers/sync_fence \
