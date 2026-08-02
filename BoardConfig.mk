@@ -130,17 +130,13 @@ BOARD_RAMDISK_USE_LZ4 := true
 BOARD_USES_GENERIC_KERNEL_IMAGE := true
 
 TARGET_KERNEL_SOURCE := kernel/nothing/sm7635
-# Fragment names follow the OEM tree (NothingOSS msm-6.1 sm7635, branch
-# sm7635/b/mr_Frogger). Its production/GKI variant applies vendor/<arch>_GKI.config
-# (build.config.msm.gki) and build.config.nothing.Frogger then layers
-# vendor/Frogger.config on top; the consolidate variant is the debug one.
-# Asteroids' vendor/{pineapple,asteroids}_perf.config are the LineageOS fork's
-# renames of exactly these two -- switch back to *_perf.config if this ever
-# builds against a Lineage kernel fork instead of the OEM tree.
+# NullDebris' fork keeps the LineageOS fragment naming. frogger_perf.config does
+# not exist upstream yet -- it has to be added to the kernel repo, derived from
+# the OEM tree's arch/arm64/configs/vendor/Frogger.config. See docs/open-items.md.
 TARGET_KERNEL_CONFIG := \
     gki_defconfig \
-    vendor/pineapple_GKI.config \
-    vendor/Frogger.config
+    vendor/pineapple_perf.config \
+    vendor/frogger_perf.config
 TARGET_MERGE_DTBS_WILDCARD := *volcano*
 
 # Kernel Modules
@@ -153,14 +149,10 @@ BOARD_VENDOR_RAMDISK_KERNEL_MODULES_LOAD := $(strip $(shell cat $(DEVICE_PATH)/m
 BOARD_VENDOR_RAMDISK_RECOVERY_KERNEL_MODULES_LOAD := $(strip $(shell cat $(DEVICE_PATH)/modules.load.recovery))
 BOOT_KERNEL_MODULES := $(BOARD_VENDOR_RAMDISK_RECOVERY_KERNEL_MODULES_LOAD)
 
-# The OEM kernel (NothingOSS msm-6.1 sm7635) ships its external modules inside
-# the kernel repo under vendor/, rather than as the separate sm7635-modules repo
-# with a noth/ namespace that Asteroids used. Pointing the root at the OEM layout
-# means every module resolves natively, with no symlink shim.
-TARGET_KERNEL_EXT_MODULE_ROOT := kernel/nothing/sm7635/vendor
+TARGET_KERNEL_EXT_MODULE_ROOT := kernel/nothing/sm7635-modules
 TARGET_KERNEL_EXT_MODULES := \
-    qcom/opensource/fingerprint \
-    qcom/opensource/touch-drivers \
+    noth/fingerprint \
+    noth/touchscreen \
     qcom/opensource/mm-drivers/hw_fence \
     qcom/opensource/mm-drivers/msm_ext_display \
     qcom/opensource/mm-drivers/sync_fence \
