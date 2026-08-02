@@ -284,7 +284,6 @@ spf_core_dlkm.ko
 spi-msm-geni.ko
 spmi-pmic-arb.ko
 sps_drv.ko
-st54spi_gpio.ko
 stm_console.ko
 stm_core.ko
 stm_ftrace.ko
