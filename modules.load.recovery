@@ -72,6 +72,7 @@ gpr_dlkm.ko
 gpucc-pineapple.ko
 gpucc-volcano.ko
 gunyah_loader.ko
+hapticdrv.ko
 hardware_id.ko
 hdcp_qseecom_dlkm.ko
 heap_mem_ext_v01.ko
