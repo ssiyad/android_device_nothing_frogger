@@ -6,8 +6,10 @@ bam_dma.ko
 bcl_pmic5.ko
 bcl_soc.ko
 boot_stats.ko
+bootinfo.ko
 bwmon.ko
 c1dcvs_scmi_v2.ko
+cable_state.ko
 camcc-pineapple.ko
 camcc-volcano.ko
 cdsprm.ko
@@ -46,6 +48,7 @@ drm_display_helper.ko
 drm_dp_aux_bus.ko
 dwc3-msm.ko
 dynpf_scmi.ko
+errcode.ko
 eud.ko
 focaltech_fts.ko
 fsa4480-i2c.ko
@@ -69,10 +72,12 @@ gpr_dlkm.ko
 gpucc-pineapple.ko
 gpucc-volcano.ko
 gunyah_loader.ko
+hardware_id.ko
 hdcp_qseecom_dlkm.ko
 heap_mem_ext_v01.ko
 hung_task_enh.ko
 hvc_gunyah.ko
+hwinfo.ko
 hwmon.ko
 i2c-msm-geni.ko
 i3c-master-msm-geni.ko
