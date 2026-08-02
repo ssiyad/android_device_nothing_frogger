@@ -129,10 +129,17 @@ BOARD_RAMDISK_USE_LZ4 := true
 BOARD_USES_GENERIC_KERNEL_IMAGE := true
 
 TARGET_KERNEL_SOURCE := kernel/nothing/sm7635
+# Fragment names follow the OEM tree (NothingOSS msm-6.1 sm7635, branch
+# sm7635/b/mr_Frogger). Its production/GKI variant applies vendor/<arch>_GKI.config
+# (build.config.msm.gki) and build.config.nothing.Frogger then layers
+# vendor/Frogger.config on top; the consolidate variant is the debug one.
+# Asteroids' vendor/{pineapple,asteroids}_perf.config are the LineageOS fork's
+# renames of exactly these two -- switch back to *_perf.config if this ever
+# builds against a Lineage kernel fork instead of the OEM tree.
 TARGET_KERNEL_CONFIG := \
     gki_defconfig \
-    vendor/pineapple_perf.config \
-    vendor/frogger_perf.config
+    vendor/pineapple_GKI.config \
+    vendor/Frogger.config
 TARGET_MERGE_DTBS_WILDCARD := *volcano*
 
 # Kernel Modules

@@ -5,29 +5,82 @@ in the order they will block a first boot.
 
 ## Blocking: repositories that do not exist yet
 
-The tree references four paths that are absent from the local LineageOS checkout:
-
 | Path | Referenced by | Status |
 |---|---|---|
 | `vendor/nothing/frogger` | `device.mk`, `BoardConfig.mk`, `Android.bp`, `qcril-database/Android.bp` | produced by `extract-files.py` |
-| `kernel/nothing/sm7635` | `TARGET_KERNEL_SOURCE`, soong namespace | needs syncing; not present |
-| `kernel/nothing/sm7635-modules` | `TARGET_KERNEL_EXT_MODULE_ROOT` | needs syncing; not present |
+| `kernel/nothing/sm7635` | `TARGET_KERNEL_SOURCE`, soong namespace | **symlinked** to the OEM checkout |
+| `kernel/nothing/sm7635-modules` | `TARGET_KERNEL_EXT_MODULE_ROOT` | **composed from symlinks** |
 | `hardware/nothing` | `include hardware/nothing/config.mk` | needs syncing; not present |
 
 `hardware/st` **is** present, so the NFC and secure element HALs are available.
 
-## Blocking: kernel defconfig fragment name is an assumption
+### Kernel wiring (local symlinks, not repo-managed)
 
-`BoardConfig.mk` asks for:
+`~/sources/android/kernels/frogger` is `NothingOSS/android_kernel_msm-6.1_nothing_sm7635`
+checked out on branch **`sm7635/b/mr_Frogger`** — the real Frogger branch, so
+`build.config.nothing.Frogger` and `vendor/Frogger.config` come from it.
+
+The OEM keeps external modules *inside* the kernel repo under `vendor/`, while
+LineageOS expects a separate root with a `noth/` namespace. These symlinks bridge
+that:
 
 ```
-TARGET_KERNEL_CONFIG := gki_defconfig vendor/pineapple_perf.config vendor/frogger_perf.config
+kernel/nothing/sm7635                        -> ~/sources/android/kernels/frogger
+kernel/nothing/sm7635-modules/qcom           -> .../frogger/vendor/qcom
+kernel/nothing/sm7635-modules/noth/fingerprint -> .../vendor/qcom/opensource/fingerprint
+kernel/nothing/sm7635-modules/noth/touchscreen -> .../vendor/qcom/opensource/touch-drivers
 ```
 
-The OEM kernel at `~/sources/android/kernels/frogger/` has a genuine Frogger
-target — `build.config.nothing.Frogger` (`TARGET_PRODUCT=Frogger`,
-`NT_PROJECT=Frogger`, `-DNT_PROJECT=Frogger`), which applies
-`arch/arm64/configs/vendor/Frogger.config`:
+These are **local symlinks outside git** — fine for building here, but they
+should become proper repos (or `.repo/local_manifests` entries) before this is
+shareable.
+
+24 of the 25 `TARGET_KERNEL_EXT_MODULES` paths and all three
+`TARGET_KERNEL_CONFIG` fragments now resolve.
+
+**Note on device trees:** there is no Frogger-named DTS. Nothing differentiates
+Frogger from Asteroids by compile-time define (`-DNT_PROJECT=Frogger` plus
+`CONFIG_NOTHING_IS_FROGGER`) over the shared `volcano-qrd*` device trees, which
+do carry Nothing nodes (`nothing,bootloader_log`, `nothing,secure_element`).
+`TARGET_MERGE_DTBS_WILDCARD := *volcano*` is therefore correct as-is.
+
+### The one real kernel gap: `.qca6750`
+
+`TARGET_KERNEL_EXT_MODULES` contains
+`qcom/opensource/wlan/qcacld-3.0/.qca6750`, and Lineage's `kernel.mk` uses each
+entry as a literal directory (`make -C $(ROOT)/$(entry) M=...`). The OEM
+`qcacld-3.0` has **no such subdirectory** — it builds its per-chipset variants
+through **bazel** instead (`wlan_qcacld3_modules.bzl`,
+`_define_module_for_target_variant_chipset`), which Lineage's Kbuild-based kernel
+build does not invoke.
+
+This matters: `modules.load.vendor_dlkm` expects `qca_cld3_qca6750.ko`, and
+Frogger does ship exactly that (QCA6750 / WCN6750_V2, consistent with
+`persist.vendor.wlan.firmware.version`).
+
+No shim was invented for this, because guessing the CONFIG defines the bazel
+target passes would quietly produce a wrong Wi-Fi module. Options, in order of
+preference:
+
+1. Fork the kernel properly and port the `.qca6750` Kbuild shim from LineageOS'
+   `android_kernel_nothing_sm7635-modules` (or upstream qcacld-3.0, which has
+   these variant directories for Kbuild builds).
+2. Build wlan out-of-band with bazel and drop it in as a prebuilt.
+
+This is the clearest evidence that symlinking the OEM tree is a stopgap, not a
+substitute for a LineageOS kernel fork.
+
+## Resolved: kernel defconfig fragments
+
+`BoardConfig.mk` now asks for `gki_defconfig`, `vendor/pineapple_GKI.config` and
+`vendor/Frogger.config`, all three of which exist on the `sm7635/b/mr_Frogger`
+branch.
+
+This was traced through the OEM's own chain rather than guessed:
+`build.config.msm.gki` applies `vendor/${MSM_ARCH}_GKI.config` for the
+production variant (consolidate is the debug one), and
+`build.config.nothing.Frogger` (`TARGET_PRODUCT=Frogger`, `NT_PROJECT=Frogger`,
+`-DNT_PROJECT=Frogger`) then layers `arch/arm64/configs/vendor/Frogger.config`:
 
 ```
 CONFIG_NOTHING_IS_FROGGER=y
@@ -38,17 +91,11 @@ CONFIG_NFC_SE_STM_GPIO=m    # ST54L
 CONFIG_NT_SECURE_STATE=m    CONFIG_NT_RPMB_STATE=m
 ```
 
-But the OEM tree has **no** `*_perf.config` fragments at all — `pineapple_perf`
-and `asteroids_perf` are LineageOS additions living in `kernel/nothing/sm7635`,
-which is not checked out. So `frogger_perf.config` follows the Lineage naming
-convention but does not exist yet; whoever creates the Lineage Frogger kernel
-branch has to add it, merging `Frogger.config` above with the perf tuning.
-Fix the filename in `BoardConfig.mk` if they pick a different one.
-
-Also note the OEM tree keeps external modules under `vendor/qcom/opensource/`
-(including `fingerprint` and `touch-drivers`), whereas `BoardConfig.mk` expects
-the Lineage layout `noth/fingerprint` and `noth/touchscreen` under
-`kernel/nothing/sm7635-modules`. The remap is Lineage's, not the OEM's.
+The OEM tree has **no** `*_perf.config` fragments at all — Asteroids'
+`vendor/{pineapple,asteroids}_perf.config` are the LineageOS fork's renames of
+`pineapple_GKI.config` / `Asteroids.config`. If this ever builds against a
+Lineage kernel fork rather than the OEM tree, switch `TARGET_KERNEL_CONFIG` back
+to the `*_perf.config` names.
 
 ## Glyph: deliberately disabled
 

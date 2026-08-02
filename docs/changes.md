@@ -50,8 +50,9 @@ every remaining reference (soong module names, RRO package names, `DEVICE_PATH`,
 
 ### `BoardConfig.mk`
 * `TARGET_SCREEN_DENSITY` `420` → `480`
-* `TARGET_KERNEL_CONFIG`: `vendor/asteroids_perf.config` →
-  `vendor/frogger_perf.config` (assumption — see open-items.md)
+* `TARGET_KERNEL_CONFIG`: `vendor/{pineapple,asteroids}_perf.config` →
+  `vendor/pineapple_GKI.config` + `vendor/Frogger.config`, matching the OEM
+  `sm7635/b/mr_Frogger` branch this builds against (see open-items.md)
 * `ODM_MANIFEST_SKUS` left at `JPN`, with a comment explaining why NFC is *not*
   gated here (see decisions.md)
 
