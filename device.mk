@@ -4,7 +4,7 @@
 #
 
 $(call inherit-product, hardware/qcom-caf/common/common.mk)
-$(call inherit-product, vendor/nothing/asteroids/asteroids-vendor.mk)
+$(call inherit-product, vendor/nothing/frogger/frogger-vendor.mk)
 $(call inherit-product-if-exists, hardware/dolby/dolby.mk)
 
 # A/B
@@ -158,7 +158,7 @@ PRODUCT_PACKAGES += \
 $(call soong_config_set,surfaceflinger,frame_rate_category_high,120)
 
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/display_id_asteroids.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630946978939328130.xml
+    $(LOCAL_PATH)/configs/display_id_frogger.xml:$(TARGET_COPY_OUT_VENDOR)/etc/displayconfig/display_id_4630947107087237506.xml
 
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.touchscreen.multitouch.jazzhand.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.touchscreen.multitouch.jazzhand.xml
@@ -173,11 +173,10 @@ PRODUCT_PACKAGES += \
 
 
 # eUICC
+# On Frogger stock, only sku_JPN carries the euicc permission (the Pro SKUs that
+# had it on Asteroids do not exist here).
 PRODUCT_COPY_FILES += \
-    frameworks/native/data/etc/android.hardware.telephony.euicc.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_JPN/android.hardware.telephony.euicc.xml \
-    frameworks/native/data/etc/android.hardware.telephony.euicc.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_ProEEA/android.hardware.telephony.euicc.xml \
-    frameworks/native/data/etc/android.hardware.telephony.euicc.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_ProROW/android.hardware.telephony.euicc.xml \
-    frameworks/native/data/etc/android.hardware.telephony.euicc.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_ProTUR/android.hardware.telephony.euicc.xml
+    frameworks/native/data/etc/android.hardware.telephony.euicc.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_JPN/android.hardware.telephony.euicc.xml
 
 PRODUCT_PACKAGES += \
     EuiccPolicy \
@@ -209,9 +208,15 @@ PRODUCT_PACKAGES += \
     vulkan.pastel
 
 # Glyph
-PRODUCT_PACKAGES += \
-    ParanoidGlyphPhone3a \
-    GlyphAdapter
+# Deliberately not built yet. Frogger's Glyph is 6 channels in a 6x1 layout
+# (ro.vendor.glyph.{channels,row,column}) driven by CONFIG_LEDS_AW20036_FROGGER,
+# which is a different arrangement from the Phone (3a) -- so this needs a real
+# new ParanoidGlyphPhone4a target upstream, not a rename of the 3a one.
+# Re-enable once that exists; see docs/open-items.md.
+#
+# PRODUCT_PACKAGES += \
+#     ParanoidGlyphPhone4a \
+#     GlyphAdapter
 
 # HIDL
 PRODUCT_PACKAGES += \
@@ -227,9 +232,9 @@ PRODUCT_PACKAGES += \
     fstab.default \
     fstab.default.vendor_ramdisk \
     fstab.zram.2g \
-    init.asteroids.hw.rc \
-    init.asteroids.nfc.sh \
-    init.asteroids.rc \
+    init.frogger.hw.rc \
+    init.frogger.nfc.sh \
+    init.frogger.rc \
     init.class_main.sh \
     init.qcom.early_boot.sh \
     init.qcom.post_boot.sh \
@@ -238,7 +243,7 @@ PRODUCT_PACKAGES += \
     init.qcom.sh \
     init.target.rc \
     system_dlkm_modprobe.sh \
-    ueventd.asteroids.rc \
+    ueventd.frogger.rc \
     ueventd.qcom.rc
 
 # Kernel
@@ -271,9 +276,11 @@ PRODUCT_PACKAGES += \
     vendor.lineage.livedisplay-service.sdm
 
 # Media
+# Frogger reports ro.media.xml_variant.codecs=_volcano_v0, so the v0 profile is the
+# one actually loaded. Stock ships identical v0/v1 Base profiles; only Base is
+# installed here since there is no Pro variant in this tree.
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/media/media_profiles_volcano_v1_Base.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_profiles_volcano_v1_Base.xml \
-    $(LOCAL_PATH)/configs/media/media_profiles_volcano_v1_Pro.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_profiles_volcano_v1_Pro.xml
+    $(LOCAL_PATH)/configs/media/media_profiles_volcano_v0_Base.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_profiles_volcano_v0_Base.xml
 
 PRODUCT_COPY_FILES += \
     frameworks/av/media/libstagefright/data/media_codecs_google_audio.xml:$(TARGET_COPY_OUT_VENDOR)/etc/media_codecs_google_audio.xml \
@@ -289,13 +296,14 @@ PRODUCT_PACKAGES += \
     vendor.qti.hardware.memtrack-service
 
 # NFC
+# Frogger uses an ST54L (not the st21/st54j split Asteroids ships). The -felica
+# variants are picked up on JPN.
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/nfc/libnfc-nci.conf:$(TARGET_COPY_OUT_VENDOR)/etc/libnfc-nci.conf \
-    $(LOCAL_PATH)/configs/nfc/libnfc-hal-st21-BASE.conf:$(TARGET_COPY_OUT_VENDOR)/etc/libnfc-hal-st21-BASE.conf \
-    $(LOCAL_PATH)/configs/nfc/libnfc-hal-st21-PRO.conf:$(TARGET_COPY_OUT_VENDOR)/etc/libnfc-hal-st21-PRO.conf \
-    $(LOCAL_PATH)/configs/nfc/libnfc-hal-st54j-JPN.conf:$(TARGET_COPY_OUT_VENDOR)/etc/libnfc-hal-st54j-JPN.conf \
-    $(LOCAL_PATH)/configs/nfc/libnfc-hal-st54j-PRO.conf:$(TARGET_COPY_OUT_VENDOR)/etc/libnfc-hal-st54j-PRO.conf \
-    $(LOCAL_PATH)/configs/nfc/libnfc-nci-JPN.conf:$(TARGET_COPY_OUT_VENDOR)/etc/libnfc-nci-JPN.conf
+    $(LOCAL_PATH)/configs/nfc/libnfc-nci-felica.conf:$(TARGET_COPY_OUT_VENDOR)/etc/libnfc-nci-felica.conf \
+    $(LOCAL_PATH)/configs/nfc/libnfc-hal-st.conf:$(TARGET_COPY_OUT_VENDOR)/etc/libnfc-hal-st.conf \
+    $(LOCAL_PATH)/configs/nfc/libnfc-hal-st-st54l-felica.conf:$(TARGET_COPY_OUT_VENDOR)/etc/libnfc-hal-st-st54l-felica.conf \
+    $(LOCAL_PATH)/configs/nfc/st21nfc_conf_base.txt:$(TARGET_COPY_OUT_VENDOR)/etc/st21nfc_conf_base.txt
 
 # Nothing-fwk
 PRODUCT_PACKAGES += \
@@ -304,11 +312,20 @@ PRODUCT_PACKAGES += \
 PRODUCT_BOOT_JARS += \
     nothing-fwk
 
+# NFC feature permissions are per-SKU on Frogger, unlike Asteroids which declares
+# them unconditionally in vendor. Stock ships sku_EEA/JPN/ROW/TUR only -- there is
+# no sku_IND, because the Indian variant has no NFC hardware. Keeping this gating
+# is what stops the framework advertising NFC on a device that cannot do it.
+FROGGER_NFC_SKUS := EEA JPN ROW TUR
+
 PRODUCT_COPY_FILES += \
-    frameworks/native/data/etc/android.hardware.nfc.ese.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_JPN/android.hardware.nfc.ese.xml \
-    frameworks/native/data/etc/android.hardware.nfc.hce.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.nfc.hce.xml \
-    frameworks/native/data/etc/android.hardware.nfc.hcef.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.nfc.hcef.xml \
-    frameworks/native/data/etc/android.hardware.nfc.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.nfc.xml
+    $(foreach s,$(FROGGER_NFC_SKUS), \
+        frameworks/native/data/etc/android.hardware.nfc.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_$(s)/android.hardware.nfc.xml \
+        frameworks/native/data/etc/android.hardware.nfc.hce.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_$(s)/android.hardware.nfc.hce.xml \
+        frameworks/native/data/etc/android.hardware.nfc.hcef.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_$(s)/android.hardware.nfc.hcef.xml)
+
+PRODUCT_COPY_FILES += \
+    frameworks/native/data/etc/android.hardware.nfc.ese.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_JPN/android.hardware.nfc.ese.xml
 
 PRODUCT_PACKAGES += \
     android.hardware.nfc-service.st
@@ -323,20 +340,17 @@ PRODUCT_COPY_FILES += \
 PRODUCT_ENFORCE_RRO_TARGETS := *
 
 PRODUCT_PACKAGES += \
-    AsteroidsApertureDevOverlay \
-    AsteroidsApertureOverlay \
-    AsteroidsEuiccOverlay \
-    AsteroidsFrameworksOverlay \
-    AsteroidsMainlineWifiOverlay \
-    AsteroidsProMainlineWifiOverlay \
-    AsteroidsProSettingsProviderOverlay \
-    AsteroidsProWifiOverlay \
-    AsteroidsSettingsOverlay \
-    AsteroidsSettingsProviderOverlay \
-    AsteroidsSystemUIOverlay \
-    AsteroidsWallpaperPicker2Overlay \
-    AsteroidsWallpaperPicker2PixelOverlay \
-    AsteroidsWifiOverlay \
+    FroggerApertureDevOverlay \
+    FroggerApertureOverlay \
+    FroggerEuiccOverlay \
+    FroggerFrameworksOverlay \
+    FroggerMainlineWifiOverlay \
+    FroggerSettingsOverlay \
+    FroggerSettingsProviderOverlay \
+    FroggerSystemUIOverlay \
+    FroggerWallpaperPicker2Overlay \
+    FroggerWallpaperPicker2PixelOverlay \
+    FroggerWifiOverlay \
     CarrierConfigResCommon_Vendor \
     FrameworksResCommon_Vendor \
     FrameworksResTarget_Vendor \
@@ -396,11 +410,7 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/sku/build_EEA.prop:$(TARGET_COPY_OUT_ODM)/etc/build_EEA.prop \
     $(LOCAL_PATH)/sku/build_IND.prop:$(TARGET_COPY_OUT_ODM)/etc/build_IND.prop \
     $(LOCAL_PATH)/sku/build_JPN.prop:$(TARGET_COPY_OUT_ODM)/etc/build_JPN.prop \
-    $(LOCAL_PATH)/sku/build_TUR.prop:$(TARGET_COPY_OUT_ODM)/etc/build_TUR.prop \
-    $(LOCAL_PATH)/sku/build_ProEEA.prop:$(TARGET_COPY_OUT_ODM)/etc/build_ProEEA.prop \
-    $(LOCAL_PATH)/sku/build_ProIND.prop:$(TARGET_COPY_OUT_ODM)/etc/build_ProIND.prop \
-    $(LOCAL_PATH)/sku/build_ProROW.prop:$(TARGET_COPY_OUT_ODM)/etc/build_ProROW.prop \
-    $(LOCAL_PATH)/sku/build_ProTUR.prop:$(TARGET_COPY_OUT_ODM)/etc/build_ProTUR.prop
+    $(LOCAL_PATH)/sku/build_TUR.prop:$(TARGET_COPY_OUT_ODM)/etc/build_TUR.prop
 
 PRODUCT_PACKAGES += \
     android.hardware.secure_element-service.thales
@@ -442,9 +452,7 @@ PRODUCT_SOONG_NAMESPACES += \
     hardware/google/pixel \
     hardware/lineage/interfaces/power-libperfmgr \
     hardware/qcom-caf/common/libqti-perfd-client \
-    kernel/nothing/sm7635 \
-    packages/apps/ParanoidGlyph \
-    packages/apps/GlyphAdapter
+    kernel/nothing/sm7635
 
 # Storage
 PRODUCT_CHARACTERISTICS := nosdcard

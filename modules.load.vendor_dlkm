@@ -5,14 +5,16 @@ arm_smmu.ko
 audio_pkt_dlkm.ko
 audio_prm_dlkm.ko
 audpkt_ion_dlkm.ko
+aw882xx_dlkm.ko
 bam_dma.ko
 bcl_soc.ko
 boot_stats.ko
+bootinfo.ko
 bt_fm_slim.ko
 btpower.ko
 bwmon.ko
 c1dcvs_scmi_v2.ko
-cable_detect.ko
+cable_state.ko
 camcc-pineapple.ko
 camcc-volcano.ko
 camera.ko
@@ -58,6 +60,7 @@ drm_display_helper.ko
 drm_dp_aux_bus.ko
 dwc3-msm.ko
 dynpf_scmi.ko
+errcode.ko
 eud.ko
 focaltech_fts.ko
 frpc-adsprpc.ko
@@ -84,13 +87,14 @@ gpucc-volcano.ko
 gsim.ko
 gunyah_loader.ko
 hapticdrv.ko
+hardware_id.ko
 hdcp_qseecom_dlkm.ko
 hdmi_dlkm.ko
 health_monitor.ko
 heap_mem_ext_v01.ko
 hung_task_enh.ko
 hvc_gunyah.ko
-hwid.ko
+hwinfo.ko
 hwmon.ko
 i2c-msm-geni.ko
 i3c-master-msm-geni.ko
@@ -147,7 +151,6 @@ nt_display_notifier.ko
 ntfs3.ko
 nvmem_qcom-spmi-sdam.ko
 nvmem_qfprom.ko
-ois_vdd_ctrl.ko
 panel_event_notifier.ko
 pci-msm-drv.ko
 pdr_interface.ko
@@ -259,6 +262,7 @@ rmnet_perf_tether.ko
 rmnet_sch.ko
 rmnet_shs.ko
 rmnet_wlan.ko
+rpmb_state.ko
 rpmh-regulator.ko
 rproc_qcom_common.ko
 rtc-pm8xxx.ko
@@ -268,7 +272,6 @@ secure_state.ko
 sg.ko
 slim-qcom-ngd-ctrl.ko
 slimbus.ko
-slot_detect.ko
 smcinvoke_dlkm.ko
 smem.ko
 smmu_proxy_dlkm.ko
@@ -282,7 +285,7 @@ spi-msm-geni.ko
 spmi-pmic-arb.ko
 sps_drv.ko
 st21nfc.ko
-st54spi.ko
+st54spi_gpio.ko
 stm_console.ko
 stm_core.ko
 stm_ftrace.ko

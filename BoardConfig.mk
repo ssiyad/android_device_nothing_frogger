@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-DEVICE_PATH := device/nothing/asteroids
+DEVICE_PATH := device/nothing/frogger
 
 include build/make/target/board/BoardConfigMainlineCommon.mk
-include vendor/nothing/asteroids/BoardConfigVendor.mk
+include vendor/nothing/frogger/BoardConfigVendor.mk
 
 BUILD_BROKEN_DUP_RULES := true
 
@@ -99,7 +99,7 @@ BOARD_USES_QCOM_MERGE_DTBS_SCRIPT := true
 TARGET_NEEDS_DTBOIMAGE := true
 
 # Display
-TARGET_SCREEN_DENSITY := 420
+TARGET_SCREEN_DENSITY := 480
 
 # Filesystem
 TARGET_FS_CONFIG_GEN := $(DEVICE_PATH)/config.fs
@@ -132,7 +132,7 @@ TARGET_KERNEL_SOURCE := kernel/nothing/sm7635
 TARGET_KERNEL_CONFIG := \
     gki_defconfig \
     vendor/pineapple_perf.config \
-    vendor/asteroids_perf.config
+    vendor/frogger_perf.config
 TARGET_MERGE_DTBS_WILDCARD := *volcano*
 
 # Kernel Modules
@@ -238,7 +238,11 @@ DEVICE_FRAMEWORK_COMPATIBILITY_MATRIX_FILE += \
 DEVICE_FRAMEWORK_MANIFEST_FILE += $(DEVICE_PATH)/vintf/framework_manifest.xml
 DEVICE_MATRIX_FILE := hardware/qcom-caf/common/compatibility_matrix.xml
 
-ODM_MANIFEST_FILES += $(DEVICE_PATH)/vintf/manifest_asteroids.xml
+ODM_MANIFEST_FILES += $(DEVICE_PATH)/vintf/manifest_frogger.xml
+# Only JPN needs extra HALs (eSE). NFC itself is declared by the vintf fragment
+# shipped with android.hardware.nfc-service.st, so it must not be repeated here.
+# NFC availability is instead gated per SKU through the odm permission XMLs in
+# device.mk, matching stock: EEA/JPN/ROW/TUR get them, IND does not.
 ODM_MANIFEST_SKUS := JPN
 ODM_MANIFEST_JPN_FILES := $(DEVICE_PATH)/vintf/manifest_JPN.xml
 
