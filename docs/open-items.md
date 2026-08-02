@@ -6,19 +6,36 @@ their rationale lives in git history and in [decisions.md](decisions.md),
 
 ## TODO
 
-Roughly in the order they block progress.
+In dependency order. Nothing below "flash and boot" can be checked until the
+device actually comes up.
+
+### Get to a flashable image
 
 - [ ] **Port the 36 `CONFIG_NOTHING_IS_FROGGER` hunks** in `sm7635-modules`
       (display 2 files, touch 6, audio 7) — display and touch are boot-relevant
-- [ ] **Flash and boot.** Nothing has been flashed yet; this is the only real test
-- [ ] **Verify the `CONFIG_NFC_SE_STM` fix** took effect (needs a real `mka` run)
-- [ ] **`brunch frogger`** — system/vendor/product images have never been built
+- [ ] **`brunch frogger`** — system/vendor/product images have never been built;
+      only `boot.img` exists, so there is nothing to flash yet
+- [ ] **Verify the `CONFIG_NFC_SE_STM` fix** took effect — falls out of the above,
+      since only a real `mka`/`brunch` run regenerates the kernel `.config`
+
+### First boot
+
+- [ ] **Flash and boot.** The only real test; everything so far is static analysis
+      plus a clean compile
+- [ ] Triage the boot log — `dmesg`, `last_kmsg`, `logcat` — and let it drive the
+      order of everything below
+
+### Needs a booted device
+
 - [ ] Verify touchscreen sysfs nodes bind (single-tap, UDFPS)
 - [ ] Verify audio; if speakers are silent, flip `speaker_protection_enabled` to `0`
 - [ ] Verify display brightness curve resolves to the expected panel ID
 - [ ] Decide `spunvm` — stock comments the mount out, we mount it
 - [ ] Reconcile the 29 generic modules once the kernel actually builds them
 - [ ] **Camera** — entirely unexamined; expect the largest remaining workstream
+
+### Cleanup, no boot needed
+
 - [ ] Two deferred device-tree items (thermal NTC, pinctrl audio-pop fix)
 - [ ] SELinux back to enforcing; drop `SELINUX_IGNORE_NEVERALLOWS` and
       `BOARD_API_LEVEL_PROP_OVERRIDE` before any release build
