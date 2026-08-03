@@ -97,6 +97,53 @@ sudo apt-get install -y erofs-utils
 Everything else `extract-utils` needs (`ota_extractor`, `brotli`, `patchelf`,
 `llvm-objdump`, jdk21, `unpack_bootimg.py`) comes from the tree.
 
+## Downloading built zips
+
+<https://build.ssiyad.com> serves a plain directory listing of finished ROM
+zips over automatic HTTPS (Caddy, Let's Encrypt). No authentication — anyone
+with the hostname can download.
+
+It serves **only** ROM zips. Two independent mechanisms enforce that:
+
+1. `/home/android-builder/builds` is managed solely by
+   `~/bin/publish-builds.sh`, which hardlinks `lineage-*.zip` (plus checksum
+   sidecars) out of `out/target/product/frogger` and **deletes anything else it
+   finds there**. Hardlinks cost no extra disk — same filesystem — and keep a
+   published zip alive after the next build wipes `out/`.
+2. The Caddyfile matches `/ *.zip *.zip.md5sum *.zip.sha256sum` and returns 404
+   for everything else.
+
+Both are needed. The path matcher alone blocks *downloads* of a stray file but
+Caddy's directory listing still prints its **name**, so the prune is what
+actually keeps non-build files from being disclosed. `hide` is a blocklist and
+cannot express "only these", hence the allowlist-by-pruning approach.
+
+`publish-builds.timer` runs the script every two minutes, so a zip shows up
+shortly after the build writes it. To publish immediately:
+
+```sh
+sudo systemctl start publish-builds.service
+```
+
+### Gotcha: `caddy validate` provisions the config
+
+`sudo caddy validate --config /etc/caddy/Caddyfile` does not merely parse — it
+provisions, which **creates the access log as root**. The service then fails to
+start with a confusing `permission denied` on a directory the `caddy` user
+demonstrably owns:
+
+```
+open /var/log/caddy/access.log: permission denied
+```
+
+The directory is fine; the file inside it is `root:root 0600`. Fix:
+
+```sh
+sudo chown caddy:caddy /var/log/caddy/access.log
+```
+
+Run `caddy validate` as the `caddy` user, or clean up after it.
+
 ## Gotcha: verify the sync is complete
 
 The first `brunch` here failed in Soong with:
