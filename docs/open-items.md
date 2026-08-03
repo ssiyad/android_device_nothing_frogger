@@ -195,16 +195,33 @@ vendor rules commented out with it. Nothing else depends on it; Lineage Health
 charging control is separate (`vendor.lineage.health-service.default` plus the
 `lineage_health` soong config).
 
-**Two ways to restore it:**
+This is a **build-time** check on policy API compatibility. It is unrelated to
+`androidboot.selinux=permissive` and would fail identically with a fully
+enforcing policy.
 
-1. **Patch `system/sepolicy`** (a LineageOS fork, `LineageOS/android_system_sepolicy`)
-   to add `device_extras` to `new_objects` in `202404.ignore.cil` and
-   `202504.ignore.cil`. Correct, but means a fifth fork to carry and rebase.
-   Note LineageOS does not add any of its own types to those lists, so there is
-   no in-tree precedent to copy.
-2. **Make the type private** — move the `vendor_proc_power_supply` rules out of
-   vendor policy into system_ext private policy, so `device_extras` need not be
-   public. Avoids forking, but means patching `hardware/nothing` instead.
+There is no device-side hook to extend the mapping list.
+`BOARD_PLAT_PUBLIC_SEPOLICY_DIR` adds public policy, not mappings, and the
+compat files live only in `system/sepolicy/private/compat/`.
+
+**Ways to restore it, most correct first:**
+
+1. **Stop a system_ext app touching vendor files directly.** Route the access
+   through a HAL and move `device_extras` from `public/` to `private/` in
+   `hardware/nothing`. The HAL already exists and already has the permission:
+   `hal_lineage_health_default` has
+   `rw_dir_file(hal_lineage_health_default, vendor_proc_power_supply)`.
+   Architecturally right; means patching `hardware/nothing` (a fork) and
+   possibly the app itself.
+2. **Fork `system/sepolicy`** (`LineageOS/android_system_sepolicy`) and add
+   `device_extras` to `new_objects` in `202404.ignore.cil` and
+   `202504.ignore.cil`. This is what AOSP's own error message suggests -- it
+   links two gerrit changes doing exactly this. Two lines, but a permanent
+   rebase burden. LineageOS adds none of its own types to those lists, so there
+   is no in-tree precedent.
+
+Note what does **not** work: deleting our `sepolicy/vendor/device_extras.te`
+rules alone. The type is public because of where it is declared
+(`DeviceExtras/public/`), not because we reference it.
 
 ## Glyph — disabled
 
