@@ -151,8 +151,14 @@ PRODUCT_PACKAGES += \
     ipacm
 
 # Device Extras
-PRODUCT_PACKAGES += \
-    DeviceExtras
+# Disabled: hardware/nothing/config.mk keys the DeviceExtras sepolicy dirs off
+# this package, and its public type `device_extras` fails
+# treble_sepolicy_tests_202404 -- a public type needs an entry in
+# system/sepolicy/private/compat/<ver>/<ver>.ignore.cil, which lives in a repo
+# we do not fork. See docs/open-items.md for the two ways to restore this.
+#
+# PRODUCT_PACKAGES += \
+#     DeviceExtras
 
 # Display
 $(call soong_config_set,surfaceflinger,frame_rate_category_high,120)

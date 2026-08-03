@@ -49,6 +49,8 @@ been flashed.
       `BOARD_API_LEVEL_PROP_OVERRIDE` before any release build
 - [ ] Decide whether to version `vendor/nothing/frogger` (GitLab) or regenerate
 - [ ] Re-enable Glyph if wanted (needs a `ParanoidGlyphPhone4a` upstream target)
+- [ ] Re-enable `DeviceExtras` — needs either a `system/sepolicy` fork carrying a
+      `device_extras` compat entry, or making the type private
 
 ---
 
@@ -169,6 +171,40 @@ in place would affect Asteroids; each wants expressing as an override:
 * thermal NTC restructure (`sys-therm-13` → `sub_board_ntc`, and adding
   `qupv3_se1_i2c` to thermal `qcom,critical-devices`)
 * one pinctrl `bias-disable` → `bias-pull-down` audio-pop fix (BELL-5845)
+
+## DeviceExtras — disabled (sepolicy Treble test)
+
+`treble_sepolicy_tests_202404` fails with:
+
+```
+The following public types were found added to the policy without an entry into
+the compatibility mapping file(s) ... device_extras
+```
+
+`hardware/nothing/sepolicy/DeviceExtras/public/device_extras.te` declares
+`type device_extras, domain;`, and `hardware/nothing/config.mk` only adds that
+public sepolicy dir when `DeviceExtras` is in `PRODUCT_PACKAGES`. A **public**
+type must have an entry in
+`system/sepolicy/private/compat/<ver>/<ver>.ignore.cil` under `new_objects`.
+
+It has to be public: our `sepolicy/vendor/device_extras.te` grants it access to
+`vendor_proc_power_supply`, and vendor policy can only reference public types.
+
+Disabled for now — `DeviceExtras` commented out in `device.mk`, and the two
+vendor rules commented out with it. Nothing else depends on it; Lineage Health
+charging control is separate (`vendor.lineage.health-service.default` plus the
+`lineage_health` soong config).
+
+**Two ways to restore it:**
+
+1. **Patch `system/sepolicy`** (a LineageOS fork, `LineageOS/android_system_sepolicy`)
+   to add `device_extras` to `new_objects` in `202404.ignore.cil` and
+   `202504.ignore.cil`. Correct, but means a fifth fork to carry and rebase.
+   Note LineageOS does not add any of its own types to those lists, so there is
+   no in-tree precedent to copy.
+2. **Make the type private** — move the `vendor_proc_power_supply` rules out of
+   vendor policy into system_ext private policy, so `device_extras` need not be
+   public. Avoids forking, but means patching `hardware/nothing` instead.
 
 ## Glyph — disabled
 

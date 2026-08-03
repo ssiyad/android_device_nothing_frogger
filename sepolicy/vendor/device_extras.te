@@ -1,2 +1,7 @@
-allow device_extras vendor_proc_power_supply:file rw_file_perms;
-allow device_extras vendor_proc_power_supply:dir r_dir_perms;
+# Disabled along with the DeviceExtras package in device.mk. The `device_extras`
+# type is declared by hardware/nothing/sepolicy/DeviceExtras/public, which is
+# only added to the policy when DeviceExtras is in PRODUCT_PACKAGES -- so these
+# rules would reference an undefined type.
+#
+# allow device_extras vendor_proc_power_supply:file rw_file_perms;
+# allow device_extras vendor_proc_power_supply:dir r_dir_perms;
