@@ -205,20 +205,71 @@ python3 system/libufdt/utils/src/mkdtboimg.py dump dtbo.img -b entry
 for f in entry*; do dtc -I dtb -O dts $f 2>/dev/null | grep -m1 'qcom,board-id'; done
 ```
 
-**`entry.66`** — `qcom,board-id = <0x0b 0x00>`, `qcom,oem-id = <0x01>`,
-`qcom,msm-id` including `0x27c` (636, volcano), and it is the only entry
-referencing `dsi_panel_pwr_supply_amoled_frogger`. 9842 lines decompiled, with
-4 sensors (`qcom,cam-sensor0..3`) plus eeprom/actuator/flash children and
-supplies resolving to the SGM/WR regulators.
+**`entry.65` and `entry.66`** both carry `qcom,board-id = <0x0b 0x00>` and
+`qcom,oem-id = <0x01>`, and are structurally identical — 27 `qcom,cam-sensor*`
+nodes, 12 `dsi_panel_pwr_supply*` references, same Frogger strings. They are the
+same overlay emitted per SoC:
+
+| Entry | `qcom,msm-id` |
+|---|---|
+| `entry.66` | `0x280`, `0x281`, `0x27c` — 640, 641, **636 (volcano)** |
+| `entry.65` | `0x2c8` — 712 (volcanop) |
+
+**`entry.66` is ours**, because `frogger-base-overlay.dts` declares
+`qcom,msm-id = <636 0x10000>`. Use `entry.65` only as a cross-check.
 
 Nothing left QTI's `model = "Qualcomm Technologies, Inc. Volcano QRD"` string in
-place, so **do not search by model name** — match on board-id/oem-id.
-`entry.65` is a decoy: same board-id and oem-id, but `msm-id = 0x2c8` (712), a
-different SoC.
+place, so **do not search by model name** — match on board-id/oem-id, then
+disambiguate on msm-id.
+
+Note the OEM camera dts declares `qcom,board-id = <11 0>, <11 1>` where our
+overlay declares only `<11 0>`. Check whether the second board-id matters before
+assuming one is enough.
 
 This overlay is also the ground truth for diffing our own
 `frogger-base-overlay.dtbo` once the build produces one — worth doing regardless
 of camera.
+
+### Port plan — every dependency is already in the tree
+
+The OEM source is the thing to port, not the decompiled dtb: 401 readable lines
+at `camera-devicetree/frogger-camera-sensor.dtsi`, plus its 24-line wrapper
+`volcano-frogger-camera-sensor-qrd.dts`. Four sensors:
+
+| Node | CCI | csiphy | Role |
+|---|---|---|---|
+| `qcom,cam-sensor0` | `cam_cci0` | 0 | wide (S5KGN9) |
+| `qcom,cam-sensor1` | `cam_cci0` | 1 | front (S5KKD1) — roll 270, yaw 0 |
+| `qcom,cam-sensor2` | `cam_cci1` | 3 | ultrawide (IMX355) |
+| `qcom,cam-sensor3` | `cam_cci1` | 2 | tele (S5KJN5) |
+
+It references 51 external labels. **All of them resolve in this tree already:**
+
+| Label group | Defined in |
+|---|---|
+| `cam_cci0`, `cam_cci1` | `qcom/camera/volcano-camera.dtsi` |
+| `eeprom_{wide,uw,front,tele}`, `actuator_triple_*`, `led_flash_triple_rear_*` | `qcom/camera/volcano-camera-sensor-idp.dtsi` |
+| `camcc` | `qcom/volcano.dtsi` |
+| `cam_cc_camss_top_gdsc` | `qcom/pineapple-gdsc.dtsi`, which `volcano.dtsi` includes and then overrides |
+| `pmxr2230_{switch0,flash0,flash3,torch0,torch3}` | `qcom/pmxr2230.dtsi` |
+| `SGM_LDO1-7`, `WR_LDO*` | our own `noth/frogger-camera-supply.dtsi` |
+| `cam_sensor_{mclk,active_rst,suspend_rst}*` pinctrl | volcano camera base |
+
+So nothing has to be invented. Steps:
+
+1. Add `noth/frogger-camera-sensor.dtsi`, adapted from the OEM file.
+2. Add `noth/volcano-frogger-camera-sensor-qrd.dts` wrapping it, including
+   `volcano-camera.dtsi` and `volcano-camera-sensor-idp.dtsi` for the base
+   labels.
+3. Add the `.dtbo` to `noth/Makefile` inside the existing
+   `CONFIG_NOTHING_IS_FROGGER` branch.
+4. `TARGET_MERGE_DTBS_WILDCARD := *volcano*` already matches the filename.
+
+The merge script folds every overlay with matching ids into one entry — which is
+why stock ships camera and display together in `entry.66` rather than as
+separate overlays. That also means this does **not** hit the board-id collision
+that forced the Asteroids/Frogger `ifeq` gate; those collided because they are
+alternative *boards*, whereas this is an additional overlay for the same board.
 
 ### Other known differences
 
