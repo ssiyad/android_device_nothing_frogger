@@ -9,26 +9,39 @@ their rationale lives in git history and in [decisions.md](decisions.md),
 In dependency order. Nothing below "flash and boot" can be checked until the
 device actually comes up.
 
-**Status:** the kernel side is complete and verified — Frogger drivers, device
-trees, display/touch conditionals, the AW882xx codec and the module lists all
-build and package together, `boot.img` at 96 MB with zero errors and zero
-unresolved symbols. All 13 audio hunks are now ported too. That validates
-compilation and packaging only; nothing has been flashed.
+**Status:** **`brunch frogger` succeeds.** First complete ROM built
+2026-08-03 on the build server: `lineage-23.2-20260803-UNOFFICIAL-frogger.zip`,
+1.56 GB, exit 0. Every partition image is produced — `system` 862 MB,
+`vendor` 1612 MB, `product` 547 MB, `system_ext` 362 MB, `boot` 96 MB,
+`vendor_boot` 96 MB, `vendor_dlkm` 73 MB, `dtbo` 24 MB.
 
-Builds now run on the build server, not the laptop — see
-[build-server.md](build-server.md).
+That means the whole tree compiles, links, packages and signs. It says nothing
+about whether it boots — **nothing has been flashed yet.**
 
-### Get to a flashable image
+Builds run on the build server, not the laptop — see
+[build-server.md](build-server.md). Finished zips are published at
+<https://build.ssiyad.com>.
 
-- [ ] **`brunch frogger`** — system/vendor/product images have never been built;
-      only `boot.img` exists, so there is nothing to flash yet. Expect a fresh
-      crop of failures the kernel work never exercised: sepolicy, missing
-      packages, blob issues
+Build cost, measured from `out/.ninja_log` on a 12-core/62 GB server, cold `out/`:
 
-### First boot
+| | |
+|---|---|
+| total ninja wall time | 257 min |
+| kernel (`Image.gz`, one edge, includes all ext modules) | 22.6 min (~9%) |
+| kernel `.config` | 29 s |
+| heaviest single edges | SystemUI 557 s, Launcher3 339 s, platformprotos 321 s |
+
+So the platform — Java/Kotlin/R8 — dominates, and the kernel is under a tenth of
+a cold build. For kernel or device-tree iteration use targeted `mka` targets
+(`mka bootimage`, `mka dtboimage`, `mka vendordlkmimage`) rather than a full
+`brunch`; `dtbo.img` packaging alone is sub-second.
+
+### First boot — next up
 
 - [ ] **Flash and boot.** The only real test; everything so far is static analysis
-      plus a clean compile
+      plus a clean compile. Grab the zip from <https://build.ssiyad.com>.
+      Expect the camera to be dead on arrival — the sensor device tree is still
+      missing (see below); that is known and not a boot blocker
 - [ ] Triage the boot log — `dmesg`, `last_kmsg`, `logcat` — and let it drive the
       order of everything below
 
