@@ -52,8 +52,9 @@ a cold build. For kernel or device-tree iteration use targeted `mka` targets
 - [ ] Reconcile the 29 generic modules once the kernel actually builds them
 - [ ] **Camera** — device tree is ported and builds; verify on hardware that the
       sensors actually probe
-- [ ] Diff our built `frogger-base-overlay.dtbo` against stock `entry.66` — it
-      is the ground truth for the whole device tree, not just camera
+- [x] ~~Diff our built overlay against stock `entry.66`~~ — done, see
+      [Device tree vs stock](#device-tree-vs-stock-clean). Found and fixed the
+      wrong speaker amp and a missing display panel
 
 ### Cleanup, no boot needed
 
@@ -184,6 +185,47 @@ here breaks the build. Re-run the comparison against
 `out/target/product/frogger/obj/PACKAGING/kernel_modules_intermediates` and drop
 whatever the kernel does not actually produce — cosmetic, but it keeps the load
 lists honest.
+
+## Device tree vs stock — clean
+
+Our built overlay was diffed node-for-node against stock's shipping overlay for
+`board-id <11 0>` / `oem-id <1>` (`dtbo.img` `entry.66`). Everything stock has
+that we lack is now accounted for:
+
+| Missing from ours | Verdict |
+|---|---|
+| `cable_detect` | **Correct.** Frogger renamed the driver — `nt,cable_detect` → `gpio,cable_state` (`CONFIG_OEM_CABLE`). We ship `cable_gpio`/`cable_state`; stock carries the vestigial Asteroids node |
+| `ois_vdd_ctrl` | **Correct.** Tele-camera OIS; `ois_vdd_ctrl.ko` deliberately dropped |
+| `nfc`, `nfc_*`, `nq@28`, `st54spi_gpio`, `st_st21nfc@08` | **Correct.** NFC removed entirely |
+
+Two real gaps were found and fixed (devicetrees `a885b2dc`):
+
+**The wrong speaker amplifier.** `qcom/audio/volcano-audio-overlay.dtsi`
+declared NXP `tfa98xx@34/@35` on `qupv3_se13_i2c` — Asteroids' amps, at exactly
+the addresses Frogger fits Awinic AW882xx. Because that file is shared, whichever
+board merged it got the wrong codec. Combined with the ported `msm_dailink.h`
+pointing `pri_mi2s` at `aw882xx_smartpa.13-0034/0035`, Frogger would have had no
+codec to bind to and **no sound card at all**. The amps are a board choice, so
+each board now declares its own in `noth/<board>-common.dtsi`.
+
+**The display panel was absent.** Stock carries
+`qcom,mdss_dsi_nt37706a_120hz_fhd_plus_dsc_vid_{boe,vxn}` plus
+`dsi_panel_pwr_supply_amoled_frogger` and its `dvdd_en` rail; we had none of
+them. Ported from the OEM `display-devicetree` module. Note the default panel is
+`rm69220` in **both** ours and stock — the bootloader selects the real panel by
+name at runtime, so the default is not the thing that matters.
+
+This is the same failure mode as the arcanine camera overlay, three times over:
+**the fork's shared `qcom/` files carry Asteroids hardware.** Anything under
+`qcom/` that touches a board-level peripheral is suspect until checked.
+
+### How to re-run the diff
+
+`bin/dt-diff.sh` on the build server. One trap: node names must be compared with
+**all leading whitespace stripped** — the two overlays nest the same node at
+different depths, so comparing with tabs intact reports identical nodes as
+missing. An early version of the script had this bug and produced a false
+"camera sensors are missing" result on a build that had them.
 
 ## Camera — device tree ported, unverified on hardware
 
