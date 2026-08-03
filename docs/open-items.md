@@ -12,8 +12,11 @@ device actually comes up.
 **Status:** the kernel side is complete and verified — Frogger drivers, device
 trees, display/touch conditionals, the AW882xx codec and the module lists all
 build and package together, `boot.img` at 96 MB with zero errors and zero
-unresolved symbols. That validates compilation and packaging only; nothing has
-been flashed.
+unresolved symbols. All 13 audio hunks are now ported too. That validates
+compilation and packaging only; nothing has been flashed.
+
+Builds now run on the build server, not the laptop — see
+[build-server.md](build-server.md).
 
 ### Get to a flashable image
 
@@ -21,10 +24,6 @@ been flashed.
       only `boot.img` exists, so there is nothing to flash yet. Expect a fresh
       crop of failures the kernel work never exercised: sepolicy, missing
       packages, blob issues
-- [ ] **Port the 13 audio `CONFIG_NOTHING_IS_FROGGER` hunks** — `wcd9378` (5),
-      `wcd9378-mbhc` (2), `aw882xx` (2), and one each in `wcd-mbhc-v2.c`,
-      `wcd-mbhc-v2.h`, `msm_dailink.h`, `internal.h`. Not boot-critical; easier
-      to reason about once audio can be watched failing on a running device
 
 ### First boot
 
@@ -55,10 +54,11 @@ been flashed.
 
 ---
 
-## Frogger-conditional code in the external modules — audio remains
+## Frogger-conditional code in the external modules — complete
 
 The OEM guards Frogger behaviour with `#if IS_ENABLED(CONFIG_NOTHING_IS_FROGGER)`
 in `vendor/qcom/opensource/`, mapping to `kernel/nothing/sm7635-modules`.
+All 13 OEM sites are now ported and the counts match the OEM tree file for file.
 
 **Display and touch are done** (commit `dd79941698`) and build clean:
 
@@ -75,7 +75,8 @@ permanently — they call `fts_test_init`/`fts_test_exit` from `focaltech_test.c
 a factory self-test this tree does not carry; referencing them would break the
 link.
 
-**Audio is outstanding — 13 sites:**
+**Audio is done** (commit `e9d209bd08`) — all 13 sites, verified against the OEM
+tree file for file:
 
 | File | Sites |
 |---|---|
@@ -84,8 +85,25 @@ link.
 | `asoc/codecs/aw882xx/aw882xx.c` | 2 |
 | `asoc/codecs/wcd-mbhc-v2.c`, `include/asoc/wcd-mbhc-v2.h`, `asoc/msm_dailink.h`, `wcd9378/internal.h` | 1 each |
 
-It crosses 6.1 → 6.6, so each hunk needs checking against this tree's version of
-the file rather than applied blind.
+Two things it does, and two deliberate deviations from stock:
+
+* **`msm_dailink.h`** points `pri_mi2s_rx/tx` at the two AW882xx amps on I2C bus
+  13 (`0x34`/`0x35`) instead of Asteroids' TFA98xx. This is the functionally
+  important one — without it nothing drives the speakers.
+* **The rest is the WCD9378 `ANA_BIAS` watchdog.** On micbias enable and on
+  headset plug-in, queued work reads `WCD9378_ANA_BIAS` with the regcache
+  bypassed; a read of 0 means the codec lost its bias, and a `KOBJ_CHANGE`
+  uevent (`SSR_TRIGGER=1`) goes to userspace, debounced to one per 3 s.
+
+Deviations:
+
+1. Stock gates the TFA98xx arm of `msm_dailink.h` on
+   `CONFIG_NOTHING_IS_ASTEROIDS`. **That symbol does not exist in this tree** —
+   only `NOTHING_IS_FROGGER` is declared (`drivers/soc/qcom/Kconfig:1300`).
+   Copying stock verbatim would leave an Asteroids build with *neither*
+   `pri_mi2s_rx` nor `pri_mi2s_tx` defined. TFA98xx is the `#else` default here.
+2. `wcd-mbhc-v2.c` is shared by every wcd codec and only wcd9378 populates
+   `mbhc_micbias_reg_detect`; stock calls it unconditionally, we NULL-guard it.
 
 ## Touchscreen sysfs nodes
 

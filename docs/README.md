@@ -9,6 +9,7 @@ This directory records how `device/nothing/frogger` was derived from
 | [changes.md](changes.md) | Per-file change log |
 | [decisions.md](decisions.md) | Judgement calls, with rationale and how to reverse them |
 | [open-items.md](open-items.md) | Unverified assumptions and external work still required |
+| [build-server.md](build-server.md) | Where and how builds run, and how blobs are regenerated |
 
 ## Reference sources
 
