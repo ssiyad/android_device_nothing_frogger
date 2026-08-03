@@ -112,3 +112,32 @@ bulk-adding them would produce an unbuildable tree.
 Both OIS modules (`com.qti.ois.dw9784.so`, `com.qti.ois.bu63169gwz.so`) are kept.
 No camera config names them, so the provider evidently discovers them by scanning
 the directory; keeping both matches stock.
+
+## 8. DeviceExtras disabled rather than patching AOSP sepolicy
+
+`treble_sepolicy_tests_202404` fails because `hardware/nothing` declares
+`device_extras` as a **public** system_ext type, and every public type needs a
+version mapping in `system/sepolicy/private/compat/<ver>/`. There is no
+device-side hook to supply one.
+
+**Decision:** drop `DeviceExtras` from `PRODUCT_PACKAGES`. `hardware/nothing`'s
+`config.mk` only adds the public sepolicy dir when the package is present, so
+this removes the type cleanly. Our two `sepolicy/vendor/device_extras.te` rules
+are commented out alongside it.
+
+This is a build-time API-compatibility check; it is unrelated to running
+permissive and would fail the same way under a fully enforcing policy.
+
+**Rejected:** forking `system/sepolicy` to add the type to `new_objects`. AOSP's
+error message suggests exactly that, but it means carrying a patch against a
+large AOSP repo indefinitely to work around a type that arguably should not be
+public in the first place.
+
+**If restored:** fork `hardware/nothing` instead — move `device_extras` to
+private policy and route its vendor-file access through
+`hal_lineage_health_default`, which already has
+`rw_dir_file(hal_lineage_health_default, vendor_proc_power_supply)`. See
+open-items.md.
+
+**Cost:** a device-settings app. Nothing depends on it; Lineage Health charging
+control is a separate HAL.

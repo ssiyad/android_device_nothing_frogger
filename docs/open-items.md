@@ -49,8 +49,9 @@ been flashed.
       `BOARD_API_LEVEL_PROP_OVERRIDE` before any release build
 - [ ] Decide whether to version `vendor/nothing/frogger` (GitLab) or regenerate
 - [ ] Re-enable Glyph if wanted (needs a `ParanoidGlyphPhone4a` upstream target)
-- [ ] Re-enable `DeviceExtras` — needs either a `system/sepolicy` fork carrying a
-      `device_extras` compat entry, or making the type private
+- [ ] Re-enable `DeviceExtras` (optional) — fork `hardware/nothing`, move
+      `device_extras` to private policy and route vendor access via the Health
+      HAL. Decided against forking `system/sepolicy` for this
 
 ---
 
@@ -172,7 +173,7 @@ in place would affect Asteroids; each wants expressing as an override:
   `qupv3_se1_i2c` to thermal `qcom,critical-devices`)
 * one pinctrl `bias-disable` → `bias-pull-down` audio-pop fix (BELL-5845)
 
-## DeviceExtras — disabled (sepolicy Treble test)
+## DeviceExtras — disabled (decided)
 
 `treble_sepolicy_tests_202404` fails with:
 
@@ -203,21 +204,29 @@ There is no device-side hook to extend the mapping list.
 `BOARD_PLAT_PUBLIC_SEPOLICY_DIR` adds public policy, not mappings, and the
 compat files live only in `system/sepolicy/private/compat/`.
 
-**Ways to restore it, most correct first:**
+### Decision: leave it disabled
 
-1. **Stop a system_ext app touching vendor files directly.** Route the access
-   through a HAL and move `device_extras` from `public/` to `private/` in
-   `hardware/nothing`. The HAL already exists and already has the permission:
-   `hal_lineage_health_default` has
-   `rw_dir_file(hal_lineage_health_default, vendor_proc_power_supply)`.
-   Architecturally right; means patching `hardware/nothing` (a fork) and
-   possibly the app itself.
-2. **Fork `system/sepolicy`** (`LineageOS/android_system_sepolicy`) and add
-   `device_extras` to `new_objects` in `202404.ignore.cil` and
-   `202504.ignore.cil`. This is what AOSP's own error message suggests -- it
-   links two gerrit changes doing exactly this. Two lines, but a permanent
-   rebase burden. LineageOS adds none of its own types to those lists, so there
-   is no in-tree precedent.
+DeviceExtras is a settings app, nothing depends on it, and neither fix is worth
+blocking a first boot on. **If and when it is restored, do it by forking
+`hardware/nothing`** rather than `system/sepolicy`:
+
+* Move `device_extras` from `DeviceExtras/public/` to `DeviceExtras/private/`,
+  so it is no longer part of the platform-vendor API surface and needs no compat
+  mapping at all.
+* Route the vendor-file access through a HAL instead of granting it to a
+  system_ext app. `hal_lineage_health_default` already holds exactly the
+  permission needed:
+  `rw_dir_file(hal_lineage_health_default, vendor_proc_power_supply)`.
+* Then drop our `sepolicy/vendor/device_extras.te` entirely, since vendor policy
+  can no longer reference a private type.
+
+`hardware/nothing` is already a dependency we track, so forking it costs one
+more repo and no AOSP rebase burden.
+
+**Rejected:** forking `system/sepolicy` to add `device_extras` to `new_objects`
+in `202404.ignore.cil` / `202504.ignore.cil`. AOSP's own error message suggests
+this, and it is two lines, but it means carrying a patch against a large AOSP
+repo forever to paper over a public type that should not be public.
 
 Note what does **not** work: deleting our `sepolicy/vendor/device_extras.te`
 rules alone. The type is public because of where it is declared
