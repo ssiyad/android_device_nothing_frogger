@@ -215,6 +215,37 @@ equivalent, but if camera misbehaves this asymmetry is the first thing to
 re-check — particularly whether anything in the platform block needs a base-dtb
 node we are shadowing rather than extending.
 
+### Asteroids' camera overlay was colliding with Frogger
+
+`qcom/camera/volcano-camera-sensor-qrd.dts` is no longer a QTI reference
+overlay — the fork repurposed it to include `arcanine-camera-sensor.dtsi`
+(Asteroids' sensors) and it declares `qcom,board-id = <11 0>, <11 1>` with
+`qcom,oem-id = <1>`. **That is exactly what `frogger-base-overlay` claims**, so
+the merge script matched it to Frogger and applied Asteroids' camera on top of
+ours. It logged
+
+```
+ERROR: ufdt_overlay_do_fixups():Couldn't find 'WL_LDO2_j' symbol in main dtb
+ERROR: ufdt_overlay_apply():failed to perform fixups in overlay
+```
+
+and `brunch` still exited 0, so it is easy to miss.
+
+That message is **not** harmless. Before the fix our overlay had **6** camera
+flash nodes against stock's 3 — the extra three were arcanine's, merged in
+despite the "failed" message. Gated behind `CONFIG_NOTHING_IS_FROGGER` in
+`qcom/camera/config/pineapple.mk`, after which flash nodes match stock at 3 and
+the fixup errors go to zero.
+
+Two traps worth remembering:
+
+* **The merge script globs `DTB_OBJ` for `*.dtbo`**, it does not read the
+  makefile. Removing an overlay from the build leaves the stale `.dtbo` on disk
+  and it keeps getting merged. The gate looked like it had failed until the
+  stale artifacts were deleted; on a clean `out/` it would have worked first try.
+* The `-pro` variant shares the board-ids but has `oem-id = <2>`, so it does not
+  collide today. It is gated anyway — it is equally Asteroids-specific.
+
 ### Two build-system snags this hit
 
 1. `<dt-bindings/msm-camera.h>` ships in **camera-kernel**, not the kernel, so

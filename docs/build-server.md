@@ -106,10 +106,9 @@ with the hostname can download.
 It serves **only** ROM zips. Two independent mechanisms enforce that:
 
 1. `/home/android-builder/builds` is managed solely by
-   `~/bin/publish-builds.sh`, which hardlinks `lineage-*.zip` (plus checksum
+   `~/bin/publish-builds.sh`, which **copies** `lineage-*.zip` (plus checksum
    sidecars) out of `out/target/product/frogger` and **deletes anything else it
-   finds there**. Hardlinks cost no extra disk — same filesystem — and keep a
-   published zip alive after the next build wipes `out/`.
+   finds there**.
 2. The Caddyfile matches `/ *.zip *.zip.md5sum *.zip.sha256sum` and returns 404
    for everything else.
 
@@ -124,6 +123,32 @@ shortly after the build writes it. To publish immediately:
 ```sh
 sudo systemctl start publish-builds.service
 ```
+
+### Why it copies rather than hardlinks
+
+The first version hardlinked, on the reasoning that `out/` and `builds/` share a
+filesystem so it costs nothing. **That silently destroyed the first ROM.**
+
+The zip name carries only a date — `lineage-23.2-20260803-UNOFFICIAL-frogger.zip`
+— so a rebuild on the same day reuses the exact filename, and the packaging step
+rewrites the zip **through the existing inode** rather than creating a new file
+and renaming. Verified: `builds/` and `out/` were both inode `9481229` while the
+size changed underneath, and the `builds/` directory mtime never moved. A
+hardlink is therefore not a snapshot, and no amount of collision handling in the
+publish script can help — from its point of view nothing happened.
+
+Copies cost ~1.6 GB per build, which is nothing against the free space here.
+With copies in place the script also:
+
+* **archives on filename collision** — an older ROM with the same name is
+  renamed to `…-frogger-<YYYYMMDD-HHMMSS>.zip` rather than replaced;
+* **waits for the checksum sidecar** before publishing, because the build writes
+  the zip first and its `.sha256sum` a few seconds later — publishing in between
+  would serve a truncated download;
+* **copies to a temp name and renames**, so a half-copied zip is never served.
+
+Disk use grows one ROM per build. Nothing prunes old ones — delete them by hand
+when they pile up.
 
 ### Gotcha: `caddy validate` provisions the config
 
