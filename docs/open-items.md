@@ -39,9 +39,7 @@ a cold build. For kernel or device-tree iteration use targeted `mka` targets
 ### First boot — next up
 
 - [ ] **Flash and boot.** The only real test; everything so far is static analysis
-      plus a clean compile. Grab the zip from <https://build.ssiyad.com>.
-      Expect the camera to be dead on arrival — the sensor device tree is still
-      missing (see below); that is known and not a boot blocker
+      plus a clean compile. Grab the zip from <https://build.ssiyad.com>
 - [ ] Triage the boot log — `dmesg`, `last_kmsg`, `logcat` — and let it drive the
       order of everything below
 
@@ -52,9 +50,8 @@ a cold build. For kernel or device-tree iteration use targeted `mka` targets
 - [ ] Verify display brightness curve resolves to the expected panel ID
 - [ ] Decide `spunvm` — stock comments the mount out, we mount it
 - [ ] Reconcile the 29 generic modules once the kernel actually builds them
-- [ ] **Camera** — the sensor device tree is missing entirely; the largest
-      remaining workstream. Port it from stock's `dtbo.img` `entry.66`, which is
-      the shipping Frogger overlay
+- [ ] **Camera** — device tree is ported and builds; verify on hardware that the
+      sensors actually probe
 - [ ] Diff our built `frogger-base-overlay.dtbo` against stock `entry.66` — it
       is the ground truth for the whole device tree, not just camera
 
@@ -188,7 +185,52 @@ here breaks the build. Re-run the comparison against
 whatever the kernel does not actually produce — cosmetic, but it keeps the load
 lists honest.
 
-## Camera — the sensor device tree is missing entirely
+## Camera — device tree ported, unverified on hardware
+
+**Done and building** (devicetrees `142e4e1e`, device `6260e88`). The sensor
+device tree is in, `mka dtboimage` succeeds, and the built `dtbo.img` carries
+4 sensors with eeprom/actuator/flash children. The csiphy mapping matches stock
+exactly:
+
+| Node | csiphy | ours | stock |
+|---|---|---|---|
+| `qcom,cam-sensor0` | 0 | ✓ | ✓ |
+| `qcom,cam-sensor1` | 1 | ✓ | ✓ |
+| `qcom,cam-sensor2` | 3 | ✓ | ✓ |
+| `qcom,cam-sensor3` | 2 | ✓ | ✓ |
+
+Nothing here has been exercised on hardware — camera may still be broken for
+reasons the device tree cannot show.
+
+### One structural difference from stock, deliberate
+
+Stock's `entry.66` contains the **sensors only** — no `qcom,cci*` or
+`qcom,csiphy*` nodes — because its base dtb already carries the camera platform.
+**Ours does not:** the built `volcano.dtb` here has no `cam_cci0/1`, no csiphy
+and no `cam_sensor_*` pinctrl (only `camcc`), verified against its `__symbols__`.
+
+So `frogger-base-overlay.dts` pulls in `qcom/camera/volcano-camera.dtsi` as well
+as the sensors, and our overlay contains both halves. The merged tree ends up
+equivalent, but if camera misbehaves this asymmetry is the first thing to
+re-check — particularly whether anything in the platform block needs a base-dtb
+node we are shadowing rather than extending.
+
+### Two build-system snags this hit
+
+1. `<dt-bindings/msm-camera.h>` ships in **camera-kernel**, not the kernel, so
+   dtc could not find it. Fixed with `KBUILD_DTC_INCLUDE` in
+   `TARGET_KERNEL_ADDITIONAL_FLAGS`, matching what the OEM camera-devicetree
+   Makefile does.
+2. `volcano-camera.dtsi` needs `GIC_SPI`, the gcc/camcc clock ids, interconnect
+   ids and rpmh regulator levels. Including only the camcc binding produced a
+   bare-identifier syntax error at the first `GIC_SPI`.
+
+**Watch out when verifying:** `out/.../obj/KERNEL_OBJ/.../noth/*.dtbo` is stale
+and is *not* what ends up in the image. The live artifact is
+`out/.../obj/DTB_OBJ/out/*.dtbo`, and `dtbo.img` is built from that. Checking
+the KERNEL_OBJ copy showed zero camera nodes on a build that had them.
+
+## Original finding: the sensor device tree was missing entirely
 
 **The blobs are fine.** All sensor modules map 1:1 from stock into
 `proprietary-files.txt` — `frogger_s5kgn9_main{,_v2}` (wide),
