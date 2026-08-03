@@ -150,6 +150,14 @@ BOARD_VENDOR_RAMDISK_RECOVERY_KERNEL_MODULES_LOAD := $(strip $(shell cat $(DEVIC
 BOOT_KERNEL_MODULES := $(BOARD_VENDOR_RAMDISK_RECOVERY_KERNEL_MODULES_LOAD)
 
 TARGET_KERNEL_EXT_MODULE_ROOT := kernel/nothing/sm7635-modules
+
+# The camera device tree includes <dt-bindings/msm-camera.h>, which ships with
+# the camera-kernel module rather than the kernel, so the dtbo build cannot see
+# it through scripts/dtc/include-prefixes. Point DTC at the module root, the
+# same way the OEM camera-devicetree Makefile passes KBUILD_DTC_INCLUDE.
+TARGET_KERNEL_ADDITIONAL_FLAGS += \
+    KBUILD_DTC_INCLUDE=$(abspath $(TARGET_KERNEL_EXT_MODULE_ROOT)/qcom/opensource/camera-kernel)
+
 TARGET_KERNEL_EXT_MODULES := \
     noth/fingerprint \
     noth/touchscreen \
