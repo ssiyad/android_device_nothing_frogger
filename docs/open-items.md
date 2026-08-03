@@ -15,8 +15,9 @@ device actually comes up.
 `vendor` 1612 MB, `product` 547 MB, `system_ext` 362 MB, `boot` 96 MB,
 `vendor_boot` 96 MB, `vendor_dlkm` 73 MB, `dtbo` 24 MB.
 
-That means the whole tree compiles, links, packages and signs. It says nothing
-about whether it boots — **nothing has been flashed yet.**
+**It has now been flashed, and it does not boot.** See
+[First flash](#first-flash--does-not-boot) below. The device was restored to
+stock on 2026-08-04 and is working; the bootloader stays unlocked.
 
 Builds run on the build server, not the laptop — see
 [build-server.md](build-server.md). Finished zips are published at
@@ -36,12 +37,16 @@ a cold build. For kernel or device-tree iteration use targeted `mka` targets
 (`mka bootimage`, `mka dtboimage`, `mka vendordlkmimage`) rather than a full
 `brunch`; `dtbo.img` packaging alone is sub-second.
 
-### First boot — next up
+### Get it booting — next up
 
-- [ ] **Flash and boot.** The only real test; everything so far is static analysis
-      plus a clean compile. Grab the zip from <https://build.ssiyad.com>
-- [ ] Triage the boot log — `dmesg`, `last_kmsg`, `logcat` — and let it drive the
-      order of everything below
+- [ ] **Re-flash using the inactive-slot procedure** (see
+      [Flashing](#flashing--use-the-inactive-slot)). This is the unblocking step:
+      it leaves a bootable stock slot as automatic fallback, so a failed boot no
+      longer needs a hard power-off — which means **pstore survives and we finally
+      get a panic log**
+- [ ] **Find why our dtbo prevents boot.** Bisected to the device tree; removing
+      the camera block did *not* fix it, so the cause is still unidentified
+- [ ] Triage the captured log and let it drive everything below
 
 ### Needs a booted device
 
@@ -50,8 +55,10 @@ a cold build. For kernel or device-tree iteration use targeted `mka` targets
 - [ ] Verify display brightness curve resolves to the expected panel ID
 - [ ] Decide `spunvm` — stock comments the mount out, we mount it
 - [ ] Reconcile the 29 generic modules once the kernel actually builds them
-- [ ] **Camera** — device tree is ported and builds; verify on hardware that the
-      sensors actually probe
+- [ ] **Camera** — currently **disabled** in the overlay (devicetrees `95d70251`)
+      because our dtbo prevents boot. The sensor nodes are still in the tree and
+      were never reached; re-enabling needs the platform-block problem solved
+      properly. See [Camera](#camera--disabled-prevents-boot)
 - [x] ~~Diff our built overlay against stock `entry.66`~~ — done, see
       [Device tree vs stock](#device-tree-vs-stock-clean). Found and fixed the
       wrong speaker amp and a missing display panel
@@ -186,6 +193,102 @@ here breaks the build. Re-run the comparison against
 whatever the kernel does not actually produce — cosmetic, but it keeps the load
 lists honest.
 
+## First flash — does not boot
+
+Flashed 2026-08-03/04. The ROM installed cleanly via `adb sideload` and then the
+device dropped into Nothing's crashdump (minidump) screen on first boot, showing:
+
+```
+store_ramdump_to_userdata: get rd_format_if.init failed
+Nothing Rdump2Userdata store failed.
+```
+
+That second message is the dump *storage* failing — userdata had just been
+formatted — not the crash itself. It says nothing about the cause.
+
+### What was established
+
+Single-variable bisect against a known-good state, on hardware:
+
+| Config | Result |
+|---|---|
+| stock boot + stock vendor_boot + stock dtbo + **our** recovery | **recovery boots, adb works** |
+| … + our dtbo (with camera) | no boot, falls back to fastboot |
+| … + our dtbo (camera removed) | no boot |
+| our boot + our dtbo (camera removed) + stock vendor_boot | no boot |
+| our boot + our vendor_boot + our dtbo + our recovery | does not enumerate at all |
+
+Two conclusions:
+
+* **Our kernel is fine.** `recovery.img` carries the same 6.6 kernel and boots
+  and runs adb on the device.
+* **Our dtbo is what prevents boot** — and **removing the camera block did not
+  fix it**, so the fault predates the camera port and is still unidentified. The
+  pre-camera ROM was never flashed, so it was never known-good either.
+
+Caveat on that table: `BOARD_INCLUDE_DTB_IN_BOOTIMG := true`, so the base DTB
+ships inside `boot.img`. Rows pairing our dtbo with stock's `boot.img` are
+applying our overlay to stock's 6.1 base device tree, which cannot work by
+construction. Those rows are not clean evidence — the last row is the honest one.
+
+### Why there is no panic log
+
+Nothing survived, and it is worth recording why so the next attempt is set up
+differently:
+
+* **pstore** (`/sys/fs/pstore`, 4 MB at `0x81f20000`) is mounted and empty. It
+  lives in RAM and survives a warm reset, but escaping the crashdump screen
+  needs Power held ~20–30 s, which is a PMIC-level reset that cuts RAM.
+* **`nt_kmsg`** (64 MB) contains only stock's `6.1.157` kernel, no panics. It is
+  fed by a Nothing kmsg dumper our build does not carry.
+* **`nt_log`** holds `boot_log/NTboot_54..63` archives — all stock 6.1, zero
+  panics. Written by Android userspace, which our boot never reached.
+* **`rawdump`** (256 MB) is entirely zeros — no ramdump was written, matching the
+  `Rdump2Userdata store failed` message.
+
+**The fix is procedural, not technical:** flash to the inactive slot so a failed
+boot falls back automatically instead of needing a power-hold.
+
+## Flashing — use the inactive slot
+
+Reference: [spike0en/nothing_flasher](https://github.com/spike0en/nothing_flasher)
+(`frogger` branch, `bash/flash_all.sh`). Its structure matters more than the
+individual commands:
+
+1. Everything runs **in fastbootd**, not the bootloader — including `boot`,
+   `dtbo`, `vbmeta`.
+2. Everything flashes to the **inactive slot** via `--slot=`, with
+   `--set-active` only at the very end. The working slot stays intact throughout.
+3. Logical partitions are **deleted and recreated** (`delete-logical-partition`,
+   `create-logical-partition <name> 1`) before flashing — for both slots — rather
+   than just flashed.
+4. Firmware partitions are flashed too (23 of them).
+5. It pins **platform-tools r33.0.0**, not latest. Given the USB trouble below,
+   that may not be incidental.
+
+### The USB link needs re-enumeration before every flash
+
+This cost hours. Symptoms: `FAILED (remote: ' Invalid argument size')` or
+`FAILED (remote: 'unknown command')` — **the same command producing different
+errors on different runs**, which is the signature of a corrupted transport, not
+a device fault. `getvar all` works while targeted `getvar` returns
+`Variable Not found`, and fastboot then warns `partition size: 0`, which is a
+red herring rather than a real problem.
+
+A flash succeeds only on a freshly enumerated connection:
+
+```sh
+fastboot reboot bootloader; and fastboot flash <part> <img>   # fish
+```
+
+One flash per reboot. Retry loops around a bare `fastboot flash` do not help;
+the re-enumeration is what matters.
+
+Also note: this bootloader advertises `has-slot` for only `boot`, `system` and
+`modem`, so fastboot does not auto-suffix anything else. Unsuffixed names target
+the current slot, which is fine — but be aware which slot that is, because the
+bootloader switches slots on its own after repeated boot failures.
+
 ## Device tree vs stock — clean
 
 Our built overlay was diffed node-for-node against stock's shipping overlay for
@@ -227,7 +330,24 @@ different depths, so comparing with tabs intact reports identical nodes as
 missing. An early version of the script had this bug and produced a false
 "camera sensors are missing" result on a build that had them.
 
-## Camera — device tree ported, unverified on hardware
+## Camera — disabled, prevents boot
+
+**Currently disabled** in `frogger-base-overlay.dts` (devicetrees `95d70251`).
+Our dtbo does not boot, and while removing the camera block did **not** fix that,
+it stays off until the device tree is understood.
+
+The structural problem, recorded so it is not re-attempted blindly: the base
+`volcano.dtb` carries no camera block at all, so the sensor nodes cannot resolve
+`&cam_cci0/1` on their own. The port therefore pulled the whole platform half
+(`qcom/camera/volcano-camera.dtsi` — cci, csiphy, icp, bps, smmu, the
+`cam_sensor_*` pinctrl) into the overlay. **Stock's overlay contains sensors
+only**, because its base tree already provides the platform half. Duplicating
+that block in an overlay is evidently not equivalent to having it in the base.
+
+`noth/frogger-camera-sensor.dtsi` is kept — the sensor nodes were never reached
+and may be perfectly correct.
+
+## Camera — port details (retained for when it is re-enabled)
 
 **Done and building** (devicetrees `142e4e1e`, device `6260e88`). The sensor
 device tree is in, `mka dtboimage` succeeds, and the built `dtbo.img` carries
