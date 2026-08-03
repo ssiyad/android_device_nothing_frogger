@@ -39,7 +39,11 @@ Builds now run on the build server, not the laptop — see
 - [ ] Verify display brightness curve resolves to the expected panel ID
 - [ ] Decide `spunvm` — stock comments the mount out, we mount it
 - [ ] Reconcile the 29 generic modules once the kernel actually builds them
-- [ ] **Camera** — entirely unexamined; expect the largest remaining workstream
+- [ ] **Camera** — the sensor device tree is missing entirely; the largest
+      remaining workstream. Port it from stock's `dtbo.img` `entry.66`, which is
+      the shipping Frogger overlay
+- [ ] Diff our built `frogger-base-overlay.dtbo` against stock `entry.66` — it
+      is the ground truth for the whole device tree, not just camera
 
 ### Cleanup, no boot needed
 
@@ -171,14 +175,57 @@ here breaks the build. Re-run the comparison against
 whatever the kernel does not actually produce — cosmetic, but it keeps the load
 lists honest.
 
-## Camera — entirely unexamined
+## Camera — the sensor device tree is missing entirely
 
-Nothing here has looked at camera beyond the blob list. Known differences:
+**The blobs are fine.** All sensor modules map 1:1 from stock into
+`proprietary-files.txt` — `frogger_s5kgn9_main{,_v2}` (wide),
+`frogger_imx355_uw` (ultrawide), `frogger_s5kkd1_front`, plus
+`frogger_s5kjn5_tele{,_v2,_v3}` which belongs to the Pro and rides along in the
+shared firmware. Their eeprom `.so`s are all present too.
 
-* sensor complement — `frogger_*` sensor/eeprom/sensormodule/tuned modules
-  replace Asteroids' `arcanine_*` (see hardware-facts.md)
+**The device tree is not.** `noth/frogger-camera-supply.dtsi` ports the SGM38120
+and the two WR1241 camera PMICs, but there are **no `qcom,cam-sensor` nodes
+anywhere in `noth/`** — not for Frogger and not for Asteroids either. The
+sensors, CSI PHY assignment, power-up sequences, eeprom/actuator/flash wiring
+and MCLK pinctrl all live in a `camera-devicetree` module the fork does not
+carry (OEM: `vendor/qcom/proprietary/camera-devicetree/frogger-camera-sensor.dtsi`
+and `volcano-frogger-camera-sensor-qrd.dts`). `qcom/camera/volcano-camera*.dts`
+exists in the devicetrees repo but no Makefile builds it.
+
+Net effect: `camera-kernel` is built and loaded, but nothing will probe.
+
+### The authoritative reference is stock's own dtbo
+
+Stock `dtbo.img` holds 71 overlays. Carve them out and the Frogger one is
+identifiable by the ids our overlay already claims:
+
+```sh
+ota_extractor --payload payload.bin --partitions dtbo --output_dir .
+python3 system/libufdt/utils/src/mkdtboimg.py dump dtbo.img -b entry
+for f in entry*; do dtc -I dtb -O dts $f 2>/dev/null | grep -m1 'qcom,board-id'; done
+```
+
+**`entry.66`** — `qcom,board-id = <0x0b 0x00>`, `qcom,oem-id = <0x01>`,
+`qcom,msm-id` including `0x27c` (636, volcano), and it is the only entry
+referencing `dsi_panel_pwr_supply_amoled_frogger`. 9842 lines decompiled, with
+4 sensors (`qcom,cam-sensor0..3`) plus eeprom/actuator/flash children and
+supplies resolving to the SGM/WR regulators.
+
+Nothing left QTI's `model = "Qualcomm Technologies, Inc. Volcano QRD"` string in
+place, so **do not search by model name** — match on board-id/oem-id.
+`entry.65` is a decoy: same board-id and oem-id, but `msm-id = 0x2c8` (712), a
+different SoC.
+
+This overlay is also the ground truth for diffing our own
+`frogger-base-overlay.dtbo` once the build produces one — worth doing regardless
+of camera.
+
+### Other known differences
+
 * post-processing — Morpho EIS and ArcSoft, where Asteroids uses Vidhance
-* camera PMIC — SGM38120 rather than WL28681, now in the device tree
+* camera PMIC — SGM38120 rather than WL28681, already in the device tree
+* `vendor/etc/camera/` ships `_Pro`/`tele` variants of the calibration blobs;
+  inert on a non-Pro unit
 
 The `libarcsoft_*` blobs are among the largest in `vendor/` (one is 118 MB).
 
