@@ -158,6 +158,19 @@ TARGET_KERNEL_EXT_MODULE_ROOT := kernel/nothing/sm7635-modules
 TARGET_KERNEL_ADDITIONAL_FLAGS += \
     KBUILD_DTC_INCLUDE=$(abspath $(TARGET_KERNEL_EXT_MODULE_ROOT)/qcom/opensource/camera-kernel)
 
+# The external module builds do not see CONFIG_NOTHING_IS_FROGGER from the
+# kernel's autoconf.h, even though it is set in .config. Every
+# #if IS_ENABLED(CONFIG_NOTHING_IS_FROGGER) guard in audio-kernel therefore
+# compiled its #else branch, so machine_dlkm.ko went out looking for Asteroids'
+# tfa98xx codecs, which can never register here. The sound card then deferred
+# forever, AudioService blocked, the watchdog killed system_server, and the
+# device bootlooped.
+#
+# KCFLAGS is appended to KBUILD_CFLAGS for the kernel and every external
+# module, and =1 is what IS_ENABLED() tests for.
+TARGET_KERNEL_ADDITIONAL_FLAGS += \
+    KCFLAGS=-DCONFIG_NOTHING_IS_FROGGER=1
+
 TARGET_KERNEL_EXT_MODULES := \
     noth/fingerprint \
     noth/touchscreen \
