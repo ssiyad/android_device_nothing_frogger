@@ -46,3 +46,15 @@ ro.vendor.qti.va_aosp.support=1
 ril.subscription.types=NV,RUIM
 ro.telephony.default_network=26,26
 telephony.lteOnCdmaDevice=1
+
+# Bring-up: adb from first boot, no authorisation prompt
+#
+# A bootlooping device is otherwise unreachable -- adbd runs on userdebug, but
+# the USB gadget is not configured until Settings enables it, which needs a
+# booted UI. These make adb available before that, so a failed boot can still
+# be read with `adb logcat -b all` instead of only via pstore after a reboot.
+#
+# REMOVE BEFORE RELEASE -- ro.adb.secure=0 accepts any host key without the
+# on-device confirmation dialog.
+persist.sys.usb.config=adb
+ro.adb.secure=0

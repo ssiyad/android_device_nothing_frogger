@@ -625,6 +625,10 @@ in `device.mk`. NullDebris publishes `packages_apps_ParanoidGlyph`
 
 ## Bring-up hacks to remove before release
 
+* `persist.sys.usb.config=adb` and `ro.adb.secure=0` in `system_ext.prop` —
+  adb from first boot with no authorisation prompt, so a bootlooping device
+  stays reachable. `ro.adb.secure=0` accepts any host key without the on-device
+  dialog
 * `androidboot.selinux=permissive` in `BOARD_BOOTCONFIG`
 * `SELINUX_IGNORE_NEVERALLOWS := true` in `BoardConfig.mk`
 * `BOARD_API_LEVEL_PROP_OVERRIDE := 34` — the build warns it is test-only
