@@ -580,6 +580,37 @@ adb sideload lineage-23.2-<date>-UNOFFICIAL-frogger.zip
 Recovery writes to the inactive slot and switches to it on success, so the
 slot discipline that mattered during bring-up is handled for us.
 
+### Flashing GApps: reboot recovery in between
+
+**Do not sideload the ROM and GApps back-to-back in one recovery session.** That
+is the usual advice and it is wrong on A/B:
+
+```sh
+adb sideload lineage-23.2-<date>-UNOFFICIAL-frogger.zip
+adb reboot recovery                      # <-- the step that matters
+adb sideload MindTheGapps-<date>.zip
+```
+
+`update_engine` writes the ROM to the *inactive* slot and marks it active for
+next boot, but recovery keeps running from the slot it booted. GApps installers
+resolve their target from `ro.boot.slot_suffix` and recovery's own fstab —
+MindTheGapps does exactly this:
+
+```sh
+CURRENTSLOT=`getprop ro.boot.slot_suffix`
+SYSTEM_BLOCK=$(find_block "system")
+mount -o rw "$SYSTEM_BLOCK" /mnt/system
+```
+
+So without the reboot it mounts the slot you are about to stop using, reports
+success, and you boot the other one with no GApps. Observed 2026-08-05: Play
+Store vanished after a flash, `/product/priv-app/` held only LineageOS apps, and
+the only Google package left was an orphaned `com.google.android.gms` in
+`/data/app` — `/data` being shared between slots is why that one survived.
+
+Rebooting to system first and then back into recovery works too, and is what
+recovered it.
+
 Collect logs afterwards with [`tools/grab-logs.sh`](../tools/grab-logs.sh).
 
 ### Flashing individual images — fallback only

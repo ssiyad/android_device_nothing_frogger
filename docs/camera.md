@@ -3,10 +3,18 @@
 Everything learned bringing the Frogger camera up, in the order the layers
 failed. Written so that picking this up cold does not mean rediscovering it.
 
-**Status as of 2026-08-05:** five sensors enumerate, flash and torch work,
-pipelines build. The camera app still cannot open a capture session. Four
+**Status as of 2026-08-05 — parked.** Five sensors enumerate, flash and torch
+work, pipelines build. The camera app still cannot open a capture session. Four
 distinct defects were found and fixed on the way; two known gaps remain, both
 identified and neither yet closed.
+
+**Last state left on the device** (build `2026-08-04 23:16`, SOIS disabled):
+5 camera devices, `enableCameraSOISMask=0x0`, and **no `swpnc` crash frames in
+the crash buffer** — where every previous boot had them. That is suggestive but
+not proof: the log was read after a GApps reflash and may not contain a camera
+open attempt. **First thing to do on picking this up: open the camera once and
+check whether the `swpnc` SIGSEGV is actually gone**, because if it is, the
+remaining failure is the Morpho node and not the SOIS kernel port.
 
 ---
 
