@@ -103,9 +103,15 @@ vendor blobs and stock's `vendor/etc` and `odm/etc`, zero hits for both. The
 fragment for that zone and the self-consistent base definition is what
 registers.
 
-- [ ] **Still open:** the remaining seven renames have the same duplicate-zone
-      problem, just without the label collision to make it noisy. Decide whether
-      to drop them too (nothing consumes the names) or leave the duplicates
+- [x] ~~The remaining seven renames have the same duplicate-zone problem~~ —
+      all seven dropped in devicetrees `49199ebe`. Every one was byte-identical
+      to the base zone it shadowed and none could register, because the base
+      zone already owned the ADC channel. What is left is exactly the five that
+      do register: `battery`, `board_ntc`, `flash_light_ntc`, `uhbpa_ntc`,
+      `usb2_port_ntc`. Note `sys-therm-7` and `sys-therm-10` are defined in
+      `volcano-pmiv0104.dtsi`, not `volcano-pmic-overlay.dtsi` — a collision
+      check against only the latter wrongly clears `sc_buck_ntc` and
+      `usb_port_ntc`
 - [ ] **Not compile-verified** — DTS changes need a build to confirm, then
       `cat /sys/class/thermal/thermal_zone47/type` and a clean kernel log
 
