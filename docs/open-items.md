@@ -73,6 +73,20 @@ a cold build. For kernel or device-tree iteration use targeted `mka` targets
       [Device tree vs stock](#device-tree-vs-stock-clean). Found and fixed the
       wrong speaker amp and a missing display panel
 
+### Decided against
+
+- **Moving the volume panel up the screen.** Its vertical position is
+  `app:layout_constraintVertical_bias="0.5"` hardcoded in AOSP's
+  `SystemUI/res/layout/volume_dialog.xml`. It is an attribute literal, not a
+  dimension reference, so no resource overlay reaches it —
+  `volume_dialog_slider_vertical_margin` is used for both the top and bottom
+  margin, so overriding it grows both ends and the panel stays centered. The
+  only device-local route is an RRO replacing the whole layout, which would
+  park a ~110-line copy of an AOSP file in this tree that goes stale silently,
+  with no build error when upstream changes it. Not worth it for a cosmetic
+  tweak. Patching `frameworks/base` is not an option either: it is LineageOS
+  upstream, not one of our forks, so `repo sync` would revert it
+
 ### Cleanup, no boot needed
 
 - [ ] `init.frogger.rc:33` sets

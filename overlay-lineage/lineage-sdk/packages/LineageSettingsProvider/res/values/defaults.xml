@@ -4,6 +4,10 @@
      SPDX-License-Identifier: Apache-2.0
 -->
 <resources>
-    <!-- Default for LineageSettings.Secure.VOLUME_PANEL_ON_LEFT -->
-    <bool name="def_volume_panel_on_left">true</bool>
+    <!-- Default for LineageSettings.Secure.VOLUME_PANEL_ON_LEFT.
+         Asteroids sets this true because the Phone (3a)'s volume rocker is on
+         the left. Frogger's is on the right, so the panel belongs there too.
+         This matches lineage-sdk's own default and is kept explicit only to
+         stop the Asteroids value being carried back in on a future merge. -->
+    <bool name="def_volume_panel_on_left">false</bool>
 </resources>
