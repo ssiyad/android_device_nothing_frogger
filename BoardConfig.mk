@@ -29,15 +29,6 @@ AB_OTA_PARTITIONS += \
     vendor_dlkm \
     vendor
 
-# Bring-up: LineageOS flag that sets ro.adb.secure=0, so adb needs no
-# on-device authorisation dialog -- which cannot be tapped on a device that
-# will not boot. It also leaves ro.debuggable=1 by skipping
-# PRODUCT_NOT_DEBUGGABLE_IN_USERDEBUG. See vendor/lineage/config/common.mk.
-# Do not set ro.adb.secure directly: lineage already assigns it and Soong
-# rejects duplicate sysprop assignments.
-# REMOVE BEFORE RELEASE.
-WITH_ADB_INSECURE := true
-
 # API
 BOARD_API_LEVEL_PROP_OVERRIDE := 34
 BOARD_SHIPPING_API_LEVEL := 34

@@ -625,11 +625,14 @@ in `device.mk`. NullDebris publishes `packages_apps_ParanoidGlyph`
 
 ## Bring-up hacks to remove before release
 
-* `WITH_ADB_INSECURE := true` in `BoardConfig.mk` — adb with no authorisation
+* `WITH_ADB_INSECURE := true` in `lineage_frogger.mk` — adb with no authorisation
   dialog, which cannot be tapped on a device that will not boot. It also leaves
   `ro.debuggable=1`, since it skips `PRODUCT_NOT_DEBUGGABLE_IN_USERDEBUG`.
   **Do not set `ro.adb.secure=0` directly** — `vendor/lineage/config/common.mk`
-  already assigns it and Soong fails the build on duplicate sysprop assignments
+  already assigns it and Soong fails the build on duplicate sysprop assignments.
+  It must also go in the **product** makefile, before the `vendor/lineage`
+  inherit that reads it; in `BoardConfig.mk` it is silently ignored, because
+  board config is evaluated after product config
 * `androidboot.selinux=permissive` in `BOARD_BOOTCONFIG`
 * `SELINUX_IGNORE_NEVERALLOWS := true` in `BoardConfig.mk`
 * `BOARD_API_LEVEL_PROP_OVERRIDE := 34` — the build warns it is test-only
