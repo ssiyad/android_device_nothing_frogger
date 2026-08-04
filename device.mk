@@ -12,9 +12,22 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/virtual_ab_ota/vabc_features.m
 
 PRODUCT_RO_FILE_SYSTEM ?= ext4
 
+# Run LineageOS' backuptool rather than AOSP's otapreopt_script. There is only
+# one postinstall hook per partition, and backuptool_postinstall.sh is what runs
+# the addon.d scripts -- so with otapreopt_script here, every flash wiped GApps
+# and anything else living in /system, because nothing restored it.
+#
+# vendor/lineage already ships backuptool_ab.sh, backuptool_ab.functions and
+# backuptool_postinstall.sh whenever AB_OTA_POSTINSTALL_CONFIG is set, so this
+# only redirects the hook to a script that was already being installed.
+#
+# The cost is that otapreopt no longer runs after an OTA, so dex is not
+# re-preopted and the first boot after an update is slower. Official LineageOS
+# A/B devices make the same trade -- their backuptool_postinstall.sh does not
+# chain to otapreopt either.
 AB_OTA_POSTINSTALL_CONFIG += \
     RUN_POSTINSTALL_system=true \
-    POSTINSTALL_PATH_system=system/bin/otapreopt_script \
+    POSTINSTALL_PATH_system=system/bin/backuptool_postinstall.sh \
     FILESYSTEM_TYPE_system=$(PRODUCT_RO_FILE_SYSTEM) \
     POSTINSTALL_OPTIONAL_system=true
 

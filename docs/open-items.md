@@ -216,6 +216,27 @@ test-key AVB-disabled build under NikGApps — expected, not actionable. The aud
 tags below it (`AGM`, `PAL`, `ACDB`, `gsl`) were not visible in the MindTheGapps
 survey and are GApps-package noise rather than regressions.
 
+### GApps survive a flash — addon.d, enabled 2026-08-04
+
+Every ROM sideload used to wipe GApps, because a payload OTA rewrites `system`,
+`product` and `system_ext` whole and nothing put anything back.
+
+The build already shipped the machinery — `backuptool_ab.sh`,
+`backuptool_ab.functions`, `backuptool_postinstall.sh` and
+`system/addon.d/50-lineage.sh` — but it was never invoked. There is one
+postinstall hook per partition and `device.mk` pointed the `system` one at
+AOSP's `otapreopt_script`, inherited from Asteroids. `backuptool_postinstall.sh`
+is what runs the `addon.d` scripts, so with it bypassed nothing restored.
+
+Now points at `backuptool_postinstall.sh`. The trade is that `otapreopt` no
+longer runs after an OTA, so the first boot after an update is slower — official
+LineageOS A/B devices make the same trade.
+
+- [ ] **Unverified** — confirm GApps survive a sideload without reflashing them.
+      Restore also depends on the GApps package installing its own
+      `/system/addon.d/` script; MindTheGapps does, NikGApps' list is far larger
+      and how completely it survives has not been checked
+
 ### Decided against
 
 - **Moving the volume panel up the screen.** Its vertical position is
