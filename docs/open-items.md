@@ -15,9 +15,19 @@ device actually comes up.
 `vendor` 1612 MB, `product` 547 MB, `system_ext` 362 MB, `boot` 96 MB,
 `vendor_boot` 96 MB, `vendor_dlkm` 73 MB, `dtbo` 24 MB.
 
-**It has now been flashed, and it does not boot.** See
-[First flash](#first-flash--does-not-boot) below. The device was restored to
-stock on 2026-08-04 and is working; the bootloader stays unlocked.
+**IT BOOTS.** First successful boot 2026-08-04 with
+`lineage-23.2-20260804-UNOFFICIAL-frogger.zip`:
+
+```
+sys.boot_completed = 1        bootanim = stopped
+display  1224x2720 @ 120/90/60/45/30/24Hz, HDR [2,3,4], 480dpi
+         uniqueId local:4630947107087237506
+sound    volcano-qrd-wsa883x-snd-card registered
+kernel   0 errors, no failed module loads, no deferred probes
+```
+
+Two bugs blocked it, both in this tree, both invisible to the checks used at
+the time — see [What blocked first boot](#what-blocked-first-boot).
 
 Builds run on the build server, not the laptop — see
 [build-server.md](build-server.md). Finished zips are published at
@@ -193,7 +203,76 @@ here breaks the build. Re-run the comparison against
 whatever the kernel does not actually produce — cosmetic, but it keeps the load
 lists honest.
 
-## First flash — does not boot
+## What blocked first boot
+
+Two bugs, found 2026-08-04.
+
+### 1. Missing `qcom,display-topology` — kernel panic at 2.88s
+
+```
+[drm:dsi_panel_get_mode] *ERROR* invalid topology list for the panel, rc = -22
+Unable to handle kernel NULL pointer dereference at 0000000000000380
+Kernel panic - not syncing: Oops: Fatal exception
+```
+
+The NT37706A port added the two `dsi-panel-nt37706a-*.dtsi` files and the
+QRD-level backlight overrides, but **not** the `&dsi_nt37706a_*` blocks in
+`volcano-sde-display-common.dtsi` — which is where `qcom,display-topology`,
+the PHY timings, the dfps lists and the ESD config live.
+`dsi_panel_parse_topology()` returns `-EINVAL` without it and the caller
+dereferences NULL.
+
+Verified at the time by confirming the panel *nodes* appeared in the built
+dtbo. That proved the nodes existed and nothing about the properties the driver
+actually reads.
+
+### 2. `CONFIG_NOTHING_IS_FROGGER` invisible to audio-kernel — watchdog bootloop
+
+```
+system_server -> StartAudioService -> hangs -> Watchdog kills it -> loop
+/proc/asound/cards      -> no soundcards
+devices_deferred        -> soc:spf_core_platform:sound
+machine_dlkm.ko         -> tfa98xx.13-0034 / tfa98xx.13-0035
+```
+
+`asoc/Kbuild` selects its config header from `BOARD_PLATFORM` and includes
+`config/volcanoautoconf.h` — it never sees the kernel's `autoconf.h`. So every
+`IS_ENABLED(CONFIG_NOTHING_IS_FROGGER)` guard compiled its `#else` branch and
+**none of the 13 ported audio hunks were in the binary**. The machine driver
+looked for Asteroids' TFA98xx, which cannot register here, so the card deferred
+forever.
+
+Note `KCFLAGS` via `TARGET_KERNEL_ADDITIONAL_FLAGS` does **not** fix this — the
+audio-kernel is invoked with its own `AUDIO_ROOT`/`MODNAME`/`BOARD_PLATFORM`
+arguments and never receives those flags. Other modules (e.g. dataipa) do.
+
+Verified at the time by counting `#if` guards against the OEM source. That
+proved source parity and nothing about what was compiled. On device everything
+looked right — aw882xx probed at 0x34 and 0x35, both components and both DAIs
+registered with the expected names — because the codec side was never the
+problem.
+
+**Still to check:** the display-drivers and touchscreen hunks in
+`sm7635-modules` use the same guard and are very likely still dead code. The
+audio fix only touched the audio-kernel's own config header.
+
+## Getting logs from a device that will not boot
+
+The two techniques that actually worked, after pstore, `nt_kmsg`, `nt_log` and
+`rawdump` all came back empty:
+
+**Sahara ramdump.** In Nothing's crashdump screen the device exposes
+`05c6:900e` (Qualcomm memory-dump mode) on USB. `edl.py memorydump` from
+[bkerler/edl](https://github.com/bkerler/edl) pulls `md_KCONSOLE.BIN`, a 2 MB
+kernel console buffer. **Do not power the device off** — that mode only exists
+while it sits on the crashdump screen.
+
+**Insecure adb.** `WITH_ADB_INSECURE := true` gives adb during a bootloop, which
+is the only way to read a live userspace failure. pstore is the wrong tool for
+that case entirely: if the kernel is up and userspace is restarting, nothing is
+being preserved across a reboot because there is no reboot.
+
+## Historical: first flash — does not boot
 
 Flashed 2026-08-03/04. The ROM installed cleanly via `adb sideload` and then the
 device dropped into Nothing's crashdump (minidump) screen on first boot, showing:
