@@ -47,17 +47,3 @@ ril.subscription.types=NV,RUIM
 ro.telephony.default_network=26,26
 telephony.lteOnCdmaDevice=1
 
-# Bring-up: adb from first boot, no authorisation prompt
-#
-# A bootlooping device is otherwise unreachable -- adbd runs on userdebug, but
-# the USB gadget is not configured until Settings enables it, which needs a
-# booted UI. These make adb available before that, so a failed boot can still
-# be read with `adb logcat -b all` instead of only via pstore after a reboot.
-#
-# Authorisation itself is left ON -- the host key is baked in via
-# PRODUCT_ADB_KEYS in device.mk instead, which is the supported mechanism.
-# Setting ro.adb.secure=0 here fails the build: the build system already
-# assigns ro.adb.secure=1 and Soong rejects duplicate sysprop assignments.
-#
-# REMOVE BEFORE RELEASE.
-persist.sys.usb.config=adb
