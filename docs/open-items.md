@@ -73,6 +73,39 @@ a cold build. For kernel or device-tree iteration use targeted `mka` targets
       [Device tree vs stock](#device-tree-vs-stock-clean). Found and fixed the
       wrong speaker amp and a missing display panel
 
+### Thermal — `/delete-node/` does not work in this overlay
+
+`frogger-base-overlay.dts` is `/plugin/;`, a true dtbo overlay. **An overlay
+cannot delete a node from the base DTB.** `frogger-common-pmic.dtsi` opens with
+eight of them — `/delete-node/ sys-therm-{1,2,3,4,5,6,7,10}` — each followed by
+a friendlier-named replacement zone. The deletes are silently no-ops against
+`volcano.dtb`, so every base zone survives and the replacements are added
+alongside. On the device all nine `sys-therm-*` are registered, plus
+`board_ntc`, `flash_light_ntc`, `uhbpa_ntc` and `usb2_port_ntc` — duplicates
+polling the same ADC channels. `ap_ntc` and `nrpa_ntc` did not register at all,
+presumably losing the channel to the surviving base zone.
+
+Only `sys-therm-5` actually errored, and only because of a second effect:
+redefining `display_test_config1..4` inside `nrpa_ntc` stole those labels, so
+the base zone's own cooling-maps resolved to trips in a *different* zone. Trips
+must belong to the zone that maps them, so all 36 binds failed with `-ENXIO`,
+36 times a boot. Verified on device by comparing phandles — `sys-therm-5`'s
+cooling-map pointed at `0x54f` (`nrpa_ntc`'s trip) rather than its own `0x31c`.
+
+Fixed by deleting the `nrpa_ntc` zone and its cooling-maps outright: it was a
+byte-for-byte copy of the base zone under another name (diffed, 42 lines,
+identical), and nothing in userspace references either name — checked our
+vendor blobs and stock's `vendor/etc` and `odm/etc`, zero hits for both. The
+`/delete-node/ sys-therm-5;` is deliberately **kept**, so the overlay emits no
+fragment for that zone and the self-consistent base definition is what
+registers.
+
+- [ ] **Still open:** the remaining seven renames have the same duplicate-zone
+      problem, just without the label collision to make it noisy. Decide whether
+      to drop them too (nothing consumes the names) or leave the duplicates
+- [ ] **Not compile-verified** — DTS changes need a build to confirm, then
+      `cat /sys/class/thermal/thermal_zone47/type` and a clean kernel log
+
 ### Fingerprint — FOD illumination, fixed but unverified
 
 The HAL writes `/sys/panel_feature/ui_status` (`fingerprint/Session.cpp`) to make
