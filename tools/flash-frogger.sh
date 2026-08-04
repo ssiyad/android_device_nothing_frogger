@@ -26,6 +26,7 @@
 #   FASTBOOT=/path/to/fastboot   default: ~/sources/android/platform-tools/fastboot
 #   WIPE_DATA=1                  erase userdata/metadata (needed stock -> custom)
 #   ASSUME_YES=1                 skip confirmation prompts
+#   ACTIVE_SLOT=a|b              skip slot detection (getvar often hangs)
 #
 set -uo pipefail
 
@@ -69,7 +70,17 @@ find_img() {
     return 1
 }
 
-is_fastbootd() { "$FASTBOOT" getvar is-userspace 2>&1 | grep -q "yes"; }
+# Every fastboot call goes through this. Without a timeout, fastboot blocks
+# forever on "< waiting for any device >" whenever the link drops, and this
+# link drops constantly.
+FB_TIMEOUT="${FB_TIMEOUT:-90}"
+fb() { timeout "$FB_TIMEOUT" "$FASTBOOT" "$@"; }
+
+# getvar on this bootloader is unreliable in every form: targeted queries answer
+# 'GetVar Variable Not found', and `getvar all` intermittently hangs outright
+# even while `fastboot devices` still responds. Detect the mode from the devices
+# listing instead, which prints "fastbootd" vs "fastboot" and never wedges.
+is_fastbootd() { fb devices 2>/dev/null | grep -q "fastbootd"; }
 
 # This bootloader's USB stack goes stale after an idle period or a failed
 # transfer, and stays wedged until the device re-enumerates. Symptoms are
@@ -78,9 +89,9 @@ is_fastbootd() { "$FASTBOOT" getvar is-userspace 2>&1 | grep -q "yes"; }
 # device fault. Retrying the bare command does not help; re-enumerating does.
 reenumerate() {
     if is_fastbootd; then
-        "$FASTBOOT" reboot fastboot >/dev/null 2>&1
+        fb reboot fastboot >/dev/null 2>&1
     else
-        "$FASTBOOT" reboot bootloader >/dev/null 2>&1
+        fb reboot bootloader >/dev/null 2>&1
     fi
     sleep 8
 }
@@ -90,9 +101,14 @@ fastboot_retry() {
     local label="$1"; shift
     local i out
     for i in 1 2 3 4 5; do
-        out=$("$FASTBOOT" "$@" 2>&1)
+        out=$(fb "$@" 2>&1)
         if printf '%s' "$out" | grep -q "Finished\|OKAY"; then
-            ok "$label"; return 0
+            ok "$label"
+            # Never swallow warnings. "does not support slots" in particular
+            # means --slot= was IGNORED and the write went to the current slot,
+            # which silently defeats the whole point of this script.
+            printf '%s' "$out" | grep -i "warning" | sed 's/^/        !! /'
+            return 0
         fi
         [ "$i" -lt 5 ] && reenumerate
     done
@@ -111,15 +127,31 @@ info "fastboot: $FASTBOOT ($("$FASTBOOT" --version | head -1 | awk '{print $3}')
 info "images:   $IMG_DIR"
 [ -n "$EXTRA_DIR" ] && info "extra:    $EXTRA_DIR"
 
-"$FASTBOOT" devices | grep -q . || die "no device in fastboot mode"
+# The link drops in and out, so a single check is not evidence of absence.
+wait_for_device() {
+    local i
+    for i in $(seq 1 12); do
+        fb devices 2>/dev/null | grep -q . && return 0
+        [ "$i" = "1" ] && info "waiting for device..."
+        sleep 5
+    done
+    return 1
+}
+wait_for_device || die "no device in fastboot mode after 60s"
 
-# Slots. getvar all is used rather than a targeted getvar because this
-# bootloader answers 'Variable Not found' to individual queries.
-ACTIVE_SLOT=$("$FASTBOOT" getvar all 2>&1 | grep -m1 "current-slot" | rev | cut -c1)
+# Slot detection. getvar all is the only query that lists current-slot, but it
+# hangs often enough that ACTIVE_SLOT can be supplied instead:
+#   ACTIVE_SLOT=a ./flash-frogger.sh ...
+# Read it from a booted system with: adb shell getprop ro.boot.slot_suffix
+if [ -z "${ACTIVE_SLOT:-}" ]; then
+    ACTIVE_SLOT=$(fb getvar all 2>&1 | grep -m1 "current-slot" | rev | cut -c1)
+fi
 case "$ACTIVE_SLOT" in
     a) INACTIVE_SLOT=b ;;
     b) INACTIVE_SLOT=a ;;
-    *) die "could not determine active slot (got '$ACTIVE_SLOT')" ;;
+    *) die "could not determine active slot (got '$ACTIVE_SLOT').
+    getvar is likely wedged -- power-cycle the phone, or pass it explicitly:
+      ACTIVE_SLOT=a $(basename "$0") $*" ;;
 esac
 info "active slot: $ACTIVE_SLOT   -> flashing to: $INACTIVE_SLOT"
 
@@ -141,6 +173,18 @@ if ! is_fastbootd; then
     fastboot_retry "reboot fastbootd" reboot fastboot || die "cannot reach fastbootd"
     sleep 12
     is_fastbootd || die "not in fastbootd after reboot"
+fi
+
+# --slot= only works where the current mode advertises has-slot for that
+# partition. The bootloader advertises it for almost nothing; fastbootd knows
+# the full table. If it is missing here, --slot= is silently ignored and every
+# write lands on the ACTIVE slot -- the opposite of what this script promises.
+SLOTTED=$(fb getvar all 2>&1 | grep -c "has-slot:.*:yes")
+info "partitions advertising has-slot in this mode: $SLOTTED"
+if [ "${SLOTTED:-0}" -lt 4 ]; then
+    info "WARNING: few slotted partitions visible. --slot= may be ignored,"
+    info "         in which case writes go to the ACTIVE slot ($ACTIVE_SLOT)."
+    confirm "Continue anyway?" || die "aborted"
 fi
 
 if [ "$WIPE_DATA" = "1" ]; then
@@ -168,7 +212,7 @@ fi
 
 info "dlkm -> slot $INACTIVE_SLOT (delete, recreate, flash)"
 for p in $DLKM_PARTITIONS; do
-    "$FASTBOOT" delete-logical-partition "${p}_${INACTIVE_SLOT}" >/dev/null 2>&1
+    fb delete-logical-partition "${p}_${INACTIVE_SLOT}" >/dev/null 2>&1
     fastboot_retry "${p}_${INACTIVE_SLOT} create" create-logical-partition "${p}_${INACTIVE_SLOT}" 1
     fastboot_retry "${p}_${INACTIVE_SLOT}" flash "${p}_${INACTIVE_SLOT}" "$(find_img "$p.img")"
 done
@@ -185,8 +229,8 @@ fi
 if [ -z "$SUPER_EMPTY" ]; then
     for p in $LOGICAL_PARTITIONS; do
         for s in a b; do
-            "$FASTBOOT" delete-logical-partition "${p}_${s}-cow" >/dev/null 2>&1
-            "$FASTBOOT" delete-logical-partition "${p}_${s}"     >/dev/null 2>&1
+            fb delete-logical-partition "${p}_${s}-cow" >/dev/null 2>&1
+            fb delete-logical-partition "${p}_${s}"     >/dev/null 2>&1
             fastboot_retry "${p}_${s} create" create-logical-partition "${p}_${s}" 1
         done
     done
@@ -200,7 +244,14 @@ fastboot_retry "set-active $INACTIVE_SLOT" --set-active="$INACTIVE_SLOT" \
     || die "could not switch slot -- device still boots slot $ACTIVE_SLOT, which is intact"
 
 printf '\n'
-info "done. slot $INACTIVE_SLOT is now active; slot $ACTIVE_SLOT is untouched."
-info "if the new slot fails to boot, the bootloader falls back to $ACTIVE_SLOT"
-info "on its own -- do NOT hold Power, or pstore is lost with it."
-confirm "Reboot to system now?" && "$FASTBOOT" reboot
+info "done. slot $INACTIVE_SLOT is now active."
+info ""
+info "What is NOT preserved: super is a single shared pool on virtual A/B, so"
+info "the logical partitions (system, vendor, product, odm, system_ext) are now"
+info "this image set for BOTH slots. Slot $ACTIVE_SLOT keeps only its own"
+info "boot-class images -- it does not have a userspace of its own to fall back"
+info "to. Switching slots alone will not give you a working phone."
+info ""
+info "If it fails to boot, do NOT hold Power -- that is a PMIC reset and it"
+info "wipes pstore, which is the only place the panic log lives."
+confirm "Reboot to system now?" && fb reboot
