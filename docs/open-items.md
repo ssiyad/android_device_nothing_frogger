@@ -307,6 +307,31 @@ Per-partition values were checked against stock and are otherwise correct,
 including `FroggerIND` in the vendor and odm fingerprints, which comes from
 `sku/build_IND.prop` and matches an India unit.
 
+### Camera — Morpho EIS nodes deferred
+
+`com.morpho.node.eisv2`, `eisv3` and `gme`, plus their `libmorpho_video_stabilizer.so`,
+are present in stock and absent from our blob list. They were added, then removed
+again: Soong rejects them with
+
+```
+module "com.morpho.node.eisv2": depends on multiple versions of the same aidl_interface
+  via libcommonchiutils             -> android.hardware.graphics.allocator-V1-ndk
+  via libmorpho_video_stabilizer -> libui -> android.hardware.graphics.allocator-V2-ndk
+```
+
+Both allocator versions arrive in one dependency graph. Breaking either edge with
+a `lib_fixup_remove` would work at runtime — `allocator-V1-ndk` and `libui` are
+both in `/vendor/lib64` on the device — but `lib_fixups` keys on the library name
+and applies globally, so removing `libui` would alter every blob that links it.
+
+These nodes are video stabilisation. They are not on the preview path, and
+`com.qti.node.swpnc` is what the failing pipeline actually named. So they are
+deferred rather than forced in during a camera bring-up.
+
+- [ ] Ship the Morpho EIS nodes once there is a way to scope the fixup, or once
+      video recording is being worked on and the conflict can be tested properly.
+      Expect video stabilisation to be absent until then
+
 ### Decided against
 
 - **Moving the volume panel up the screen.** Its vertical position is
