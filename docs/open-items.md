@@ -237,46 +237,6 @@ LineageOS A/B devices make the same trade.
       `/system/addon.d/` script; MindTheGapps does, NikGApps' list is far larger
       and how completely it survives has not been checked
 
-### Camera — DT done, blocked on regulator drivers
-
-**The device tree half is finished and proven on hardware.** All ten
-sensor/actuator/eeprom nodes apply, nested under `cci0` and `cci1` with
-`status=ok` and `compatible=qcom,cam-sensor`; CCI binds from the merged base
-(`ac15000.qcom,cci0`, `ac16000.qcom,cci1`); the flash nodes bind and create
-eleven LED devices.
-
-The blocker is one layer down. Frogger's sensors are supplied by two I2C LDO
-chips whose drivers were missing from this tree entirely:
-
-| compatible | bus | rails |
-|---|---|---|
-| `nothing,sgm38120` | `qupv3_se7_i2c` | `SGM_LDO1..7` |
-| `nothing,wr1241` | `qupv3_se7_i2c`, `qupv3_se1_i2c` | `WR_LDO1..4`, `WR_LDO*_UW` |
-
-The failure chain, each link verified on device:
-
-```
-no driver -> regulators never register
-          -> cam-sensor devices sit at waiting_for_supplier, never probe
-          -> no /dev/v4l-subdev*, media graph empty
-          -> CamX HwInterface::Create() derefs NULL in a static initialiser
-             while dlopening camera.qcom.so
-          -> provider SIGSEGVs on a 5s restart loop
-          -> Number of camera devices: 0
-```
-
-Ported from the OEM 6.1 kernel in `sm7635` `74498e7feb26`. Only one API change
-was needed for 6.6 — `i2c_driver.probe` lost its second argument.
-
-- [ ] **Unverified** — needs a build and a boot. Check in order:
-      `lsmod | grep -E 'sgm38120|wr1241'`, then
-      `ls /sys/class/regulator/*/name | xargs cat | grep -E 'SGM|WR_'`, then
-      `cat /sys/bus/platform/devices/*cam-sensor0/waiting_for_supplier` should
-      stop existing, then `ls /dev/v4l-subdev*`, then the camera count
-- [ ] Torch is downstream of the same thing. The LEDs exist
-      (`/sys/class/leds/led:torch_0..3`) but the QS tile drives them through
-      `CameraManager.setTorchMode()`, which needs a camera device to exist
-
 ### Build fingerprint and signing — two known inconsistencies
 
 `PRODUCT_SHIPPING_API_LEVEL` stays at **35**. It was briefly raised to 36 to
@@ -307,67 +267,18 @@ Per-partition values were checked against stock and are otherwise correct,
 including `FroggerIND` in the vendor and odm fingerprints, which comes from
 `sku/build_IND.prop` and matches an India unit.
 
-### Camera — Morpho EIS nodes deferred
+### Camera — see [camera.md](camera.md)
 
-`com.morpho.node.eisv2`, `eisv3` and `gme`, plus their `libmorpho_video_stabilizer.so`,
-are present in stock and absent from our blob list. They were added, then removed
-again: Soong rejects them with
+Five sensors enumerate, flash and torch work, pipelines build; the app still
+cannot open a capture session. Four defects found and fixed (bad bisect, missing
+regulator drivers, generic media profiles, incomplete blobs); two gaps remain —
+the SOIS kernel driver and the Morpho node AIDL conflict.
 
-```
-module "com.morpho.node.eisv2": depends on multiple versions of the same aidl_interface
-  via libcommonchiutils             -> android.hardware.graphics.allocator-V1-ndk
-  via libmorpho_video_stabilizer -> libui -> android.hardware.graphics.allocator-V2-ndk
-```
+The full history, the diagnostic method, the exact remaining work and the traps
+are in [camera.md](camera.md). Do not start from this file.
 
-Both allocator versions arrive in one dependency graph. Breaking either edge with
-a `lib_fixup_remove` would work at runtime — `allocator-V1-ndk` and `libui` are
-both in `/vendor/lib64` on the device — but `lib_fixups` keys on the library name
-and applies globally, so removing `libui` would alter every blob that links it.
-
-These nodes are video stabilisation. They are not on the preview path, and
-`com.qti.node.swpnc` is what the failing pipeline actually named. So they are
-deferred rather than forced in during a camera bring-up.
-
-- [ ] Ship the Morpho EIS nodes once there is a way to scope the fixup, or once
-      video recording is being worked on and the conflict can be tested properly.
-      Expect video stabilisation to be absent until then
-
-### Camera — SOIS disabled, kernel driver not ported
-
-`camxoverridesettings.txt` enables Nothing's sensor-OIS path:
-
-```
-enableCameraSOISMask=0x9    SOISOptimizationEnable=0x9    SOISEarlyPower=0:1|4:1
-```
-
-SOIS talks to `/dev/nt_cam_dev`, which does not exist here:
-
-```
-OpenSOIS() Open failed for Device /dev/nt_cam_dev — No such file or directory
-camxchinodeswpnc.cpp:512 LoadLib() Unable to open library
-  #01 ChiSWPNCNode::~ChiSWPNCNode()   com.qti.node.swpnc.so
-  #03 SWPNCNodeCreate                 → provider SIGSEGV → Broken pipe (-32)
-```
-
-`com.qti.node.swpnc` consumes OIS samples — its error strings are full of
-"Unable to get OIS data", "Cannot get Ois interval". With the device node absent
-it fails to initialise and takes the camera provider down.
-
-The node is created by `cam_sensor_nothing.c`, the **only** file our
-camera-kernel lacks: 561 of 563 sources match the OEM tree. Disabled via a
-`regex_replace` blob fixup rather than porting the driver mid-bring-up, because
-the port also needs hooks in `cam_sensor_{dev,core,soc}.c` and `cam_sensor_dev.h`,
-and `cam_sensor_core.c` is on the sensor probe path that currently works.
-
-- [ ] **Port `cam_sensor_nothing.{c,h}`** (633 + 103 lines) plus its hooks, then
-      re-enable SOIS. The additions are marked `// xft add for nothing custom`:
-      `cam_nt_driver_init()` in dev.c, `cam_nt_get_ois_power()` in soc.c,
-      `cam_nt_driver_errcode()` / `cam_nt_sctrl_save()` through core.c, and five
-      `extern_*` fields in dev.h. One Kbuild line. Until then there is no OIS
-- [ ] **`com.morpho.node.gme` is required after all.** Deferring the Morpho nodes
-      was wrong: `MultiCameraBayerSATNoBPSFrogger0_0_cam_2` needs it, and that is
-      a preview pipeline, not video stabilisation. Needs the aidl_interface
-      version conflict solved properly
+- [ ] Port `cam_sensor_nothing.{c,h}` and re-enable SOIS
+- [ ] Ship the Morpho nodes once the allocator version conflict can be scoped
 
 ### Decided against
 
