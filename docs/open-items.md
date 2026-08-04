@@ -279,8 +279,17 @@ was needed for 6.6 — `i2c_driver.probe` lost its second argument.
 
 ### Build fingerprint and signing — two known inconsistencies
 
-`PRODUCT_SHIPPING_API_LEVEL` was 35, inherited from Asteroids; stock reports 36
-and it is now 36. The remaining two are not one-line fixes:
+`PRODUCT_SHIPPING_API_LEVEL` stays at **35**. It was briefly raised to 36 to
+match stock's `ro.product.first_api_level` and that was a mistake, reverted the
+same day. The variable is not a property — it is the compliance switch that
+selects which launch requirements the build must meet. At 36 it turned on the
+16KB page-size check, which rejects `adpl` and `ATFWD-daemon` on a
+`CONFIG_ARM64_4K_PAGES` kernel, and then made `host_init_verifier` fatal on
+stock init scripts declaring no user, such as `vendor.nicmd`. Two build cycles
+lost. Stock reporting 36 is not a reason to claim it: stock is not built through
+AOSP's checks, and this device's vendor partition is API 34.
+
+The remaining two are not one-line fixes:
 
 - [ ] **`ro.build.tags=test-keys` while every fingerprint claims
       `release-keys`.** The only coherent fix is signing with our own release

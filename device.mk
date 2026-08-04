@@ -43,23 +43,20 @@ PRODUCT_PACKAGES += \
 
 PRODUCT_VIRTUAL_AB_COMPRESSION_METHOD := lz4
 
-# API. 36 is what stock reports for ro.product.first_api_level; 35 was
-# inherited from Asteroids and does not describe this device. The board level
-# stays at 34 in BoardConfig.mk, which is also what stock reports for
-# ro.board.api_level -- the vendor partition really was built at API 34 while
-# the system is Android 16, which is why the vendor fingerprint reads :14/.
-PRODUCT_SHIPPING_API_LEVEL := 36
-
-# Shipping API 36 turns on Android 16's 16KB page-size requirement, which makes
-# check_elf_file reject stock prebuilts built for 4KB pages -- adpl and
-# ATFWD-daemon fail with "Load segment has alignment 4096 but 16384 required".
+# API
 #
-# The requirement does not apply here. This device runs a 4KB-page kernel
-# (CONFIG_ARM64_4K_PAGES=y), and the vendor blobs are the ones stock ships, on
-# a stock image that also reports first_api_level 36. Raising the API level to
-# match stock is right; enforcing a page size neither stock nor our kernel uses
-# is not. Revisit if the kernel is ever moved to 16KB pages.
-PRODUCT_CHECK_PREBUILT_MAX_PAGE_SIZE := false
+# Do NOT raise this to 36 to match stock's ro.product.first_api_level. This is
+# not just a property -- it is the compliance switch that decides which launch
+# requirements the build must satisfy, and Frogger meets the Android 16 ones no
+# better than the blobs do. Setting 36 turned on the 16KB page-size check
+# (rejecting adpl and ATFWD-daemon, which are 4KB, on a CONFIG_ARM64_4K_PAGES
+# kernel) and then made host_init_verifier fatal on stock init scripts that
+# declare no user, such as vendor.nicmd. Both are stock blobs on a device whose
+# vendor partition is API 34; the requirements simply do not apply.
+#
+# Stock reporting 36 is not evidence we should: stock is not built through
+# AOSP's checks. The property cosmetically differing from stock costs nothing.
+PRODUCT_SHIPPING_API_LEVEL := 35
 
 # ART
 PRODUCT_ENABLE_UFFD_GC := true
