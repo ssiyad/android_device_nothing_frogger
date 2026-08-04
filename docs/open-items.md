@@ -251,6 +251,23 @@ boot falls back automatically instead of needing a power-hold.
 
 ## Flashing — use the inactive slot
 
+Scripted as [`tools/flash-frogger.sh`](../tools/flash-frogger.sh); collect logs
+afterwards with [`tools/grab-logs.sh`](../tools/grab-logs.sh).
+
+```sh
+cd ~/sources/android/downloads/roms
+WIPE_DATA=1 ~/sources/android/lineage/device/nothing/frogger/tools/flash-frogger.sh \
+    ex lineage-images
+```
+
+Two image directories because they complement each other: `ex/` is the ROM
+payload extraction and has every partition image; `lineage-images/` is the
+images zip and is the only one with `super_empty.img`. The script searches the
+first, then the second.
+
+Use **platform-tools r33.0.0**, which is what the reference flasher pins:
+`~/sources/android/platform-tools`.
+
 Reference: [spike0en/nothing_flasher](https://github.com/spike0en/nothing_flasher)
 (`frogger` branch, `bash/flash_all.sh`). Its structure matters more than the
 individual commands:
