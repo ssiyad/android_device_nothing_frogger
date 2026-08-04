@@ -50,6 +50,17 @@ PRODUCT_VIRTUAL_AB_COMPRESSION_METHOD := lz4
 # the system is Android 16, which is why the vendor fingerprint reads :14/.
 PRODUCT_SHIPPING_API_LEVEL := 36
 
+# Shipping API 36 turns on Android 16's 16KB page-size requirement, which makes
+# check_elf_file reject stock prebuilts built for 4KB pages -- adpl and
+# ATFWD-daemon fail with "Load segment has alignment 4096 but 16384 required".
+#
+# The requirement does not apply here. This device runs a 4KB-page kernel
+# (CONFIG_ARM64_4K_PAGES=y), and the vendor blobs are the ones stock ships, on
+# a stock image that also reports first_api_level 36. Raising the API level to
+# match stock is right; enforcing a page size neither stock nor our kernel uses
+# is not. Revisit if the kernel is ever moved to 16KB pages.
+PRODUCT_CHECK_PREBUILT_MAX_PAGE_SIZE := false
+
 # ART
 PRODUCT_ENABLE_UFFD_GC := true
 
