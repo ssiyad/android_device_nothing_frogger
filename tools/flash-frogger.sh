@@ -181,10 +181,22 @@ fi
 # write lands on the ACTIVE slot -- the opposite of what this script promises.
 SLOTTED=$(fb getvar all 2>&1 | grep -c "has-slot:.*:yes")
 info "partitions advertising has-slot in this mode: $SLOTTED"
-if [ "${SLOTTED:-0}" -lt 4 ]; then
-    info "WARNING: few slotted partitions visible. --slot= may be ignored,"
-    info "         in which case writes go to the ACTIVE slot ($ACTIVE_SLOT)."
-    confirm "Continue anyway?" || die "aborted"
+if [ "${FORCE_UNSLOTTED:-0}" != "1" ] && [ "${SLOTTED:-0}" -lt 10 ]; then
+    die "only $SLOTTED slotted partitions visible -- this is the bootloader, not
+    fastbootd, whatever 'fastboot devices' claims. --slot= would be silently
+    ignored and every write would land on the ACTIVE slot ($ACTIVE_SLOT),
+    corrupting the running system. Refusing to continue.
+
+    Verify with:  fastboot getvar all 2>&1 | grep -c has-slot
+    fastbootd reports ~40; the bootloader reports 3.
+
+    Override only if you truly mean to write the active slot: FORCE_UNSLOTTED=1"
+fi
+
+# create-logical-partition is the honest test: fastbootd implements it, the
+# bootloader answers 'unknown command'. Do this before writing anything.
+if ! fb getvar all 2>&1 | grep -q "is-userspace:yes"; then
+    [ "${FORCE_UNSLOTTED:-0}" = "1" ] || die "is-userspace is not yes -- not in fastbootd. Refusing to continue."
 fi
 
 if [ "$WIPE_DATA" = "1" ]; then
