@@ -47,20 +47,22 @@ a cold build. For kernel or device-tree iteration use targeted `mka` targets
 (`mka bootimage`, `mka dtboimage`, `mka vendordlkmimage`) rather than a full
 `brunch`; `dtbo.img` packaging alone is sub-second.
 
-### Get it booting — next up
+### Get it booting — done
 
-- [ ] **Re-flash using the inactive-slot procedure** (see
-      [Flashing](#flashing--use-the-inactive-slot)). This is the unblocking step:
-      it leaves a bootable stock slot as automatic fallback, so a failed boot no
-      longer needs a hard power-off — which means **pstore survives and we finally
-      get a panic log**
-- [ ] **Find why our dtbo prevents boot.** Bisected to the device tree; removing
-      the camera block did *not* fix it, so the cause is still unidentified
-- [ ] Triage the captured log and let it drive everything below
+- [x] ~~Re-flash using the inactive-slot procedure~~ — done, and it is now the
+      standard procedure (see [Flashing](#flashing--use-the-inactive-slot))
+- [x] ~~Find why our dtbo prevents boot~~ — two causes, both found and fixed:
+      the missing panel topology and the invisible audio config symbol. See
+      [What blocked first boot](#what-blocked-first-boot)
+- [x] ~~Triage the captured log~~ — done; a clean-boot survey drove the thermal
+      and PinnerService fixes
 
 ### Needs a booted device
 
-- [ ] Verify touchscreen sysfs nodes bind (single-tap, UDFPS)
+- [x] ~~Verify touchscreen sysfs nodes bind (single-tap, UDFPS)~~ — UDFPS works:
+      enrolment and authentication both confirmed, see
+      [Fingerprint](#fingerprint--fod-illumination-fixed-and-verified).
+      Single-tap still unverified
 - [ ] Verify audio; if speakers are silent, flip `speaker_protection_enabled` to `0`
 - [ ] Verify display brightness curve resolves to the expected panel ID
 - [ ] Decide `spunvm` — stock comments the mount out, we mount it
@@ -106,23 +108,51 @@ registers.
 - [ ] **Not compile-verified** — DTS changes need a build to confirm, then
       `cat /sys/class/thermal/thermal_zone47/type` and a clean kernel log
 
-### Fingerprint — FOD illumination, fixed but unverified
+### Fingerprint — FOD illumination, fixed and verified
 
-The HAL writes `/sys/panel_feature/ui_status` (`fingerprint/Session.cpp`) to make
-the panel light the finger; an optical sensor cannot capture an unlit one. That
-sysfs group is created in `sde_connector.c` only when `nt_is_panel_detected()` is
-true, which merely reports whether the global `nt_panel` was assigned — and
-`dsi_panel_get()` assigned it on an exact `strcmp` against Asteroids' rm69220.
-Frogger's nt37706a never matched, so the directory did not exist at all and the
-HAL's write went nowhere.
+An optical under-display sensor cannot capture an unlit finger, so the panel has
+to light it. The `/sys/panel_feature` attribute group is what exposes that, and
+`sde_connector.c` creates the whole group only when `nt_is_panel_detected()` is
+true. That function merely reports whether the global `nt_panel` was ever
+assigned, and `dsi_panel_get()` assigned it on an exact `strcmp` against
+Asteroids' rm69220. Frogger's nt37706a never matched, so **the entire directory
+was absent** — not just one node.
 
 Symptom: the UDFPS circle appeared and touching it did nothing.
 `dumpsys fingerprint` showed the HAL alive, `HAL deaths since last reboot: 0`,
 no lockout, and `acquire=0` — no touch ever reached the sensor.
 
-Fixed in `sm7635-modules` `51ec430bb8` / `2111ef9f5d`. **Not yet verified on
-hardware** — confirm `/sys/panel_feature/ui_status` exists after the next flash,
-then that enrolment collects samples.
+Fixed in `sm7635-modules` `51ec430bb8` / `2111ef9f5d`. **Verified on hardware:**
+
+```
+/sys/panel_feature/   brightnessid  fp_status  panel_id1  panel_id2  panel_id3
+Fps state: 2          (was 0)
+count:1  acquire:5  accept:4  reject:0  lockout:0
+```
+
+#### `ui_status` is a red herring — do not chase it
+
+`fingerprint/Session.cpp` writes `/sys/panel_feature/ui_status` in four places.
+**That node does not exist and never did.** The kernel's attribute list is:
+
+```c
+static struct attribute *panel_feature_attributes[] = {
+    &panel_id1_attribute.attr, &panel_id2_attribute.attr,
+    &panel_id3_attribute.attr, &fp_status_attribute.attr,
+    &brightnessid_attribute.attr, NULL,
+};
+```
+
+No `ui_status`, on Frogger or Asteroids. All four HAL writes fail silently —
+`WriteStringToFile` returns a `bool` that nothing checks. The working
+illumination path is `fp_status`. Reading the HAL first made `ui_status` look
+like the mechanism during diagnosis; it is not, and the fix worked because the
+gate controlled the whole group.
+
+- [ ] Dead code: drop the four `ui_status` writes from `Session.cpp`, or point
+      them at `fp_status` if they were ever meant to do something
+- [ ] `brightnessid` and `panel_id*` are now readable and were not before. They
+      may bear on [Display brightness curve](#display-brightness-curve)
 
 A 30Hz backlight quantisation keyed on the same rm69220 name was dropped rather
 than ported; its levels came from that panel's gamma. If the nt37706a needs the
