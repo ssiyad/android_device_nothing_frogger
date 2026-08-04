@@ -47,33 +47,64 @@ a cold build. For kernel or device-tree iteration use targeted `mka` targets
 (`mka bootimage`, `mka dtboimage`, `mka vendordlkmimage`) rather than a full
 `brunch`; `dtbo.img` packaging alone is sub-second.
 
-### Get it booting — done
+**The device is being daily driven as of 2026-08-04.** That changes the ordering
+below: gaps you hit every day outrank correctness work that is invisible until it
+bites. It also means real accounts and data now live on a permissive-SELinux,
+test-key build — see [Priority](#priority-order).
 
-- [x] ~~Re-flash using the inactive-slot procedure~~ — done. Superseded:
-      sideloading the OTA zip is now the standard path, see
-      [Flashing](#flashing--sideload-the-ota-zip)
-- [x] ~~Find why our dtbo prevents boot~~ — two causes, both found and fixed:
-      the missing panel topology and the invisible audio config symbol. See
-      [What blocked first boot](#what-blocked-first-boot)
-- [x] ~~Triage the captured log~~ — done; a clean-boot survey drove the thermal
-      and PinnerService fixes
+### Priority order
 
-### Needs a booted device
+1. **Camera** — the one functional gap you meet daily
+2. **NFC** — `com.android.nfc` ships disabled
+3. **SELinux enforcing** — invisible, but the debt compounds and camera will add
+   denials. Do it straight after camera, not "eventually"
+4. Everything under [Cleanup](#cleanup-no-boot-needed)
 
-- [x] ~~Verify touchscreen sysfs nodes bind (single-tap, UDFPS)~~ — UDFPS works:
-      enrolment and authentication both confirmed, see
-      [Fingerprint](#fingerprint--fod-illumination-fixed-and-verified).
-      Single-tap still unverified
-- [ ] Verify audio; if speakers are silent, flip `speaker_protection_enabled` to `0`
+### Verified working on hardware
+
+Checked 2026-08-04 on the 15:08 build:
+
+| | |
+|---|---|
+| sensors | 35 h/w sensors, all running — lsm6dsv accel/gyro, och191x magnetometer |
+| telephony | SIM loaded, LTE, IMS active |
+| wifi | `wlan0` + `wifi-aware0` present, 9 HAL entries |
+| display | 1224x2720 @ 120Hz, cutout correct |
+| fingerprint | enrol + auth confirmed |
+| audio routing | earpiece and speaker devices present |
+| haptics | confirmed via vibrator history |
+| thermal | zero bind failures |
+
+### Broken or missing
+
+- [ ] **Camera — 0 devices.** `dumpsys media.camera` reports none. Not degraded,
+      absent. Disabled in the overlay (devicetrees `95d70251`) because our dtbo
+      prevented boot. The sensor nodes are in the tree and were never reached;
+      re-enabling needs the platform-block problem solved properly rather than
+      the bisect that misled us. See [Camera](#camera--disabled-prevents-boot)
+- [ ] **NFC — `com.android.nfc` is in the disabled package list.** Cause not yet
+      investigated. No contactless payments, no tag reading
+
+### Cannot be fixed here
+
+Test-key signed with AVB disabled means Play Integrity fails, so banking apps,
+Google Wallet and some DRM video will refuse to run. Inherent to an unofficial
+build, not a bug to chase.
+
+### Still unverified — needs hands on the device
+
+- [ ] Real call audio: earpiece and mic in an actual call
+- [ ] Speaker playback; if silent, flip `speaker_protection_enabled` to `0`
+- [ ] Bluetooth pairing
+- [ ] GPS lock
+- [ ] Single-tap gesture (UDFPS itself is confirmed)
 - [ ] Verify display brightness curve resolves to the expected panel ID
 - [ ] Decide `spunvm` — stock comments the mount out, we mount it
 - [ ] Reconcile the 29 generic modules once the kernel actually builds them
-- [ ] **Camera** — currently **disabled** in the overlay (devicetrees `95d70251`)
-      because our dtbo prevents boot. The sensor nodes are still in the tree and
-      were never reached; re-enabling needs the platform-block problem solved
-      properly. See [Camera](#camera--disabled-prevents-boot)
+- [x] ~~Verify touchscreen sysfs nodes bind (UDFPS)~~ — works, see
+      [Fingerprint](#fingerprint--fod-illumination-fixed-and-verified)
 - [x] ~~Diff our built overlay against stock `entry.66`~~ — done, see
-      [Device tree vs stock](#device-tree-vs-stock-clean). Found and fixed the
+      [Device tree vs stock](#device-tree-vs-stock--clean). Found and fixed the
       wrong speaker amp and a missing display panel
 
 ### Thermal — `/delete-node/` does not work in this overlay
@@ -112,8 +143,15 @@ registers.
       `volcano-pmiv0104.dtsi`, not `volcano-pmic-overlay.dtsi` — a collision
       check against only the latter wrongly clears `sc_buck_ntc` and
       `usb_port_ntc`
-- [ ] **Not compile-verified** — DTS changes need a build to confirm, then
-      `cat /sys/class/thermal/thermal_zone47/type` and a clean kernel log
+- [x] ~~Not compile-verified~~ — **verified on hardware** on the 15:08 build:
+      `binding zone` failures went 36 to 0, all eight shadow zones absent, and
+      the five real zones (`battery`, `board_ntc`, `flash_light_ntc`,
+      `uhbpa_ntc`, `usb2_port_ntc`) all registered
+- [ ] Two zones are both named `battery` — `thermal_zone40` and
+      `thermal_zone61`, reading 37.65C and 37.0C. No `qcom/*.dtsi` defines one,
+      so ours comes from DT and the other is registered by a driver. Pre-existing
+      and not from the shadow-zone work, but `thermal-engine.conf` matches on the
+      name, so which one it binds to is not deterministic. Low priority
 
 ### Fingerprint — FOD illumination, fixed and verified
 
@@ -164,6 +202,19 @@ gate controlled the whole group.
 A 30Hz backlight quantisation keyed on the same rm69220 name was dropped rather
 than ported; its levels came from that panel's gamma. If the nt37706a needs the
 same treatment it wants its own measured values.
+
+### Confirmed fixed on hardware, 15:08 build
+
+- Thermal shadow zones — `binding zone` 36 to 0
+- `PinnerService` — 1 error to 0
+- Fingerprint FOD illumination — enrol and auth working
+- Display cutout, device name, volume panel side
+
+Boot survey on that build: crash buffer empty, SELinux denials 0. Error ranking
+is now topped by `keystore2` at 162, which is attestation failing against our
+test-key AVB-disabled build under NikGApps — expected, not actionable. The audio
+tags below it (`AGM`, `PAL`, `ACDB`, `gsl`) were not visible in the MindTheGapps
+survey and are GApps-package noise rather than regressions.
 
 ### Decided against
 
