@@ -513,7 +513,11 @@ vendor/lib64/camera/com.qti.tuned.frogger_s5kjn5_tele.bin
 vendor/lib64/camera/com.qti.tuned.frogger_s5kjn5_tele_v2.bin
 vendor/lib64/camera/com.qti.tuned.frogger_s5kjn5_tele_v3.bin
 vendor/lib64/camera/com.qti.tuned.frogger_s5kkd1_front.bin
+vendor/lib64/camera/components/com.arcsoft.node.smooth_transition.so
 vendor/lib64/camera/components/com.arcsoft.node.undistort.so
+vendor/lib64/camera/components/com.morpho.node.eisv2.so
+vendor/lib64/camera/components/com.morpho.node.eisv3.so
+vendor/lib64/camera/components/com.morpho.node.gme.so
 vendor/lib64/camera/components/com.qti.eisv2.so
 vendor/lib64/camera/components/com.qti.eisv3.so
 vendor/lib64/camera/components/com.qti.hvx.addconstant.so
@@ -559,6 +563,7 @@ vendor/lib64/camera/components/com.qti.node.swmctf.so
 vendor/lib64/camera/components/com.qti.node.swmfnr.so
 vendor/lib64/camera/components/com.qti.node.swmlremosaic.so
 vendor/lib64/camera/components/com.qti.node.swpdpc.so
+vendor/lib64/camera/components/com.qti.node.swpnc.so
 vendor/lib64/camera/components/com.qti.node.swpreprocess.so
 vendor/lib64/camera/components/com.qti.node.swregistration.so
 vendor/lib64/camera/components/com.qti.node.swvrt.so
@@ -725,6 +730,7 @@ vendor/lib64/libmmcamera_mfnr.so
 vendor/lib64/libmmcamera_mfnr_t4.so
 vendor/lib64/libmmcamera_pdpc.so
 vendor/lib64/libmorpho_RapidEffect.so
+vendor/lib64/libmorpho_video_stabilizer.so
 vendor/lib64/libmpbase.so
 vendor/lib64/libnoteengine.so
 vendor/lib64/libntcamallocator.so
