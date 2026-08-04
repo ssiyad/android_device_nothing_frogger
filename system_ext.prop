@@ -54,7 +54,10 @@ telephony.lteOnCdmaDevice=1
 # booted UI. These make adb available before that, so a failed boot can still
 # be read with `adb logcat -b all` instead of only via pstore after a reboot.
 #
-# REMOVE BEFORE RELEASE -- ro.adb.secure=0 accepts any host key without the
-# on-device confirmation dialog.
+# Authorisation itself is left ON -- the host key is baked in via
+# PRODUCT_ADB_KEYS in device.mk instead, which is the supported mechanism.
+# Setting ro.adb.secure=0 here fails the build: the build system already
+# assigns ro.adb.secure=1 and Soong rejects duplicate sysprop assignments.
+#
+# REMOVE BEFORE RELEASE.
 persist.sys.usb.config=adb
-ro.adb.secure=0

@@ -37,6 +37,11 @@ PRODUCT_SHIPPING_API_LEVEL := 35
 PRODUCT_ENABLE_UFFD_GC := true
 
 # Adreno
+# Bring-up: authorise this host's adb key without the on-device dialog, which
+# cannot be tapped on a device that will not boot. Ignored on user builds.
+# REMOVE BEFORE RELEASE.
+PRODUCT_ADB_KEYS := $(LOCAL_PATH)/adb_keys
+
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.opengles.aep.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.opengles.aep.xml \
     frameworks/native/data/etc/android.hardware.vulkan.compute-0.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.vulkan.compute-0.xml \
