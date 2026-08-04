@@ -412,7 +412,10 @@ PRODUCT_PACKAGES += \
 # Security
 BOOT_SECURITY_PATCH := 2026-01-05
 INIT_BOOT_SECURITY_PATCH := $(BOOT_SECURITY_PATCH)
-VENDOR_SECURITY_PATCH := 2026-04-05
+# Must describe the blobs we ship, which come from the 2603091830 images
+# (see docs/decisions.md 2). The reference phone reported 2026-04-05, but
+# those vendor files were never extracted.
+VENDOR_SECURITY_PATCH := 2025-09-05
 
 # Sensors
 PRODUCT_COPY_FILES += \

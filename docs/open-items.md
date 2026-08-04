@@ -288,10 +288,11 @@ and it is now 36. The remaining two are not one-line fixes:
       follow. **This re-signs every APK, so system app signatures change and a
       factory reset is required.** Worth doing before any wider release, not
       casually on a daily driver
-- [ ] **The fingerprint advertises stock build `2606301839`, but our blobs were
-      extracted from `2603091830`.** Harmless today, but we are claiming a build
-      whose vendor files we do not ship. Either re-extract from the matching OTA
-      or point the fingerprint at the one we actually used
+- [x] ~~The fingerprint advertises stock build `2606301839` while our blobs came
+      from `2603091830`~~ — resolved by pointing the fingerprint, all four SKU
+      files and `VENDOR_SECURITY_PATCH` at `2603091830`. This reverses part of
+      [decisions.md](decisions.md) §2, which assumed blobs would be pulled from
+      the phone; they never were. See the note recorded there
 
 Per-partition values were checked against stock and are otherwise correct,
 including `FroggerIND` in the vendor and odm fingerprints, which comes from

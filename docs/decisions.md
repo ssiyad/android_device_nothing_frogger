@@ -30,6 +30,25 @@ both inventories, so an entry could in principle exist in the older build and
 have been dropped in the newer one. Running `extract-files.py` against the phone
 will surface any such case immediately.
 
+### Reversed for the fingerprint and vendor SPL, 2026-08-04
+
+The premise above did not hold. Blobs were never pulled from the phone -- they
+were extracted from the `2603091830` images, verified byte-for-byte against the
+OTA. So the shipped image advertised a build whose vendor files it does not
+contain, and a vendor security patch four months newer than the blobs it ships.
+
+Re-extracting from the phone is no longer possible: it runs LineageOS now, and
+going back to stock to dump it costs more than the inconsistency is worth.
+
+So the fingerprint, the incremental in all four `sku/build_*.prop` files, and
+`VENDOR_SECURITY_PATCH` now all describe `2603091830`, which is what we actually
+ship. `2026-04-05` became `2025-09-05` as a result -- an older-looking SPL, but
+a true one; the *system* patch level still comes from LineageOS and is current.
+
+Everything else in this decision stands: props, feature masks and per-SKU
+values still come from the live device, because those describe the hardware
+rather than the build.
+
 ## 3. NFC gated by permissions, not by vintf manifest
 
 Stock gates NFC per SKU, and the IND reference unit genuinely has no NFC.
