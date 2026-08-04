@@ -49,8 +49,9 @@ a cold build. For kernel or device-tree iteration use targeted `mka` targets
 
 ### Get it booting — done
 
-- [x] ~~Re-flash using the inactive-slot procedure~~ — done, and it is now the
-      standard procedure (see [Flashing](#flashing--use-the-inactive-slot))
+- [x] ~~Re-flash using the inactive-slot procedure~~ — done. Superseded:
+      sideloading the OTA zip is now the standard path, see
+      [Flashing](#flashing--sideload-the-ota-zip)
 - [x] ~~Find why our dtbo prevents boot~~ — two causes, both found and fixed:
       the missing panel topology and the invisible audio config symbol. See
       [What blocked first boot](#what-blocked-first-boot)
@@ -381,6 +382,11 @@ is the only way to read a live userspace failure. pstore is the wrong tool for
 that case entirely: if the kernel is up and userspace is restarting, nothing is
 being preserved across a reboot because there is no reboot.
 
+**It is no longer set** — it was removed once the device booted reliably, since
+it hands unauthenticated adb to any USB host. If a build bootloops and this is
+needed again, put it back in `lineage_frogger.mk` above the `vendor/lineage`
+inherit; nowhere else works. It bought us the audio bootloop diagnosis.
+
 ## Historical: first flash — does not boot
 
 Flashed 2026-08-03/04. The ROM installed cleanly via `adb sideload` and then the
@@ -437,10 +443,29 @@ differently:
 **The fix is procedural, not technical:** flash to the inactive slot so a failed
 boot falls back automatically instead of needing a power-hold.
 
-## Flashing — use the inactive slot
+## Flashing — sideload the OTA zip
 
-Scripted as [`tools/flash-frogger.sh`](../tools/flash-frogger.sh); collect logs
-afterwards with [`tools/grab-logs.sh`](../tools/grab-logs.sh).
+**This is the standard procedure.** The build is a full A/B OTA — `payload.bin`,
+`payload_properties.txt`, `care_map.pb`, an `otacert`, `ota-type=AB` — so
+recovery installs every partition the payload covers, kernel, `dtbo` and
+`vendor_dlkm` included. Kernel and device-tree changes ship this way; there is
+no need to touch individual images.
+
+```sh
+adb reboot sideload            # or: recovery > Apply update > ADB sideload
+adb sideload lineage-23.2-<date>-UNOFFICIAL-frogger.zip
+```
+
+Recovery writes to the inactive slot and switches to it on success, so the
+slot discipline that mattered during bring-up is handled for us.
+
+Collect logs afterwards with [`tools/grab-logs.sh`](../tools/grab-logs.sh).
+
+### Flashing individual images — fallback only
+
+[`tools/flash-frogger.sh`](../tools/flash-frogger.sh) still exists and still
+works, but it is **not** the normal path. Reach for it only when sideload is not
+available: restoring stock, or recovering a device whose recovery is broken.
 
 ```sh
 cd ~/sources/android/downloads/roms
@@ -455,6 +480,9 @@ first, then the second.
 
 Use **platform-tools r33.0.0**, which is what the reference flasher pins:
 `~/sources/android/platform-tools`.
+
+Everything below this point applies to that fallback path only. None of it is
+a concern when sideloading.
 
 Reference: [spike0en/nothing_flasher](https://github.com/spike0en/nothing_flasher)
 (`frogger` branch, `bash/flash_all.sh`). Its structure matters more than the
@@ -813,9 +841,11 @@ in `device.mk`. NullDebris publishes `packages_apps_ParanoidGlyph`
 
 ## Bring-up hacks to remove before release
 
-* `WITH_ADB_INSECURE := true` in `lineage_frogger.mk` — adb with no authorisation
-  dialog, which cannot be tapped on a device that will not boot. It also leaves
-  `ro.debuggable=1`, since it skips `PRODUCT_NOT_DEBUGGABLE_IN_USERDEBUG`.
+* ~~`WITH_ADB_INSECURE := true` in `lineage_frogger.mk`~~ — **removed**, the
+  device boots reliably and no longer needs adb without an authorisation
+  dialog. It also left `ro.debuggable=1` by skipping
+  `PRODUCT_NOT_DEBUGGABLE_IN_USERDEBUG`. Kept here for the notes below, which
+  still apply if it ever goes back in.
   **Do not set `ro.adb.secure=0` directly** — `vendor/lineage/config/common.mk`
   already assigns it and Soong fails the build on duplicate sysprop assignments.
   It must also go in the **product** makefile, before the `vendor/lineage`

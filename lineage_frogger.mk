@@ -6,15 +6,16 @@
 $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit_only.mk)
 $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 
-# Bring-up: sets ro.adb.secure=0, so adb needs no on-device authorisation
-# dialog -- which cannot be tapped on a device that will not boot. Also leaves
-# ro.debuggable=1 by skipping PRODUCT_NOT_DEBUGGABLE_IN_USERDEBUG.
+# WITH_ADB_INSECURE was set here during bring-up, for the window where the
+# device bootlooped: ro.adb.secure=0 means adb needs no authorisation dialog,
+# and a dialog cannot be tapped on a phone that never reaches the launcher.
+# That is how the audio bootloop was diagnosed. It boots reliably now, so the
+# unauthenticated-adb-to-any-USB-host trade is no longer worth making.
 #
-# This MUST be set before the vendor/lineage inherit below, which reads it
-# (vendor/lineage/config/common.mk). Setting it in BoardConfig.mk does nothing:
-# board config is evaluated after product config.
-# REMOVE BEFORE RELEASE.
-WITH_ADB_INSECURE := true
+# If a future build bootloops and the console is needed again, set it here and
+# nowhere else: it must precede the vendor/lineage inherit below, which reads
+# it (vendor/lineage/config/common.mk). BoardConfig.mk does not work -- board
+# config is evaluated after product config.
 
 $(call inherit-product, device/nothing/frogger/device.mk)
 $(call inherit-product, vendor/lineage/config/common_full_phone.mk)
