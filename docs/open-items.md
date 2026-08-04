@@ -237,6 +237,46 @@ LineageOS A/B devices make the same trade.
       `/system/addon.d/` script; MindTheGapps does, NikGApps' list is far larger
       and how completely it survives has not been checked
 
+### Camera — DT done, blocked on regulator drivers
+
+**The device tree half is finished and proven on hardware.** All ten
+sensor/actuator/eeprom nodes apply, nested under `cci0` and `cci1` with
+`status=ok` and `compatible=qcom,cam-sensor`; CCI binds from the merged base
+(`ac15000.qcom,cci0`, `ac16000.qcom,cci1`); the flash nodes bind and create
+eleven LED devices.
+
+The blocker is one layer down. Frogger's sensors are supplied by two I2C LDO
+chips whose drivers were missing from this tree entirely:
+
+| compatible | bus | rails |
+|---|---|---|
+| `nothing,sgm38120` | `qupv3_se7_i2c` | `SGM_LDO1..7` |
+| `nothing,wr1241` | `qupv3_se7_i2c`, `qupv3_se1_i2c` | `WR_LDO1..4`, `WR_LDO*_UW` |
+
+The failure chain, each link verified on device:
+
+```
+no driver -> regulators never register
+          -> cam-sensor devices sit at waiting_for_supplier, never probe
+          -> no /dev/v4l-subdev*, media graph empty
+          -> CamX HwInterface::Create() derefs NULL in a static initialiser
+             while dlopening camera.qcom.so
+          -> provider SIGSEGVs on a 5s restart loop
+          -> Number of camera devices: 0
+```
+
+Ported from the OEM 6.1 kernel in `sm7635` `74498e7feb26`. Only one API change
+was needed for 6.6 — `i2c_driver.probe` lost its second argument.
+
+- [ ] **Unverified** — needs a build and a boot. Check in order:
+      `lsmod | grep -E 'sgm38120|wr1241'`, then
+      `ls /sys/class/regulator/*/name | xargs cat | grep -E 'SGM|WR_'`, then
+      `cat /sys/bus/platform/devices/*cam-sensor0/waiting_for_supplier` should
+      stop existing, then `ls /dev/v4l-subdev*`, then the camera count
+- [ ] Torch is downstream of the same thing. The LEDs exist
+      (`/sys/class/leds/led:torch_0..3`) but the QS tile drives them through
+      `CameraManager.setTorchMode()`, which needs a camera device to exist
+
 ### Decided against
 
 - **Moving the volume panel up the screen.** Its vertical position is
