@@ -43,8 +43,12 @@ PRODUCT_PACKAGES += \
 
 PRODUCT_VIRTUAL_AB_COMPRESSION_METHOD := lz4
 
-# API
-PRODUCT_SHIPPING_API_LEVEL := 35
+# API. 36 is what stock reports for ro.product.first_api_level; 35 was
+# inherited from Asteroids and does not describe this device. The board level
+# stays at 34 in BoardConfig.mk, which is also what stock reports for
+# ro.board.api_level -- the vendor partition really was built at API 34 while
+# the system is Android 16, which is why the vendor fingerprint reads :14/.
+PRODUCT_SHIPPING_API_LEVEL := 36
 
 # ART
 PRODUCT_ENABLE_UFFD_GC := true

@@ -277,6 +277,26 @@ was needed for 6.6 — `i2c_driver.probe` lost its second argument.
       (`/sys/class/leds/led:torch_0..3`) but the QS tile drives them through
       `CameraManager.setTorchMode()`, which needs a camera device to exist
 
+### Build fingerprint and signing — two known inconsistencies
+
+`PRODUCT_SHIPPING_API_LEVEL` was 35, inherited from Asteroids; stock reports 36
+and it is now 36. The remaining two are not one-line fixes:
+
+- [ ] **`ro.build.tags=test-keys` while every fingerprint claims
+      `release-keys`.** The only coherent fix is signing with our own release
+      keys — generate them, set `PRODUCT_DEFAULT_DEV_CERTIFICATE`, and the tags
+      follow. **This re-signs every APK, so system app signatures change and a
+      factory reset is required.** Worth doing before any wider release, not
+      casually on a daily driver
+- [ ] **The fingerprint advertises stock build `2606301839`, but our blobs were
+      extracted from `2603091830`.** Harmless today, but we are claiming a build
+      whose vendor files we do not ship. Either re-extract from the matching OTA
+      or point the fingerprint at the one we actually used
+
+Per-partition values were checked against stock and are otherwise correct,
+including `FroggerIND` in the vendor and odm fingerprints, which comes from
+`sku/build_IND.prop` and matches an India unit.
+
 ### Decided against
 
 - **Moving the volume panel up the screen.** Its vertical position is
@@ -969,6 +989,12 @@ in `device.mk`. NullDebris publishes `packages_apps_ParanoidGlyph`
   It must also go in the **product** makefile, before the `vendor/lineage`
   inherit that reads it; in `BoardConfig.mk` it is silently ignored, because
   board config is evaluated after product config
+* ~~`BOARD_API_LEVEL_PROP_OVERRIDE := 34`~~ — **not a hack, keep it.** The build
+  warns that it is for testing only, but 34 is exactly what stock reports for
+  `ro.board.api_level` and `ro.board.first_api_level`: Frogger's vendor
+  partition was built at API 34 while the system is Android 16. Removing it
+  would let the build derive 36 and misdescribe the vendor image. This is also
+  why the vendor and odm fingerprints legitimately read `:14/`
 * `androidboot.selinux=permissive` in `BOARD_BOOTCONFIG`
 * `SELINUX_IGNORE_NEVERALLOWS := true` in `BoardConfig.mk`
 * `BOARD_API_LEVEL_PROP_OVERRIDE := 34` — the build warns it is test-only
