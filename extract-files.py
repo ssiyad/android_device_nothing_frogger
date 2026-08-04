@@ -118,6 +118,17 @@ blob_fixups: blob_fixups_user_type = {
         .replace_needed('libtinyxml2.so', 'libtinyxml2-v34.so'),
     'vendor/etc/init/vendor.qti.media.c2@1.0-service.rc': blob_fixup()
         .regex_replace(r'writepid\s+/dev/cpuset/foreground/tasks', 'task_profiles ProcessCapacityHigh HighPerformance'),
+    'vendor/etc/camera/camxoverridesettings.txt': blob_fixup()
+        # SOIS is Nothing's sensor-OIS path. It needs /dev/nt_cam_dev, created
+        # by cam_sensor_nothing.c in the OEM camera-kernel -- the only file our
+        # camera-kernel lacks. With it enabled and the node absent, OpenSOIS
+        # fails and com.qti.node.swpnc, which consumes OIS samples, dies during
+        # init and takes the camera provider with it.
+        #
+        # Disable it until that driver is ported. Losing OIS assistance is a
+        # smaller price than no camera at all.
+        .regex_replace(r'enableCameraSOISMask=0x9', 'enableCameraSOISMask=0x0')
+        .regex_replace(r'SOISOptimizationEnable=0x9', 'SOISOptimizationEnable=0x0'),
 }  # fmt: skip
 
 module = ExtractUtilsModule(

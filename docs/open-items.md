@@ -332,6 +332,43 @@ deferred rather than forced in during a camera bring-up.
       video recording is being worked on and the conflict can be tested properly.
       Expect video stabilisation to be absent until then
 
+### Camera — SOIS disabled, kernel driver not ported
+
+`camxoverridesettings.txt` enables Nothing's sensor-OIS path:
+
+```
+enableCameraSOISMask=0x9    SOISOptimizationEnable=0x9    SOISEarlyPower=0:1|4:1
+```
+
+SOIS talks to `/dev/nt_cam_dev`, which does not exist here:
+
+```
+OpenSOIS() Open failed for Device /dev/nt_cam_dev — No such file or directory
+camxchinodeswpnc.cpp:512 LoadLib() Unable to open library
+  #01 ChiSWPNCNode::~ChiSWPNCNode()   com.qti.node.swpnc.so
+  #03 SWPNCNodeCreate                 → provider SIGSEGV → Broken pipe (-32)
+```
+
+`com.qti.node.swpnc` consumes OIS samples — its error strings are full of
+"Unable to get OIS data", "Cannot get Ois interval". With the device node absent
+it fails to initialise and takes the camera provider down.
+
+The node is created by `cam_sensor_nothing.c`, the **only** file our
+camera-kernel lacks: 561 of 563 sources match the OEM tree. Disabled via a
+`regex_replace` blob fixup rather than porting the driver mid-bring-up, because
+the port also needs hooks in `cam_sensor_{dev,core,soc}.c` and `cam_sensor_dev.h`,
+and `cam_sensor_core.c` is on the sensor probe path that currently works.
+
+- [ ] **Port `cam_sensor_nothing.{c,h}`** (633 + 103 lines) plus its hooks, then
+      re-enable SOIS. The additions are marked `// xft add for nothing custom`:
+      `cam_nt_driver_init()` in dev.c, `cam_nt_get_ois_power()` in soc.c,
+      `cam_nt_driver_errcode()` / `cam_nt_sctrl_save()` through core.c, and five
+      `extern_*` fields in dev.h. One Kbuild line. Until then there is no OIS
+- [ ] **`com.morpho.node.gme` is required after all.** Deferring the Morpho nodes
+      was wrong: `MultiCameraBayerSATNoBPSFrogger0_0_cam_2` needs it, and that is
+      a preview pipeline, not video stabilisation. Needs the aidl_interface
+      version conflict solved properly
+
 ### Decided against
 
 - **Moving the volume panel up the screen.** Its vertical position is
