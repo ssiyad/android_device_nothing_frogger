@@ -75,6 +75,16 @@ a cold build. For kernel or device-tree iteration use targeted `mka` targets
 
 ### Cleanup, no boot needed
 
+- [ ] `init.frogger.rc:33` sets
+      `ro.media.xml_variant.profiles "_volcano_v1_${ro.boot.pbid}"`. Frogger has
+      no `ro.boot.pbid`, so this expands to `_volcano_v1_` and the framework
+      looks for `media_profiles_volcano_v1_.xml` — a name that cannot exist.
+      Stock Frogger's init never sets this property at all, and the only profile
+      blob we extract is plain `vendor/etc/media_profiles.xml` (none of stock's
+      `_volcano_v1{,_Base,_Pro}` variants). The line is Asteroids inheritance and
+      should almost certainly just be deleted, but it changes media/recording
+      behaviour and camera is disabled, so it is untestable right now. Same dead-
+      `pbid` class as the USB product string fixed in `init.frogger.hw.rc`
 - [ ] Two deferred device-tree items (thermal NTC, pinctrl audio-pop fix)
 - [ ] SELinux back to enforcing; drop `SELINUX_IGNORE_NEVERALLOWS` and
       `BOARD_API_LEVEL_PROP_OVERRIDE` before any release build

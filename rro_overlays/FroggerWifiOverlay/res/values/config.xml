@@ -39,5 +39,5 @@
     <bool name="config_wifiSoftapIeee80211beSupported">false</bool>
 
     <!-- Do not translate. Default access point SSID used for tethering -->
-    <string translatable="false" name="wifi_tether_configure_ssid_default">Nothing Phone (3a)</string>
+    <string translatable="false" name="wifi_tether_configure_ssid_default">Nothing Phone (4a)</string>
 </resources>
