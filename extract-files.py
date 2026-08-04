@@ -96,8 +96,6 @@ blob_fixups: blob_fixups_user_type = {
         .add_needed('libbinder_shim.so'),
     'vendor/lib64/libqcodec2_core.so': blob_fixup()
         .add_needed('libcodec2_shim.so'),
-    'vendor/lib64/libwa_sat.so': blob_fixup()
-        .binary_regex_replace(b'/system\x00', b'/vendor\x00'),
     (
         'vendor/lib64/libcapiv2uvvendor.so',
         'vendor/lib64/liblistensoundmodel2vendor.so',

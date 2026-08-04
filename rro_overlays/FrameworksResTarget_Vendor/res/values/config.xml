@@ -17,11 +17,7 @@
         <item>/vendor/lib64/libipebpsstriping.so</item>
         <item>/vendor/lib64/libjpege.so</item>
         <item>/vendor/lib64/libllvm-qcom.so</item>
-        <item>/vendor/lib64/libwa_sat.so</item>
         <item>/vendor/lib64/libvega_common.so</item>
-        <item>/vendor/lib64/com.vidhance.node.gme.so</item>
-        <item>/vendor/lib64/com.vidhance.node.preview.so</item>
-        <item>/vendor/lib64/com.vidhance.node.video.so</item>
         <item>/vendor/lib64/com.qti.feature2.hdr.so</item>
         <item>/vendor/lib64/com.qti.feature2.rawhdr.so</item>
         <item>/vendor/lib64/libarcsoft_tfe_hdr.so</item>

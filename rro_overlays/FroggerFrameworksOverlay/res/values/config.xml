@@ -115,7 +115,6 @@
         <item>"/vendor/lib64/libllvm-qcom.so"</item>
         <item>"/vendor/lib64/libtfestriping.so"</item>
         <item>"/vendor/lib64/libvega_common.so"</item>
-        <item>"/vendor/lib64/libwa_sat.so"</item>
     </string-array>
 
     <!-- Bytes that the PinnerService will pin for WebView -->
