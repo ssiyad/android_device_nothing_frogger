@@ -83,25 +83,55 @@ monitor     →  monitor enable: 0
 which targets absent WSA hardware, and not the AW882xx's internal algorithm,
 which nothing turns on. Fine at normal levels; avoid sustained maximum volume.
 
-### Options, in increasing order of effort
+### Calibration is already done — do not re-run it
 
-1. **`monitor-mode = "kernel_monitor"`** in `frogger-common.dtsi`. The driver
-   parses this property (`aw882xx_monitor.c:1395`) and `AW_MON_KERNEL_MODE`
-   makes it run its own monitoring loop instead of waiting for the HAL. One
-   line, no PAL involvement, and the config it needs is in the
-   `aw882xx_acf.bin` we already ship. **Untested.** Calibration (`dsp_re`) may
-   still want `aw882xx_cali` to have run once.
-2. **Run `aw882xx_cali` from an init service.** The binary is on the device and
-   nothing starts it — stock has no init rc for it either, because stock's PAL
-   launches it. Worth trying: it may populate calibration and enable the algo
-   even under `hal_monitor`.
-3. **Ship stock's `libar-pal.so`** instead of building PAL from source. Closest
-   to stock behaviour and the only route to what stock actually does — but PAL
-   is the core of the audio HAL, and swapping a source build for a vendor blob
-   risks everything else that currently works. Not a casual change.
+```
+/dev/aw882xx_smartpa                    crw------- 10,111
+/mnt/vendor/persist/audio/aw_cali.bin   20 bytes, factory data
+```
 
-Option 1 is the cheapest real fix and does not depend on any blob. Try it before
-considering 3.
+`aw882xx_calib.c` reads exactly that path, so the coil resistance the protection
+algorithm needs is already stored. Nothing is missing; nothing was enabling the
+algorithm that uses it.
+
+**Do not add an init service for `aw882xx_cali`.** It is a calibration utility,
+not a monitor daemon:
+
+```
+./aw882xx_cali [back_end_name] [dev_name] cali [cali_re_time(ms)]
+./aw882xx_cali [back_end_name] [dev_name] get_re_range
+```
+
+Its `cali` verb *measures* coil resistance and overwrites `aw_cali.bin`. Run at
+boot — with playback active, or the phone in a pocket — it would replace good
+factory data with a bad measurement and make protection worse than absent. If it
+is ever needed, run it by hand on a quiet speaker, deliberately.
+
+### Fix applied: kernel-side monitoring
+
+`monitor-mode` changed from `hal_monitor` to `kernel_monitor` on both amp nodes
+in `frogger-common.dtsi` (devicetrees `503b2916`). `aw882xx_monitor.c:1395`
+parses the property, and `AW_MON_KERNEL_MODE` makes the driver run its own
+monitoring loop with no HAL involvement. Config comes from the
+`aw882xx_acf.bin` already shipped.
+
+**Untested.** After flashing, verify:
+
+```sh
+adb shell 'cat /sys/bus/i2c/drivers/aw882xx_smartpa/13-0034/monitor'    # want enabled
+adb shell 'cat /sys/bus/i2c/drivers/aw882xx_smartpa/13-0034/dsp_re'     # want non-zero
+adb shell 'cat /sys/bus/i2c/drivers/aw882xx_smartpa/13-0034/algo_state' # want a state, not an error
+```
+
+If `dsp_re` stays 0, the driver is not loading `aw_cali.bin` and that is the next
+thread — not a reason to re-calibrate.
+
+### Remaining option if that fails
+
+**Ship stock's `libar-pal.so`** instead of building PAL from source. Closest to
+what stock actually does, and the only route to `hal_monitor` working — but PAL
+is the core of the audio HAL, and swapping a source build for a vendor blob
+risks everything that currently works. Not a casual change.
 
 ---
 
