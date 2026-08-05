@@ -20,8 +20,18 @@ touch "$LOG" "$KEYS"
 
 # Never run two collectors: the second would duplicate every line, since each
 # holds its own in-memory copy of the seen set.
-if [ -f "$PIDF" ] && kill -0 "$(cat "$PIDF" 2>/dev/null)" 2>/dev/null; then
-    exit 0
+#
+# Checking `kill -0` alone is NOT enough. PIDs are reused across reboots, and on
+# 2026-08-06 the stale pid file held 2259, which after a reboot belonged to
+# /vendor/bin/qms -- so the guard saw a live process, assumed a collector was
+# already running, and exited. The collector silently missed two boots, which is
+# precisely the data that matters most. Confirm the PID is actually us.
+if [ -f "$PIDF" ]; then
+    oldpid=$(cat "$PIDF" 2>/dev/null)
+    if [ -n "$oldpid" ] && kill -0 "$oldpid" 2>/dev/null &&
+       tr -d '\0' < "/proc/$oldpid/cmdline" 2>/dev/null | grep -q 'collect\.sh'; then
+        exit 0
+    fi
 fi
 echo $$ > "$PIDF"
 
