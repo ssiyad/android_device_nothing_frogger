@@ -60,8 +60,12 @@ Checked 2026-08-04 on the 15:08 build:
 - [ ] **Camera — enumerates but cannot open a session.** Five sensors, 25 v4l2
       subdevs, flash and torch work. `com.qti.node.swpnc` fails in `LoadLib()`
       and takes the provider down. Parked — see [camera.md](camera.md)
-- [ ] **NFC — `com.android.nfc` is in the disabled package list.** Cause not yet
-      investigated. No contactless payments, no tag reading
+- [x] ~~**NFC — `com.android.nfc` is in the disabled package list.**~~ — not a
+      bug. **Frogger has no NFC hardware.** Verified 2026-08-06: no
+      `android.hardware.nfc*` in `pm list features`, no `/dev/nq-nci`,
+      `/dev/pn5xx_i2c` or `/dev/st21nfc`, and no NFC HAL binary in
+      `/vendor/bin/hw/`. Disabling the package is correct. Nothing to fix, and
+      no NFC denials to collect for SELinux
 
 ### Cannot be fixed here
 
