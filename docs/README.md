@@ -9,6 +9,7 @@ This directory records how `device/nothing/frogger` was derived from
 | [changes.md](changes.md) | Per-file change log |
 | [decisions.md](decisions.md) | Judgement calls, with rationale and how to reverse them |
 | [open-items.md](open-items.md) | Unverified assumptions and external work still required |
+- [roadmap.md](roadmap.md) — planned workstreams: signing, Magisk/integrity, SELinux, and their ordering
 - [camera.md](camera.md) — camera bring-up: what was fixed, what remains, how to diagnose it
 - [audio.md](audio.md) — speaker protection, volume config, and the AW882xx/PAL mismatch
 | [build-server.md](build-server.md) | Where and how builds run, and how blobs are regenerated |

@@ -54,11 +54,20 @@ test-key build — see [Priority](#priority-order).
 
 ### Priority order
 
-1. **Camera** — the one functional gap you meet daily
-2. **NFC** — `com.android.nfc` ships disabled
-3. **SELinux enforcing** — invisible, but the debt compounds and camera will add
-   denials. Do it straight after camera, not "eventually"
-4. Everything under [Cleanup](#cleanup-no-boot-needed)
+**Camera is sidelined** as of 2026-08-05 — see [camera.md](camera.md). The plan
+for what follows is in [roadmap.md](roadmap.md); the short version:
+
+1. **GApps survive a flash** — implemented, needs one test: flash a ROM without
+   reflashing GApps
+2. **Signing and keys** — first, because re-signing forces a factory reset and
+   invalidates anything Magisk has patched
+3. **Magisk / Zygisk / Play Integrity** — after signing, or it must be redone.
+   `STRONG` integrity is not reachable; be clear about that before starting
+4. **SELinux enforcing** — denial collection should start *now*, in parallel.
+   Both counts quoted so far (5, then 0) understate it: permissive only logs
+   paths that ran, and `dontaudit` hides more
+5. **NFC** — `com.android.nfc` ships disabled, cause uninvestigated
+6. Everything under [Cleanup](#cleanup-no-boot-needed)
 
 ### Verified working on hardware
 
@@ -307,6 +316,31 @@ are in [camera.md](camera.md). Do not start from this file.
   with no build error when upstream changes it. Not worth it for a cosmetic
   tweak. Patching `frameworks/base` is not an option either: it is LineageOS
   upstream, not one of our forks, so `repo sync` would revert it
+
+### Planned workstreams
+
+Detail and sequencing in [roadmap.md](roadmap.md).
+
+- [ ] **Confirm GApps survive a ROM flash.** `POSTINSTALL_PATH_system` runs
+      `backuptool_postinstall.sh`, and MindTheGapps installs
+      `/system/addon.d/30-gapps.sh` (`ADDOND_VERSION=3`, standard `list_files()`,
+      no `/sdcard` paths). Test: flash a ROM and do not reflash GApps
+- [ ] **Signing and keys.** Generate `releasekey`/`platform`/`shared`/`media`/
+      `networkstack`/`sdk_sandbox`/`bluetooth`, set
+      `PRODUCT_DEFAULT_DEV_CERTIFICATE`. **Requires a factory reset** — every
+      APK signature changes. Fixes `ro.build.tags=test-keys` contradicting the
+      `release-keys` fingerprint. Decide AVB at the same time: we currently ship
+      `--flags 3`, which disables verification outright
+- [ ] **Magisk, Zygisk, Play Integrity.** After signing. Magisk over KernelSU
+      only because Zygisk is what integrity modules target. `STRONG` integrity
+      is unreachable — hardware attestation. `DEVICE` needs spoofing and is
+      eroding. Banking apps and Wallet will keep failing
+- [ ] **SELinux enforcing.** Start collecting denials now while daily driving.
+      Rebuild policy with `dontaudit` stripped before trusting any count. Most
+      denials are labelling bugs — `genfs_contexts` for virtual filesystems,
+      not `audit2allow` output pasted verbatim. Dropping
+      `SELINUX_IGNORE_NEVERALLOWS` is separate from flipping enforcing and
+      usually harder
 
 ### Cleanup, no boot needed
 
