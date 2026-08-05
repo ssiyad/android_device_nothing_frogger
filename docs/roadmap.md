@@ -7,8 +7,8 @@ next, and SELinux collection should run in parallel with it.
 |---|---|---|
 | 0 | GApps survive a flash | **unproven** — see below |
 | 1 | Signing and keys | **done and verified on device** |
-| 2 | Magisk / Zygisk / Play Integrity | not started |
-| 3 | SELinux enforcing | collection should start now |
+| 2 | Magisk / Zygisk / Play Integrity | Magisk 30.7 installed; PIF not enabled |
+| 3 | SELinux enforcing | collecting — see [selinux.md](selinux.md) |
 
 ---
 
@@ -158,51 +158,22 @@ rather than chasing it.
 
 ---
 
-## 3. SELinux enforcing — start collecting now
+## 3. SELinux enforcing — see [selinux.md](selinux.md)
 
-**Passive work that should begin immediately**, because the only way to learn the
-real denial set is to run the device permissive and harvest.
+Collection is running. `selinux.md` holds the detail; the short version:
 
-**Current bring-up state:**
+- A denial **collector** runs from Magisk `service.d` and accumulates a
+  deduplicated set across reboots.
+- **Magisk pollutes the data.** Zygisk attributes roughly a quarter of denials to
+  `zygote` that belong elsewhere. Filter before running anything over the log.
+- Collection found a real bug — **`com.android.bluetooth` runs in the `zygote`
+  domain**, because our Bluetooth signing key did not match the certificate in
+  `plat_mac_permissions.xml`. Fixed in `keys.mk`, not yet built. Permissive hid
+  it entirely.
+- **NFC is not applicable** — Frogger has no NFC hardware.
 
-```
-androidboot.selinux=permissive     BOARD_BOOTCONFIG
-SELINUX_IGNORE_NEVERALLOWS := true BoardConfig.mk
-```
-
-**Two traps, both already bitten once in the numbers quoted so far:**
-
-- A boot showed **5 denials**, and later **0**. Neither is the real count.
-  Permissive only logs paths that actually ran, and camera, NFC, Bluetooth and
-  GPS were untouched in those boots.
-- **`dontaudit` suppresses logging even in permissive.** Any count taken without
-  stripping those rules understates the problem. Rebuild policy with `dontaudit`
-  removed before trusting a number.
-
-**Phases:**
-
-1. **Collect.** Harvest denials continuously while daily driving; a small script
-   appending deduplicated `avc: denied` lines to a file, since logcat rotates.
-2. **Widen.** Rebuild policy without `dontaudit` and collect again. Exercise
-   every subsystem deliberately — calls, Bluetooth, GPS, NFC, camera when it
-   returns.
-3. **Write policy.** Most denials are **labelling** bugs, not missing `allow`
-   rules. `audit2allow` output should never be pasted verbatim: given a HAL
-   denied access to an `unlabeled` sysfs node it emits
-   `allow hal_x unlabeled:file rw`, which grants access to *everything*
-   unlabeled. The right fix is usually one `genfs_contexts` line. Virtual
-   filesystems cannot be labelled by `file_contexts`.
-4. **Drop `SELINUX_IGNORE_NEVERALLOWS`.** Separate from flipping enforcing and
-   often harder — a neverallow violation means the policy is wrong, not merely
-   incomplete.
-5. **Flip to enforcing** and fix what breaks.
-
-**Known already:** `hal_nt_charger` denied `open`/`read` on
-`/sys/devices/virtual`, and `init` denied `open` on a UFS `nr_tags` sysfs node.
-
-**Camera being sidelined helps here** — it is a large denial surface that will
-not move under us while policy is written. But policy written now must be
-revisited when camera returns.
+Still to do: exercise GPS, telephony, camera, tethering and USB; rebuild with
+`dontaudit` stripped; then write policy by hand, `genfs_contexts` first.
 
 ---
 
@@ -211,8 +182,8 @@ revisited when camera returns.
 ```
 0. GApps             addon.d unproven — reflash GApps after every ROM sideload
 1. Signing + keys    done, verified on device, no wipe required
-2. Magisk / PIF      next, now unblocked
-3. SELinux           collection starts now, flip whenever ready
+2. Magisk / PIF      Magisk 30.7 rooted and verified; PIFork downloaded, not enabled
+3. SELinux           collector running; Bluetooth domain bug found and fixed
 ```
 
 SELinux collection runs in parallel with everything else; it costs nothing and
