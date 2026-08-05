@@ -164,12 +164,14 @@ Collection is running. `selinux.md` holds the detail; the short version:
 
 - A denial **collector** runs from Magisk `service.d` and accumulates a
   deduplicated set across reboots.
-- **Magisk pollutes the data.** Zygisk attributes roughly a quarter of denials to
-  `zygote` that belong elsewhere. Filter before running anything over the log.
+- An earlier claim that **Zygisk pollutes the data has been retracted** — zygote
+  still dominated a Magisk-free boot. The zygote-attributed Bluetooth denials
+  were the domain bug below, not tooling interference.
 - Collection found a real bug — **`com.android.bluetooth` runs in the `zygote`
   domain**, because our Bluetooth signing key did not match the certificate in
-  `plat_mac_permissions.xml`. Fixed in `keys.mk`, not yet built. Permissive hid
-  it entirely.
+  `plat_mac_permissions.xml`. **Fixed and verified on device 2026-08-06** —
+  `com.android.bluetooth` now runs in `u:r:bluetooth:s0`. Permissive hid it
+  entirely.
 - **NFC is not applicable** — Frogger has no NFC hardware.
 
 Still to do: exercise GPS, telephony, camera, tethering and USB; rebuild with

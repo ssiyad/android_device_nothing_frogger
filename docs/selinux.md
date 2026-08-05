@@ -42,35 +42,47 @@ with the same rule repeated once per app and once per process:
 
 It reparents to init, so it survives `adb` disconnects and reboots.
 
-## Magisk contaminates the data — know this before reading the log
+## Retracted: "Magisk contaminates the data"
 
-Zygisk injects into zygote, and forked processes can be logged before they finish
-transitioning to their app domain. The result is denials attributed to `zygote`
-that belong to something else:
+An earlier version of this document claimed Zygisk was polluting roughly a quarter
+of the collected denials by attributing them to `zygote`. **That was wrong**, and
+the evidence that disproved it is worth keeping.
+
+The first flash of 2026-08-06 removed Magisk (a new `init_boot` overwrites the
+patched one). With Magisk definitively absent, `zygote` still accounted for 608
+of 998 denials. Zygisk cannot explain denials that occur without Zygisk.
+
+The zygote-attributed Bluetooth denials — writing `/data/misc/bluedroid`,
+renaming `bt_config.conf` — had a much simpler cause: **`com.android.bluetooth`
+was running in the zygote domain**, from the certificate mismatch described
+below. They were literally Bluetooth's own files, logged under the domain
+Bluetooth was wrongly in. After that fix, zero non-property zygote denials remain.
+
+The lesson: a surprising `scontext` is more often a domain-transition bug than
+tooling interference, and "our instrumentation is lying" is a conclusion to reach
+last, not first.
+
+Denials with `scontext=u:r:shell:s0` *are* genuinely an artefact of investigation
+over adb rather than of the device doing anything.
+
+## Most of the count is two behaviours, not hundreds of bugs
+
+The clean 998-denial snapshot breaks down as:
 
 ```
-{ call }       zygote → gmscore_app   binder
-{ transfer }   zygote → system_server binder
-{ wake_alarm } zygote → zygote        capability2
+608   zygote              /dev/__properties__/u:object_r:*_prop:s0
+332   hal_camera_default  /dev/__properties__/u:object_r:*_prop:s0
+ 58   everything else
 ```
 
-Zygote does not make binder calls to app domains or take wake locks. **None of
-this exists on an unrooted build.** Writing policy for it would be writing policy
-for Magisk.
+Roughly 940 of 998 are `{ getattr }`, `{ map }` and `{ open }` on property files
+— about 200 property types for zygote and 110 for the camera HAL, each counted
+three times. It is **two processes walking the property area**, not 940 problems,
+and it will likely collapse to a small number of policy lines.
 
-Denials with `scontext=u:r:shell:s0` are usually an artefact of investigation over
-adb, not of the device doing anything.
-
-Between them these were roughly a quarter of the first collection. Filter before
-running anything over the log.
-
-**Decided 2026-08-06: keep Magisk and live with the contamination for now.** Root
-is worth more than clean data at this stage — it is what made the Bluetooth
-domain bug findable, and what allowed the LVACFS fix to be tested with a bind
-mount instead of a build cycle. The plan is a separate clean collection later:
-uninstall Magisk, use the device normally for a day, and collect an uncontaminated
-set to diff against this one. Until that happens, **treat every `zygote`-sourced
-denial as unattributed rather than as a fact about zygote.**
+This also explains why earlier collections looked so much smaller: they started
+*after* boot, and the property enumeration happens during it. Any collection that
+misses boot misses most of the set.
 
 ## Found: Bluetooth runs in the zygote domain
 
