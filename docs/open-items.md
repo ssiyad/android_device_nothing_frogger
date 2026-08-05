@@ -83,6 +83,13 @@ decided, and `verifiedbootstate=orange` alone fails `DEVICE` integrity.
       built — only what a future re-extraction would produce, and the extracted
       tree must then be corrected by hand on the laptop *and* the build server.
       Hit for real by the LVACFS recording fix (see [audio.md](audio.md)).
+      **The two copies had already silently diverged:** on 2026-08-06 the laptop
+      tree held 1642 files and the builder 1673 — the laptop was missing 31,
+      including camera blobs like `com.qti.node.swpnc.so`. Builds were correct
+      because they run on the builder, so nothing ever surfaced it. Re-running
+      `extract-files.py` against the stock `B4.1-260309-1830` dump at
+      `~/sources/android/downloads/firmwares/frogger/extracted` brought the
+      laptop to 1673 and the trees now match.
       Options: put the blob tree under git and add it to the local manifest, or
       re-run `extract-files.py` as part of the build. Until then, any blob edit
       is a two-machine manual step and easy to half-apply
