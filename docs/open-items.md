@@ -102,12 +102,13 @@ build, not a bug to chase.
       `Backend:24 <-> Frontend:121 Connect failed error:-22`. Set to `0` in
       `audio/resourcemanager_volcano_qrd.xml`. **Also the likely cause of video
       stutter** — playback was failing and retrying, not decoding slowly
-- [ ] Speaker protection is now off, so there is no excursion or thermal
-      limiting. To restore it, the VI feedback path needs wiring for the amps
-      actually fitted: the mixer exposes `SpkrLeft`/`SpkrRight`/`Spkr2Right
-      VISENSE`, which are WSA883x controls, but the bound amps are Awinic
-      `aw882xx` at `13-0034`/`13-0035`. The card is still named
-      `volcano-qrd-wsa883x-snd-card`
+- [ ] **No speaker protection at all** — see [audio.md](audio.md). Neither
+      QCOM's VI path (it targets WSA883x controls and this device has no WSA
+      amp on SoundWire) nor the AW882xx's own algorithm, which reports
+      `monitor enable: 0` and `dsp_re 0` because nothing enables it. Stock's
+      `libar-pal.so` has Awinic support and drives it; we build PAL from
+      generic CAF source that does not. Cheapest untested fix is
+      `monitor-mode = "kernel_monitor"` in the DT
 - [ ] Bluetooth pairing
 - [ ] GPS lock
 - [ ] Single-tap gesture (UDFPS itself is confirmed)

@@ -10,6 +10,7 @@ This directory records how `device/nothing/frogger` was derived from
 | [decisions.md](decisions.md) | Judgement calls, with rationale and how to reverse them |
 | [open-items.md](open-items.md) | Unverified assumptions and external work still required |
 - [camera.md](camera.md) — camera bring-up: what was fixed, what remains, how to diagnose it
+- [audio.md](audio.md) — speaker protection, volume config, and the AW882xx/PAL mismatch
 | [build-server.md](build-server.md) | Where and how builds run, and how blobs are regenerated |
 
 ## Reference sources
