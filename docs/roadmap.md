@@ -7,7 +7,7 @@ factory reset and another is passive data collection that should start now.
 | # | Workstream | State |
 |---|---|---|
 | 0 | GApps survive a flash | implemented, awaiting one test |
-| 1 | Signing and keys | not started — **do before 2** |
+| 1 | Signing and keys | **keys generated**, first signed build pending |
 | 2 | Magisk / Zygisk / Play Integrity | not started |
 | 3 | SELinux enforcing | collection should start now |
 
@@ -46,15 +46,35 @@ ro.build.fingerprint …/2603091830:user/release-keys
 Every fingerprint claims `release-keys` while the build is signed with AOSP's
 public test keys — which are, by definition, known to everyone.
 
-**Work:**
+**Keys generated 2026-08-05.** Eight RSA-2048 keys — `releasekey`, `platform`,
+`shared`, `media`, `networkstack`, `nfc`, `sdk_sandbox`, `bluetooth` — no
+passphrase, subject `/CN=frogger/O=ssiyad/emailAddress=hello@ssiyad.com`, valid
+to 2053. Private key verified to match cert for all eight.
 
-1. Generate a key set — `releasekey`, `platform`, `shared`, `media`,
-   `networkstack`, `sdk_sandbox`, `bluetooth`. LineageOS documents this; keys
-   live outside the tree and must be backed up, because losing them means no
-   further updates can be installed over an existing install.
-2. Point `PRODUCT_DEFAULT_DEV_CERTIFICATE` at them.
-3. Build, **factory reset**, flash, set the device up again.
-4. Confirm `ro.build.tags=release-keys` and that the fingerprint no longer lies.
+**The location is load-bearing.** `build/make/core/config.mk:1364` decides
+`BUILD_KEYS` from *where* `DEFAULT_SYSTEM_DEV_CERTIFICATE` points:
+
+```
+build/make/target/product/security/testkey  -> test-keys
+vendor/lineage-priv/%                       -> release-keys
+anything else                               -> dev-keys
+```
+
+Keys in the commonly-suggested `~/.android-certs` would build as **dev-keys**,
+not release-keys. They live in `vendor/lineage-priv/keys/` on both the laptop and
+the build server, wired by `vendor/lineage/config/common.mk:304`
+(`-include vendor/lineage-priv/keys/keys.mk`) with no device-tree change.
+
+`vendor/lineage-priv` is inside no git repo and is not a repo project, so the
+keys cannot be committed or pushed by accident. **They are not backed up by
+anything automatic** — no passphrase means the files are the entire secret.
+
+**Remaining:**
+
+1. Build with them. Every APK is re-signed.
+2. **Factory reset**, flash, set the device up again.
+3. Confirm `ro.build.tags=release-keys` and that the fingerprint no longer
+   contradicts it.
 
 **Also worth deciding at the same time:** AVB. We currently build with
 `BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3`, which disables verification

@@ -6,51 +6,22 @@ their rationale lives in git history and in [decisions.md](decisions.md),
 
 ## TODO
 
-In dependency order. Nothing below "flash and boot" can be checked until the
-device actually comes up.
+**State:** boots, daily driven since 2026-08-04. Display, audio, telephony,
+sensors, fingerprint, Wi-Fi, thermal and haptics all work. Camera enumerates
+five sensors but cannot open a capture session — parked, see
+[camera.md](camera.md).
 
-**Status:** **`brunch frogger` succeeds.** First complete ROM built
-2026-08-03 on the build server: `lineage-23.2-20260803-UNOFFICIAL-frogger.zip`,
-1.56 GB, exit 0. Every partition image is produced — `system` 862 MB,
-`vendor` 1612 MB, `product` 547 MB, `system_ext` 362 MB, `boot` 96 MB,
-`vendor_boot` 96 MB, `vendor_dlkm` 73 MB, `dtbo` 24 MB.
+Builds run on the build server, not the laptop — [build-server.md](build-server.md).
+Published at <https://build.ssiyad.com>.
 
-**IT BOOTS.** First successful boot 2026-08-04 with
-`lineage-23.2-20260804-UNOFFICIAL-frogger.zip`:
+A cold build is ~257 min of ninja wall time, of which the kernel is ~23 min.
+Platform Java/Kotlin/R8 dominates. For kernel or device-tree iteration use
+targeted `mka` targets (`mka bootimage`, `mka dtboimage`, `mka vendordlkmimage`)
+rather than a full `brunch`.
 
-```
-sys.boot_completed = 1        bootanim = stopped
-display  1224x2720 @ 120/90/60/45/30/24Hz, HDR [2,3,4], 480dpi
-         uniqueId local:4630947107087237506
-sound    volcano-qrd-wsa883x-snd-card registered
-kernel   0 errors, no failed module loads, no deferred probes
-```
-
-Two bugs blocked it, both in this tree, both invisible to the checks used at
-the time — see [What blocked first boot](#what-blocked-first-boot).
-
-Builds run on the build server, not the laptop — see
-[build-server.md](build-server.md). Finished zips are published at
-<https://build.ssiyad.com>.
-
-Build cost, measured from `out/.ninja_log` on a 12-core/62 GB server, cold `out/`:
-
-| | |
-|---|---|
-| total ninja wall time | 257 min |
-| kernel (`Image.gz`, one edge, includes all ext modules) | 22.6 min (~9%) |
-| kernel `.config` | 29 s |
-| heaviest single edges | SystemUI 557 s, Launcher3 339 s, platformprotos 321 s |
-
-So the platform — Java/Kotlin/R8 — dominates, and the kernel is under a tenth of
-a cold build. For kernel or device-tree iteration use targeted `mka` targets
-(`mka bootimage`, `mka dtboimage`, `mka vendordlkmimage`) rather than a full
-`brunch`; `dtbo.img` packaging alone is sub-second.
-
-**The device is being daily driven as of 2026-08-04.** That changes the ordering
-below: gaps you hit every day outrank correctness work that is invisible until it
-bites. It also means real accounts and data now live on a permissive-SELinux,
-test-key build — see [Priority](#priority-order).
+The two bugs that blocked first boot are in
+[What blocked first boot](#what-blocked-first-boot) — both were invisible to the
+checks used at the time, which is the reason that section is kept.
 
 ### Priority order
 
@@ -86,19 +57,22 @@ Checked 2026-08-04 on the 15:08 build:
 
 ### Broken or missing
 
-- [ ] **Camera — 0 devices.** `dumpsys media.camera` reports none. Not degraded,
-      absent. Disabled in the overlay (devicetrees `95d70251`) because our dtbo
-      prevented boot. The sensor nodes are in the tree and were never reached;
-      re-enabling needs the platform-block problem solved properly rather than
-      the bisect that misled us. See [Camera](#camera--disabled-prevents-boot)
+- [ ] **Camera — enumerates but cannot open a session.** Five sensors, 25 v4l2
+      subdevs, flash and torch work. `com.qti.node.swpnc` fails in `LoadLib()`
+      and takes the provider down. Parked — see [camera.md](camera.md)
 - [ ] **NFC — `com.android.nfc` is in the disabled package list.** Cause not yet
       investigated. No contactless payments, no tag reading
 
 ### Cannot be fixed here
 
-Test-key signed with AVB disabled means Play Integrity fails, so banking apps,
-Google Wallet and some DRM video will refuse to run. Inherent to an unofficial
-build, not a bug to chase.
+Play Integrity's `MEETS_STRONG_INTEGRITY` needs hardware key attestation and is
+unreachable on an unlocked bootloader, whatever the build is signed with. Banking
+apps and Google Wallet will refuse to run. See [roadmap.md](roadmap.md) before
+spending time on it.
+
+Signing keys now exist (`vendor/lineage-priv/keys/`), so `test-keys` is a
+solvable problem — but AVB stays disabled (`--flags 3`) until re-locking is
+decided, and `verifiedbootstate=orange` alone fails `DEVICE` integrity.
 
 ### Still unverified — needs hands on the device
 
@@ -325,11 +299,13 @@ Detail and sequencing in [roadmap.md](roadmap.md).
       `backuptool_postinstall.sh`, and MindTheGapps installs
       `/system/addon.d/30-gapps.sh` (`ADDOND_VERSION=3`, standard `list_files()`,
       no `/sdcard` paths). Test: flash a ROM and do not reflash GApps
-- [ ] **Signing and keys.** Generate `releasekey`/`platform`/`shared`/`media`/
-      `networkstack`/`sdk_sandbox`/`bluetooth`, set
-      `PRODUCT_DEFAULT_DEV_CERTIFICATE`. **Requires a factory reset** — every
-      APK signature changes. Fixes `ro.build.tags=test-keys` contradicting the
-      `release-keys` fingerprint. Decide AVB at the same time: we currently ship
+- [x] ~~Generate signing keys~~ — done 2026-08-05, eight RSA-2048 keys in
+      `vendor/lineage-priv/keys/` on laptop and build server. The path is what
+      makes them `release-keys` rather than `dev-keys`; see
+      [roadmap.md](roadmap.md)
+- [ ] **First signed build.** Every APK gets re-signed, so this **requires a
+      factory reset**. Batch it with the Magisk work, since re-signing also
+      invalidates a patched boot image. Decide AVB at the same time — we ship
       `--flags 3`, which disables verification outright
 - [ ] **Magisk, Zygisk, Play Integrity.** After signing. Magisk over KernelSU
       only because Zygisk is what integrity modules target. `STRONG` integrity
@@ -762,204 +738,6 @@ This is the same failure mode as the arcanine camera overlay, three times over:
 different depths, so comparing with tabs intact reports identical nodes as
 missing. An early version of the script had this bug and produced a false
 "camera sensors are missing" result on a build that had them.
-
-## Camera — disabled, prevents boot
-
-**Currently disabled** in `frogger-base-overlay.dts` (devicetrees `95d70251`).
-Our dtbo does not boot, and while removing the camera block did **not** fix that,
-it stays off until the device tree is understood.
-
-The structural problem, recorded so it is not re-attempted blindly: the base
-`volcano.dtb` carries no camera block at all, so the sensor nodes cannot resolve
-`&cam_cci0/1` on their own. The port therefore pulled the whole platform half
-(`qcom/camera/volcano-camera.dtsi` — cci, csiphy, icp, bps, smmu, the
-`cam_sensor_*` pinctrl) into the overlay. **Stock's overlay contains sensors
-only**, because its base tree already provides the platform half. Duplicating
-that block in an overlay is evidently not equivalent to having it in the base.
-
-`noth/frogger-camera-sensor.dtsi` is kept — the sensor nodes were never reached
-and may be perfectly correct.
-
-## Camera — port details (retained for when it is re-enabled)
-
-**Done and building** (devicetrees `142e4e1e`, device `6260e88`). The sensor
-device tree is in, `mka dtboimage` succeeds, and the built `dtbo.img` carries
-4 sensors with eeprom/actuator/flash children. The csiphy mapping matches stock
-exactly:
-
-| Node | csiphy | ours | stock |
-|---|---|---|---|
-| `qcom,cam-sensor0` | 0 | ✓ | ✓ |
-| `qcom,cam-sensor1` | 1 | ✓ | ✓ |
-| `qcom,cam-sensor2` | 3 | ✓ | ✓ |
-| `qcom,cam-sensor3` | 2 | ✓ | ✓ |
-
-Nothing here has been exercised on hardware — camera may still be broken for
-reasons the device tree cannot show.
-
-### One structural difference from stock, deliberate
-
-Stock's `entry.66` contains the **sensors only** — no `qcom,cci*` or
-`qcom,csiphy*` nodes — because its base dtb already carries the camera platform.
-**Ours does not:** the built `volcano.dtb` here has no `cam_cci0/1`, no csiphy
-and no `cam_sensor_*` pinctrl (only `camcc`), verified against its `__symbols__`.
-
-So `frogger-base-overlay.dts` pulls in `qcom/camera/volcano-camera.dtsi` as well
-as the sensors, and our overlay contains both halves. The merged tree ends up
-equivalent, but if camera misbehaves this asymmetry is the first thing to
-re-check — particularly whether anything in the platform block needs a base-dtb
-node we are shadowing rather than extending.
-
-### Asteroids' camera overlay was colliding with Frogger
-
-`qcom/camera/volcano-camera-sensor-qrd.dts` is no longer a QTI reference
-overlay — the fork repurposed it to include `arcanine-camera-sensor.dtsi`
-(Asteroids' sensors) and it declares `qcom,board-id = <11 0>, <11 1>` with
-`qcom,oem-id = <1>`. **That is exactly what `frogger-base-overlay` claims**, so
-the merge script matched it to Frogger and applied Asteroids' camera on top of
-ours. It logged
-
-```
-ERROR: ufdt_overlay_do_fixups():Couldn't find 'WL_LDO2_j' symbol in main dtb
-ERROR: ufdt_overlay_apply():failed to perform fixups in overlay
-```
-
-and `brunch` still exited 0, so it is easy to miss.
-
-That message is **not** harmless. Before the fix our overlay had **6** camera
-flash nodes against stock's 3 — the extra three were arcanine's, merged in
-despite the "failed" message. Gated behind `CONFIG_NOTHING_IS_FROGGER` in
-`qcom/camera/config/pineapple.mk`, after which flash nodes match stock at 3 and
-the fixup errors go to zero.
-
-Two traps worth remembering:
-
-* **The merge script globs `DTB_OBJ` for `*.dtbo`**, it does not read the
-  makefile. Removing an overlay from the build leaves the stale `.dtbo` on disk
-  and it keeps getting merged. The gate looked like it had failed until the
-  stale artifacts were deleted; on a clean `out/` it would have worked first try.
-* The `-pro` variant shares the board-ids but has `oem-id = <2>`, so it does not
-  collide today. It is gated anyway — it is equally Asteroids-specific.
-
-### Two build-system snags this hit
-
-1. `<dt-bindings/msm-camera.h>` ships in **camera-kernel**, not the kernel, so
-   dtc could not find it. Fixed with `KBUILD_DTC_INCLUDE` in
-   `TARGET_KERNEL_ADDITIONAL_FLAGS`, matching what the OEM camera-devicetree
-   Makefile does.
-2. `volcano-camera.dtsi` needs `GIC_SPI`, the gcc/camcc clock ids, interconnect
-   ids and rpmh regulator levels. Including only the camcc binding produced a
-   bare-identifier syntax error at the first `GIC_SPI`.
-
-**Watch out when verifying:** `out/.../obj/KERNEL_OBJ/.../noth/*.dtbo` is stale
-and is *not* what ends up in the image. The live artifact is
-`out/.../obj/DTB_OBJ/out/*.dtbo`, and `dtbo.img` is built from that. Checking
-the KERNEL_OBJ copy showed zero camera nodes on a build that had them.
-
-## Original finding: the sensor device tree was missing entirely
-
-**The blobs are fine.** All sensor modules map 1:1 from stock into
-`proprietary-files.txt` — `frogger_s5kgn9_main{,_v2}` (wide),
-`frogger_imx355_uw` (ultrawide), `frogger_s5kkd1_front`, plus
-`frogger_s5kjn5_tele{,_v2,_v3}` which belongs to the Pro and rides along in the
-shared firmware. Their eeprom `.so`s are all present too.
-
-**The device tree is not.** `noth/frogger-camera-supply.dtsi` ports the SGM38120
-and the two WR1241 camera PMICs, but there are **no `qcom,cam-sensor` nodes
-anywhere in `noth/`** — not for Frogger and not for Asteroids either. The
-sensors, CSI PHY assignment, power-up sequences, eeprom/actuator/flash wiring
-and MCLK pinctrl all live in a `camera-devicetree` module the fork does not
-carry (OEM: `vendor/qcom/proprietary/camera-devicetree/frogger-camera-sensor.dtsi`
-and `volcano-frogger-camera-sensor-qrd.dts`). `qcom/camera/volcano-camera*.dts`
-exists in the devicetrees repo but no Makefile builds it.
-
-Net effect: `camera-kernel` is built and loaded, but nothing will probe.
-
-### The authoritative reference is stock's own dtbo
-
-Stock `dtbo.img` holds 71 overlays. Carve them out and the Frogger one is
-identifiable by the ids our overlay already claims:
-
-```sh
-ota_extractor --payload payload.bin --partitions dtbo --output_dir .
-python3 system/libufdt/utils/src/mkdtboimg.py dump dtbo.img -b entry
-for f in entry*; do dtc -I dtb -O dts $f 2>/dev/null | grep -m1 'qcom,board-id'; done
-```
-
-**`entry.65` and `entry.66`** both carry `qcom,board-id = <0x0b 0x00>` and
-`qcom,oem-id = <0x01>`, and are structurally identical — 27 `qcom,cam-sensor*`
-nodes, 12 `dsi_panel_pwr_supply*` references, same Frogger strings. They are the
-same overlay emitted per SoC:
-
-| Entry | `qcom,msm-id` |
-|---|---|
-| `entry.66` | `0x280`, `0x281`, `0x27c` — 640, 641, **636 (volcano)** |
-| `entry.65` | `0x2c8` — 712 (volcanop) |
-
-**`entry.66` is ours**, because `frogger-base-overlay.dts` declares
-`qcom,msm-id = <636 0x10000>`. Use `entry.65` only as a cross-check.
-
-Nothing left QTI's `model = "Qualcomm Technologies, Inc. Volcano QRD"` string in
-place, so **do not search by model name** — match on board-id/oem-id, then
-disambiguate on msm-id.
-
-Note the OEM camera dts declares `qcom,board-id = <11 0>, <11 1>` where our
-overlay declares only `<11 0>`. Check whether the second board-id matters before
-assuming one is enough.
-
-This overlay is also the ground truth for diffing our own
-`frogger-base-overlay.dtbo` once the build produces one — worth doing regardless
-of camera.
-
-### Port plan — every dependency is already in the tree
-
-The OEM source is the thing to port, not the decompiled dtb: 401 readable lines
-at `camera-devicetree/frogger-camera-sensor.dtsi`, plus its 24-line wrapper
-`volcano-frogger-camera-sensor-qrd.dts`. Four sensors:
-
-| Node | CCI | csiphy | Role |
-|---|---|---|---|
-| `qcom,cam-sensor0` | `cam_cci0` | 0 | wide (S5KGN9) |
-| `qcom,cam-sensor1` | `cam_cci0` | 1 | front (S5KKD1) — roll 270, yaw 0 |
-| `qcom,cam-sensor2` | `cam_cci1` | 3 | ultrawide (IMX355) |
-| `qcom,cam-sensor3` | `cam_cci1` | 2 | tele (S5KJN5) |
-
-It references 51 external labels. **All of them resolve in this tree already:**
-
-| Label group | Defined in |
-|---|---|
-| `cam_cci0`, `cam_cci1` | `qcom/camera/volcano-camera.dtsi` |
-| `eeprom_{wide,uw,front,tele}`, `actuator_triple_*`, `led_flash_triple_rear_*` | `qcom/camera/volcano-camera-sensor-idp.dtsi` |
-| `camcc` | `qcom/volcano.dtsi` |
-| `cam_cc_camss_top_gdsc` | `qcom/pineapple-gdsc.dtsi`, which `volcano.dtsi` includes and then overrides |
-| `pmxr2230_{switch0,flash0,flash3,torch0,torch3}` | `qcom/pmxr2230.dtsi` |
-| `SGM_LDO1-7`, `WR_LDO*` | our own `noth/frogger-camera-supply.dtsi` |
-| `cam_sensor_{mclk,active_rst,suspend_rst}*` pinctrl | volcano camera base |
-
-So nothing has to be invented. Steps:
-
-1. Add `noth/frogger-camera-sensor.dtsi`, adapted from the OEM file.
-2. Add `noth/volcano-frogger-camera-sensor-qrd.dts` wrapping it, including
-   `volcano-camera.dtsi` and `volcano-camera-sensor-idp.dtsi` for the base
-   labels.
-3. Add the `.dtbo` to `noth/Makefile` inside the existing
-   `CONFIG_NOTHING_IS_FROGGER` branch.
-4. `TARGET_MERGE_DTBS_WILDCARD := *volcano*` already matches the filename.
-
-The merge script folds every overlay with matching ids into one entry — which is
-why stock ships camera and display together in `entry.66` rather than as
-separate overlays. That also means this does **not** hit the board-id collision
-that forced the Asteroids/Frogger `ifeq` gate; those collided because they are
-alternative *boards*, whereas this is an additional overlay for the same board.
-
-### Other known differences
-
-* post-processing — Morpho EIS and ArcSoft, where Asteroids uses Vidhance
-* camera PMIC — SGM38120 rather than WL28681, already in the device tree
-* `vendor/etc/camera/` ships `_Pro`/`tele` variants of the calibration blobs;
-  inert on a non-Pro unit
-
-The `libarcsoft_*` blobs are among the largest in `vendor/` (one is 118 MB).
 
 ## Deferred device-tree items
 

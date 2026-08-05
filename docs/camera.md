@@ -306,3 +306,191 @@ change on its own — check the timestamp of the blob you inspect.
 it to 36 to match stock enabled Android 16's 16KB page-size check (rejecting 4KB
 prebuilts on a `CONFIG_ARM64_4K_PAGES` kernel) and made `host_init_verifier`
 fatal on stock init scripts. Two build cycles lost. It stays at 35.
+
+---
+
+# Port details and historical findings
+
+Migrated from `open-items.md`. Background for the device-tree work above —
+how the sensor nodes were derived and what collided along the way.
+
+## Camera — port details (retained for when it is re-enabled)
+
+**Done and building** (devicetrees `142e4e1e`, device `6260e88`). The sensor
+device tree is in, `mka dtboimage` succeeds, and the built `dtbo.img` carries
+4 sensors with eeprom/actuator/flash children. The csiphy mapping matches stock
+exactly:
+
+| Node | csiphy | ours | stock |
+|---|---|---|---|
+| `qcom,cam-sensor0` | 0 | ✓ | ✓ |
+| `qcom,cam-sensor1` | 1 | ✓ | ✓ |
+| `qcom,cam-sensor2` | 3 | ✓ | ✓ |
+| `qcom,cam-sensor3` | 2 | ✓ | ✓ |
+
+Nothing here has been exercised on hardware — camera may still be broken for
+reasons the device tree cannot show.
+
+### One structural difference from stock, deliberate
+
+Stock's `entry.66` contains the **sensors only** — no `qcom,cci*` or
+`qcom,csiphy*` nodes — because its base dtb already carries the camera platform.
+**Ours does not:** the built `volcano.dtb` here has no `cam_cci0/1`, no csiphy
+and no `cam_sensor_*` pinctrl (only `camcc`), verified against its `__symbols__`.
+
+So `frogger-base-overlay.dts` pulls in `qcom/camera/volcano-camera.dtsi` as well
+as the sensors, and our overlay contains both halves. The merged tree ends up
+equivalent, but if camera misbehaves this asymmetry is the first thing to
+re-check — particularly whether anything in the platform block needs a base-dtb
+node we are shadowing rather than extending.
+
+### Asteroids' camera overlay was colliding with Frogger
+
+`qcom/camera/volcano-camera-sensor-qrd.dts` is no longer a QTI reference
+overlay — the fork repurposed it to include `arcanine-camera-sensor.dtsi`
+(Asteroids' sensors) and it declares `qcom,board-id = <11 0>, <11 1>` with
+`qcom,oem-id = <1>`. **That is exactly what `frogger-base-overlay` claims**, so
+the merge script matched it to Frogger and applied Asteroids' camera on top of
+ours. It logged
+
+```
+ERROR: ufdt_overlay_do_fixups():Couldn't find 'WL_LDO2_j' symbol in main dtb
+ERROR: ufdt_overlay_apply():failed to perform fixups in overlay
+```
+
+and `brunch` still exited 0, so it is easy to miss.
+
+That message is **not** harmless. Before the fix our overlay had **6** camera
+flash nodes against stock's 3 — the extra three were arcanine's, merged in
+despite the "failed" message. Gated behind `CONFIG_NOTHING_IS_FROGGER` in
+`qcom/camera/config/pineapple.mk`, after which flash nodes match stock at 3 and
+the fixup errors go to zero.
+
+Two traps worth remembering:
+
+* **The merge script globs `DTB_OBJ` for `*.dtbo`**, it does not read the
+  makefile. Removing an overlay from the build leaves the stale `.dtbo` on disk
+  and it keeps getting merged. The gate looked like it had failed until the
+  stale artifacts were deleted; on a clean `out/` it would have worked first try.
+* The `-pro` variant shares the board-ids but has `oem-id = <2>`, so it does not
+  collide today. It is gated anyway — it is equally Asteroids-specific.
+
+### Two build-system snags this hit
+
+1. `<dt-bindings/msm-camera.h>` ships in **camera-kernel**, not the kernel, so
+   dtc could not find it. Fixed with `KBUILD_DTC_INCLUDE` in
+   `TARGET_KERNEL_ADDITIONAL_FLAGS`, matching what the OEM camera-devicetree
+   Makefile does.
+2. `volcano-camera.dtsi` needs `GIC_SPI`, the gcc/camcc clock ids, interconnect
+   ids and rpmh regulator levels. Including only the camcc binding produced a
+   bare-identifier syntax error at the first `GIC_SPI`.
+
+**Watch out when verifying:** `out/.../obj/KERNEL_OBJ/.../noth/*.dtbo` is stale
+and is *not* what ends up in the image. The live artifact is
+`out/.../obj/DTB_OBJ/out/*.dtbo`, and `dtbo.img` is built from that. Checking
+the KERNEL_OBJ copy showed zero camera nodes on a build that had them.
+
+## Original finding: the sensor device tree was missing entirely
+
+**The blobs are fine.** All sensor modules map 1:1 from stock into
+`proprietary-files.txt` — `frogger_s5kgn9_main{,_v2}` (wide),
+`frogger_imx355_uw` (ultrawide), `frogger_s5kkd1_front`, plus
+`frogger_s5kjn5_tele{,_v2,_v3}` which belongs to the Pro and rides along in the
+shared firmware. Their eeprom `.so`s are all present too.
+
+**The device tree is not.** `noth/frogger-camera-supply.dtsi` ports the SGM38120
+and the two WR1241 camera PMICs, but there are **no `qcom,cam-sensor` nodes
+anywhere in `noth/`** — not for Frogger and not for Asteroids either. The
+sensors, CSI PHY assignment, power-up sequences, eeprom/actuator/flash wiring
+and MCLK pinctrl all live in a `camera-devicetree` module the fork does not
+carry (OEM: `vendor/qcom/proprietary/camera-devicetree/frogger-camera-sensor.dtsi`
+and `volcano-frogger-camera-sensor-qrd.dts`). `qcom/camera/volcano-camera*.dts`
+exists in the devicetrees repo but no Makefile builds it.
+
+Net effect: `camera-kernel` is built and loaded, but nothing will probe.
+
+### The authoritative reference is stock's own dtbo
+
+Stock `dtbo.img` holds 71 overlays. Carve them out and the Frogger one is
+identifiable by the ids our overlay already claims:
+
+```sh
+ota_extractor --payload payload.bin --partitions dtbo --output_dir .
+python3 system/libufdt/utils/src/mkdtboimg.py dump dtbo.img -b entry
+for f in entry*; do dtc -I dtb -O dts $f 2>/dev/null | grep -m1 'qcom,board-id'; done
+```
+
+**`entry.65` and `entry.66`** both carry `qcom,board-id = <0x0b 0x00>` and
+`qcom,oem-id = <0x01>`, and are structurally identical — 27 `qcom,cam-sensor*`
+nodes, 12 `dsi_panel_pwr_supply*` references, same Frogger strings. They are the
+same overlay emitted per SoC:
+
+| Entry | `qcom,msm-id` |
+|---|---|
+| `entry.66` | `0x280`, `0x281`, `0x27c` — 640, 641, **636 (volcano)** |
+| `entry.65` | `0x2c8` — 712 (volcanop) |
+
+**`entry.66` is ours**, because `frogger-base-overlay.dts` declares
+`qcom,msm-id = <636 0x10000>`. Use `entry.65` only as a cross-check.
+
+Nothing left QTI's `model = "Qualcomm Technologies, Inc. Volcano QRD"` string in
+place, so **do not search by model name** — match on board-id/oem-id, then
+disambiguate on msm-id.
+
+Note the OEM camera dts declares `qcom,board-id = <11 0>, <11 1>` where our
+overlay declares only `<11 0>`. Check whether the second board-id matters before
+assuming one is enough.
+
+This overlay is also the ground truth for diffing our own
+`frogger-base-overlay.dtbo` once the build produces one — worth doing regardless
+of camera.
+
+### Port plan — every dependency is already in the tree
+
+The OEM source is the thing to port, not the decompiled dtb: 401 readable lines
+at `camera-devicetree/frogger-camera-sensor.dtsi`, plus its 24-line wrapper
+`volcano-frogger-camera-sensor-qrd.dts`. Four sensors:
+
+| Node | CCI | csiphy | Role |
+|---|---|---|---|
+| `qcom,cam-sensor0` | `cam_cci0` | 0 | wide (S5KGN9) |
+| `qcom,cam-sensor1` | `cam_cci0` | 1 | front (S5KKD1) — roll 270, yaw 0 |
+| `qcom,cam-sensor2` | `cam_cci1` | 3 | ultrawide (IMX355) |
+| `qcom,cam-sensor3` | `cam_cci1` | 2 | tele (S5KJN5) |
+
+It references 51 external labels. **All of them resolve in this tree already:**
+
+| Label group | Defined in |
+|---|---|
+| `cam_cci0`, `cam_cci1` | `qcom/camera/volcano-camera.dtsi` |
+| `eeprom_{wide,uw,front,tele}`, `actuator_triple_*`, `led_flash_triple_rear_*` | `qcom/camera/volcano-camera-sensor-idp.dtsi` |
+| `camcc` | `qcom/volcano.dtsi` |
+| `cam_cc_camss_top_gdsc` | `qcom/pineapple-gdsc.dtsi`, which `volcano.dtsi` includes and then overrides |
+| `pmxr2230_{switch0,flash0,flash3,torch0,torch3}` | `qcom/pmxr2230.dtsi` |
+| `SGM_LDO1-7`, `WR_LDO*` | our own `noth/frogger-camera-supply.dtsi` |
+| `cam_sensor_{mclk,active_rst,suspend_rst}*` pinctrl | volcano camera base |
+
+So nothing has to be invented. Steps:
+
+1. Add `noth/frogger-camera-sensor.dtsi`, adapted from the OEM file.
+2. Add `noth/volcano-frogger-camera-sensor-qrd.dts` wrapping it, including
+   `volcano-camera.dtsi` and `volcano-camera-sensor-idp.dtsi` for the base
+   labels.
+3. Add the `.dtbo` to `noth/Makefile` inside the existing
+   `CONFIG_NOTHING_IS_FROGGER` branch.
+4. `TARGET_MERGE_DTBS_WILDCARD := *volcano*` already matches the filename.
+
+The merge script folds every overlay with matching ids into one entry — which is
+why stock ships camera and display together in `entry.66` rather than as
+separate overlays. That also means this does **not** hit the board-id collision
+that forced the Asteroids/Frogger `ifeq` gate; those collided because they are
+alternative *boards*, whereas this is an additional overlay for the same board.
+
+### Other known differences
+
+* post-processing — Morpho EIS and ArcSoft, where Asteroids uses Vidhance
+* camera PMIC — SGM38120 rather than WL28681, already in the device tree
+* `vendor/etc/camera/` ships `_Pro`/`tele` variants of the calibration blobs;
+  inert on a non-Pro unit
+
+The `libarcsoft_*` blobs are among the largest in `vendor/` (one is 118 MB).
