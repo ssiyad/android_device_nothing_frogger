@@ -39,31 +39,43 @@ lead file, not a patch.
 
 ## The ones that matter
 
-### Audio — reopens the speaker-protection question
+### Audio — 81 missing, and **not worth applying**
+
+This group looked like the biggest prize. It is not. Checked 2026-08-06 by
+grepping what our source actually reads:
+
+**Of the 81, exactly four are read by our audio stack**, and all four are already
+at their default:
 
 ```
-vendor.audio.feature.spkr_prot.enable   = true
-vendor.audio.feature.wsa.enable         = false     ← stock disables WSA
-persist.vendor.audio.spv3.enable        = true
-vendor.audio.feature.dsm_feedback.enable = false
-vendor.audio.feature.external_speaker.enable = false
+vendor.audio.compress_capture.aac.cut_off_freq = -1
+vendor.audio.feature.dmabuf.cma.memory.enable  = false
+vendor.audio.hdr.record.enable                 = false
+vendor.audio.safx.pbe.enabled                  = false
 ```
 
-[audio.md](audio.md) records speaker protection as a dead end, partly because
-enabling it drove `WSA_AIF_VI` mixer controls for a WSA883x this device does not
-have. **Stock turns that feature off by property.** We never set it, so our AHAL
-had no way to know.
+`property_get_bool(x, false)` already yields those values when the property is
+absent, so setting them changes nothing.
 
-This does not mean protection will work if we set these — the missing
-`aw882xx_pid_2329_monitor.bin` is a separate and harder problem — but the
-conclusion that the WSA mismatch is unavoidable was reached without knowing stock
-had a switch for it. Worth retesting `speaker_protection_enabled=1` with
-`vendor.audio.feature.wsa.enable=false` set.
+The rest belong to the **legacy `audio_extn` HAL**, which we do not build. The
+`vendor.audio.feature.*` family is read only by
+`hardware/qcom-caf/{msm8953,sdm845,sm8150,sm8250}/audio/hal/audio_extn/`, and
+`persist.audio.fluence.*` only by `hardware/qcom/audio/hal/msm8974/platform.c`.
+Frogger builds `hardware/qcom-caf/sm8650/audio` — the PAL/AGM stack — which reads
+none of them. No shipped vendor blob references them either.
 
-Also absent: the whole `persist.audio.fluence.*` and
-`persist.vendor.audio.fluence.*` family, which governs mic noise reduction for
-calls and recording. Relevant to the LVACFS work, where we restored stock
-behaviour by *disabling* processing.
+Nothing's `vendor.prop` inherits them from a QCOM template; they are vestigial in
+stock too, since stock also runs a PAL-based HAL.
+
+> **A retracted claim.** An earlier version of this document said
+> `vendor.audio.feature.wsa.enable=false` meant stock "turns WSA off by property"
+> and that this reopened the speaker-protection dead end in [audio.md](audio.md).
+> It does not. Our AHAL never reads that property, so setting it would do nothing.
+> The WSA mismatch and the missing `aw882xx_pid_2329_monitor.bin` both stand
+> unchanged.
+
+**Conclusion: skip the audio group.** Adding 81 properties that nothing reads
+would be noise, and worse, would look like configuration when it is not.
 
 ### Display — 28 props, applied but not the flicker fix
 
@@ -105,11 +117,24 @@ Deliberate and correct to keep: `ro.vendor.build.version.sdk` (ours 36, stock 34
 
 ## Suggested order
 
-1. **Audio feature flags** — largest group, and directly bears on an open item
-2. **Display calibration** — already trialled, just needs committing to `vendor.prop`
+**Check what reads a property before adopting it.** The audio group was the
+largest and turned out to be entirely inert. The same test applies to every group
+below:
+
+```sh
+grep -rl "<prop>" --include=*.c --include=*.cpp --include=*.h --include=*.rc \
+    hardware/ vendor/nothing/ device/ frameworks/
+strings -a <shipped blob> | grep <prop>
+```
+
+1. ~~**Audio feature flags**~~ — **skip**, only 4 of 81 are read and all are at
+   their defaults
+2. **Display calibration** — already trialled on device, just needs committing to
+   `vendor.prop`. `libdpps.so` demonstrably reads these
 3. **`ro.hwui.use_vulkan` / `enable_gl_backpressure` / `set_idle_timer_ms`** — align
    with stock while the flicker is still open
-4. **Glyph** — before the LEDs are exercised, so failures are not misread
+4. **Glyph** — verify the Glyph HAL/app reads them first, then set before the LEDs
+   are exercised, so failures are not misread
 5. **`ro.vendor.nothing.*`** — 65 flags, needs case-by-case reading
 
 Each group should be a separate commit, so a regression can be bisected to a
