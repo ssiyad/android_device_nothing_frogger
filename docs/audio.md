@@ -107,31 +107,88 @@ boot — with playback active, or the phone in a pocket — it would replace goo
 factory data with a bad measurement and make protection worse than absent. If it
 is ever needed, run it by hand on a quiet speaker, deliberately.
 
-### Fix applied: kernel-side monitoring
+### Attempted fix: kernel-side monitoring — tried, does not work
 
-`monitor-mode` changed from `hal_monitor` to `kernel_monitor` on both amp nodes
-in `frogger-common.dtsi` (devicetrees `503b2916`). `aw882xx_monitor.c:1395`
-parses the property, and `AW_MON_KERNEL_MODE` makes the driver run its own
-monitoring loop with no HAL involvement. Config comes from the
-`aw882xx_acf.bin` already shipped.
+`monitor-mode` was changed from `hal_monitor` to `kernel_monitor` on both amp
+nodes in `frogger-common.dtsi` (devicetrees `503b2916`), on the theory that
+`AW_MON_KERNEL_MODE` would make the driver run its own monitoring loop with no
+HAL involvement.
 
-**Untested.** After flashing, verify:
+**The change is live and it changed nothing.** Verified on the 2026-08-05 build:
 
-```sh
-adb shell 'cat /sys/bus/i2c/drivers/aw882xx_smartpa/13-0034/monitor'    # want enabled
-adb shell 'cat /sys/bus/i2c/drivers/aw882xx_smartpa/13-0034/dsp_re'     # want non-zero
-adb shell 'cat /sys/bus/i2c/drivers/aw882xx_smartpa/13-0034/algo_state' # want a state, not an error
+```
+of_node/monitor-mode   kernel_monitor          (both amps)
+kernel log             read monitor-mode value is : 0   = AW_MON_KERNEL_MODE
+monitor                monitor enable: 0
+dsp_re                 0
+algo_state             read algo run state failed!
 ```
 
-If `dsp_re` stays 0, the driver is not loading `aw_cali.bin` and that is the next
-thread — not a reason to re-calibrate.
+The blocker is one layer below the devicetree. `aw882xx_monitor_start()` requires
+`monitor_cfg->monitor_status == AW_MON_CFG_OK`. Follow what fills that struct:
 
-### Remaining option if that fails
+```
+aw882xx_monitor_parse_fw()              only caller ↓
+aw_monitor_real_time_update_monitor()   only caller ↓
+monitor_update_store()                  aw882xx_monitor.c:1350 — a sysfs write
+```
 
-**Ship stock's `libar-pal.so`** instead of building PAL from source. Closest to
-what stock actually does, and the only route to `hal_monitor` working — but PAL
+So `monitor_cfg` is **never populated automatically**. It is filled only when
+something writes to the `monitor_update` sysfs node, and that handler loads a
+separate per-chip firmware file:
+
+```c
+#define AW_PID_2329_MONITOR_FILE "aw882xx_pid_2329_monitor.bin"
+```
+
+**That file does not exist** — not in `/vendor/firmware` on the device, not in
+our extracted blobs, not in `proprietary-files.txt`. Our blobs come from the
+stock vendor image, so stock does not ship it either. Nothing writes
+`monitor_update`, and the firmware it would need is absent. `monitor_status`
+stays 0 permanently and the monitor never starts, **in either mode**.
+
+> The commit message on `503b2916` claims the monitor config "comes from the
+> `aw882xx_acf.bin` already shipped". That is wrong. It comes from
+> `aw882xx_pid_2329_monitor.bin`, which is not on the device.
+
+`kernel_monitor` is kept rather than reverted: `hal_monitor` waits on a HAL that
+does not exist either, so it is the more honest of two non-working settings.
+
+### What the acf blob actually is
+
+The boot log identifies `aw882xx_acf.bin` (2452 bytes) as Awinic's **reference
+tuning**, not a Frogger one:
+
+```
+project name [A1901]     custom name [awinic]     chip aw88271
+scene count 2            prof name is Music       prof name is Receiver
+Unrecognized this bin data type:0x12      (×2)
+aw_dev_set_vcalb: REG None!
+```
+
+Three things follow. The chip name in the blob (`aw88271`) does not match the
+`0x2329` the driver detects. Data type `0x12` is not in this driver's
+`aw882xx_bin_parse.h` enum, so whatever that section holds is discarded. And
+`vcalb` — the voltage-calibration constant that scales raw readings into real
+impedance — is absent, so even a measured coil resistance could not be
+interpreted.
+
+The blob carries register profiles and nothing else.
+
+### Where this leaves it
+
+Kernel-side protection is a **dead end** with the firmware Nothing ships. Stock
+does protection in the DSP via `libar-pal.so` + `aw882xx_cali` — precisely the
+path we do not have.
+
+The one remaining option is to **ship stock's `libar-pal.so`** instead of
+building PAL from source. It is the only route to `hal_monitor` working, but PAL
 is the core of the audio HAL, and swapping a source build for a vendor blob
-risks everything that currently works. Not a casual change.
+risks everything that currently works. `extract-files.py` lists `libar-pal`
+under `lib_fixup_remove`, so this is a deliberate reversal, not an oversight.
+Not a casual change.
+
+Leaving protection disabled remains correct in the meantime.
 
 ---
 

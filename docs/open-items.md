@@ -88,10 +88,14 @@ decided, and `verifiedbootstate=orange` alone fails `DEVICE` integrity.
 - [ ] **No speaker protection at all** — see [audio.md](audio.md). Neither
       QCOM's VI path (it targets WSA883x controls and this device has no WSA
       amp on SoundWire) nor the AW882xx's own algorithm, which reports
-      `monitor enable: 0` and `dsp_re 0` because nothing enables it. Stock's
-      `libar-pal.so` has Awinic support and drives it; we build PAL from
-      generic CAF source that does not. Cheapest untested fix is
-      `monitor-mode = "kernel_monitor"` in the DT
+      `monitor enable: 0` and `dsp_re 0`. `monitor-mode = "kernel_monitor"`
+      was tried (devicetrees `503b2916`) and **verified not to help**: the
+      driver only populates its monitor config from a sysfs write to
+      `monitor_update`, which loads `aw882xx_pid_2329_monitor.bin` — a file
+      absent from our blobs *and* from stock. Not fixable from the DT. The
+      only remaining route is shipping stock's `libar-pal.so`, which has
+      Awinic support, in place of our source-built PAL — a large risk to
+      everything audio that currently works
 - [ ] Bluetooth pairing
 - [ ] GPS lock
 - [ ] Single-tap gesture (UDFPS itself is confirmed)
@@ -412,11 +416,9 @@ delta re-applied selectively (only the LVACFS mic param ported; the haptics,
 
 Two things to check on first boot:
 
-**Speaker protection.** Frogger's stock sets `speaker_protection_enabled=1` and
-its mixer paths expose `SpkrLeft`/`Spkr2Right VISENSE`, so V/I sense is wired —
-unlike Asteroids, where LineageOS turned it off. Stock's `1` was kept. If
-playback is silent or distorted, flip it to `0` in
-`audio/resourcemanager_volcano_qrd.xml` first.
+**Speaker protection — settled, see [audio.md](audio.md).** Stock's `1` was kept
+initially; it made the speaker completely silent, and is now `0`. Protection
+cannot be re-enabled without stock's `libar-pal.so`.
 
 **Dolby.** `device.mk` still has `inherit-product-if-exists hardware/dolby`. It
 is inert — Frogger ships zero Dolby files — but can be dropped.

@@ -1,13 +1,12 @@
 # Roadmap
 
-Planned work after camera was sidelined (2026-08-05). Ordered by dependency, not
-by appeal — the sequencing matters more than usual here because one item forces a
-factory reset and another is passive data collection that should start now.
+Planned work after camera was sidelined (2026-08-05). Signing is done; Magisk is
+next, and SELinux collection should run in parallel with it.
 
 | # | Workstream | State |
 |---|---|---|
-| 0 | GApps survive a flash | implemented, awaiting one test |
-| 1 | Signing and keys | **keys generated**, first signed build pending |
+| 0 | GApps survive a flash | **unproven** — see below |
+| 1 | Signing and keys | **done and verified on device** |
 | 2 | Magisk / Zygisk / Play Integrity | not started |
 | 3 | SELinux enforcing | collection should start now |
 
@@ -15,41 +14,59 @@ factory reset and another is passive data collection that should start now.
 
 ## 0. GApps survive a ROM flash
 
-**Done, needs one confirmation.** `POSTINSTALL_PATH_system` points at
+**Wired up, but not proven to work.** `POSTINSTALL_PATH_system` points at
 `backuptool_postinstall.sh` (`09c8a6d`), and MindTheGapps installs
 `/system/addon.d/30-gapps.sh` with `ADDOND_VERSION=3` and a normal `list_files()`
 covering `product/priv-app/GmsCore`, `system_ext/priv-app/GoogleServicesFramework`
 and the rest. It references only `/tmp/backuptool.functions` — no `/sdcard`
 paths, which is what made NikGApps fail here.
 
-**Test:** flash a ROM and do *not* reflash GApps. Play Store should survive.
+**The one flash where GApps were not reflashed, addon.d did not restore them.**
+The system copies were gone, `30-gapps.sh` itself was gone, and GMS was left as
+an ordinary `/data/app` package with no `SYSTEM`/`UPDATED_SYSTEM_APP` flag and no
+privileged permissions. Reflashing MindTheGapps restored all of it.
 
-Remember the A/B slot rule when flashing GApps at all — sideload ROM, **reboot
-recovery**, then sideload GApps. See [open-items.md](open-items.md).
+**Working hypothesis for the failure, unconfirmed:** `backuptool_ab.sh` does
+`export S=/system` and reads `/system/addon.d/`. During a **recovery sideload**
+there is no running system — the new image is at `/postinstall` — so
+`preserve_addon_d()` likely finds nothing. If that is right, addon.d only works
+for OTAs applied from a running system, and never for the sideload flow we use.
+Confirming it needs `/data/misc/recovery/last_log`, which requires root.
+
+**Until proven otherwise, assume every ROM flash needs GApps reflashed.**
+Remember the A/B slot rule: sideload ROM, **reboot recovery**, then sideload
+GApps. See [open-items.md](open-items.md).
 
 ---
 
-## 1. Signing and keys — do this first
+## 1. Signing and keys — done and verified
 
-**Why first:** re-signing changes every APK signature, so system app data no
-longer matches and a **factory reset is required**. Every day of daily driving
-before this is state you will lose. It also invalidates any patched boot image,
-so doing it after Magisk means redoing Magisk.
-
-**Current state is incoherent:**
+**Verified on device 2026-08-05:**
 
 ```
-ro.build.tags        test-keys
+ro.build.tags        release-keys
 ro.build.fingerprint …/2603091830:user/release-keys
 ```
 
-Every fingerprint claims `release-keys` while the build is signed with AOSP's
-public test keys — which are, by definition, known to everyone.
+Before this, `ro.build.tags` read `test-keys` while every fingerprint claimed
+`release-keys` — the build was signed with AOSP's public test keys, which are by
+definition known to everyone. That contradiction is gone, and platform apps are
+signed with our platform key.
 
-**Keys generated 2026-08-05.** Eight RSA-2048 keys — `releasekey`, `platform`,
-`shared`, `media`, `networkstack`, `nfc`, `sdk_sandbox`, `bluetooth` — no
-passphrase, subject `/CN=frogger/O=ssiyad/emailAddress=hello@ssiyad.com`, valid
-to 2053. Private key verified to match cert for all eight.
+**No factory reset was needed.** The plan assumed re-signing every APK would
+break system app data and force a wipe. It did not — the device was flashed
+without wiping and reported zero signature-mismatch errors. Worth remembering
+before planning a wipe around a signing change again.
+
+**Nine RSA-2048 keys**, generated 2026-08-05 — `releasekey`, `platform`,
+`shared`, `media`, `networkstack`, `nfc`, `sdk_sandbox`, `bluetooth`, `testkey`
+— no passphrase, subject `/CN=frogger/O=ssiyad/emailAddress=hello@ssiyad.com`,
+valid to 2053. Private key verified to match cert for all nine.
+
+The ninth, `testkey`, is not vestigial paranoia: `system/sepolicy/private/keys.conf`
+has a `[@RELEASE]` stanza requiring `$DEFAULT_SYSTEM_DEV_CERTIFICATE/testkey.x509.pem`,
+and without it `//system/sepolicy/mac_permissions` fails the build outright. It
+is deliberately a *different* key from `releasekey`; nothing is signed with it.
 
 **The location is load-bearing.** `build/make/core/config.mk:1364` decides
 `BUILD_KEYS` from *where* `DEFAULT_SYSTEM_DEV_CERTIFICATE` points:
@@ -69,14 +86,11 @@ the build server, wired by `vendor/lineage/config/common.mk:304`
 keys cannot be committed or pushed by accident. **They are not backed up by
 anything automatic** — no passphrase means the files are the entire secret.
 
-**Remaining:**
+**Remaining:** back the nine keys up somewhere off both the laptop and the build
+server. Losing them means no future build can be installed over an existing one
+without a factory reset.
 
-1. Build with them. Every APK is re-signed.
-2. **Factory reset**, flash, set the device up again.
-3. Confirm `ro.build.tags=release-keys` and that the fingerprint no longer
-   contradicts it.
-
-**Also worth deciding at the same time:** AVB. We currently build with
+**Still open:** AVB. We currently build with
 `BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3`, which disables verification
 entirely. With our own keys we could sign `vbmeta` properly and, if the
 bootloader allows a custom AVB key, re-lock to get yellow verified boot instead
@@ -87,8 +101,9 @@ Integrity** — see below.
 
 ## 2. Magisk, Zygisk, Play Integrity
 
-**Do after signing.** Both Magisk and KernelSU patch or replace boot artefacts;
-re-signing invalidates them.
+**Unblocked** — signing is done, so a patched boot image will not be invalidated
+out from under it. Both Magisk and KernelSU patch or replace boot artefacts, and
+doing that before signing would have meant redoing it.
 
 ### Root
 
@@ -178,12 +193,12 @@ revisited when camera returns.
 
 ---
 
-## Ordering rationale
+## Where things stand
 
 ```
-0. GApps test        free, next flash
-1. Signing + keys    forces a wipe — do before accumulating state
-2. Magisk / PIF      after signing, or it must be redone
+0. GApps             addon.d unproven — reflash GApps after every ROM sideload
+1. Signing + keys    done, verified on device, no wipe required
+2. Magisk / PIF      next, now unblocked
 3. SELinux           collection starts now, flip whenever ready
 ```
 
