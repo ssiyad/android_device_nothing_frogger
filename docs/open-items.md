@@ -94,7 +94,20 @@ build, not a bug to chase.
 ### Still unverified — needs hands on the device
 
 - [ ] Real call audio: earpiece and mic in an actual call
-- [ ] Speaker playback; if silent, flip `speaker_protection_enabled` to `0`
+- [x] ~~Speaker playback; if silent, flip `speaker_protection_enabled` to `0`~~ —
+      it was silent, and this was the cause. Speaker protection opens a VI
+      feedback capture stream alongside playback; the TX side never opened and
+      took the Rx session with it, so every playback start failed:
+      `viTxSetupThreadLoop: txPcm open not ready` then
+      `Backend:24 <-> Frontend:121 Connect failed error:-22`. Set to `0` in
+      `audio/resourcemanager_volcano_qrd.xml`. **Also the likely cause of video
+      stutter** — playback was failing and retrying, not decoding slowly
+- [ ] Speaker protection is now off, so there is no excursion or thermal
+      limiting. To restore it, the VI feedback path needs wiring for the amps
+      actually fitted: the mixer exposes `SpkrLeft`/`SpkrRight`/`Spkr2Right
+      VISENSE`, which are WSA883x controls, but the bound amps are Awinic
+      `aw882xx` at `13-0034`/`13-0035`. The card is still named
+      `volcano-qrd-wsa883x-snd-card`
 - [ ] Bluetooth pairing
 - [ ] GPS lock
 - [ ] Single-tap gesture (UDFPS itself is confirmed)

@@ -8,13 +8,28 @@ work, pipelines build. The camera app still cannot open a capture session. Four
 distinct defects were found and fixed on the way; two known gaps remain, both
 identified and neither yet closed.
 
-**Last state left on the device** (build `2026-08-04 23:16`, SOIS disabled):
-5 camera devices, `enableCameraSOISMask=0x0`, and **no `swpnc` crash frames in
-the crash buffer** — where every previous boot had them. That is suggestive but
-not proof: the log was read after a GApps reflash and may not contain a camera
-open attempt. **First thing to do on picking this up: open the camera once and
-check whether the `swpnc` SIGSEGV is actually gone**, because if it is, the
-remaining failure is the Morpho node and not the SOIS kernel port.
+**Disabling SOIS did not help — tested 2026-08-05.** With
+`enableCameraSOISMask=0x0` and `SOISOptimizationEnable=0x0` on the device, opening
+the camera still produces the identical crash:
+
+```
+#00 __cfi_slowpath+28                     libdl.so
+#01 ChiSWPNCNode::~ChiSWPNCNode()+164     com.qti.node.swpnc.so
+#03 SWPNCNodeCreate                       → SIGSEGV
+```
+
+So `swpnc` fails in `LoadLib()` regardless of the SOIS mask. The mask gates *use*
+of OIS data, not the node's initialisation. **This makes the SOIS kernel port the
+wrong next step** — it was the larger of the two remaining jobs and it would not
+have fixed this. The earlier note here said the opposite; it was wrong.
+
+**Where to start next.** `camxchinodeswpnc.cpp:512 LoadLib()` opens something that
+is not in the blob's `DT_NEEDED` — all fifteen of those are present and correctly
+labelled `vendor_file`. Find what it actually opens before shipping anything else:
+`camxoverridesettings.txt` is on the device now and can raise CamX logging
+(`chiLogInfoMask`, commented out in stock) to make the HAL name the file. That is
+cheaper than another round of blob diffing. The Morpho node conflict (gap B) is
+also still unresolved and is required by a preview pipeline.
 
 ---
 

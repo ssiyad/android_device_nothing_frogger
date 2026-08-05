@@ -734,7 +734,24 @@
             <samplerate>48000</samplerate>
             <bit_width>32</bit_width>
             <snd_device_name>speaker</snd_device_name>
-            <speaker_protection_enabled>1</speaker_protection_enabled>
+            <!-- 0, not stock's 1. Speaker protection opens a VI feedback capture
+                 stream alongside playback; on this device the TX side never opens
+                 and takes the Rx session down with it, so the speaker is silent:
+
+                   PAL: SpeakerProtection: viTxSetupThreadLoop: txPcm open not ready
+                   AGM: Backend:24 <-> Frontend:121 Connect failed error:-22
+                   PAL: StreamPCM: start: Rx session start is failed with status -22
+                   AHAL: onWriteError: write error -22 usecase(1: low-latency-playback)
+
+                 The mixer exposes SpkrLeft/SpkrRight/Spkr2Right VISENSE, which is
+                 why stock's 1 was kept initially — but those are WSA883x controls
+                 and the amps actually bound here are Awinic aw882xx at 13-0034 and
+                 13-0035. The AW882xx feedback path is wired differently.
+
+                 Consequence: no excursion or thermal limiting on the speaker. Fine
+                 for normal levels, worth revisiting before sustained loud playback.
+                 See docs/open-items.md. -->
+            <speaker_protection_enabled>0</speaker_protection_enabled>
             <fractional_sr>0</fractional_sr>
             <!-- To enable external EC reference the flag extec_ref_enabled must be added as 1 -->
             <ext_ec_ref_enabled>0</ext_ec_ref_enabled>
