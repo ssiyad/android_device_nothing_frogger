@@ -64,6 +64,14 @@ adb, not of the device doing anything.
 Between them these were roughly a quarter of the first collection. Filter before
 running anything over the log.
 
+**Decided 2026-08-06: keep Magisk and live with the contamination for now.** Root
+is worth more than clean data at this stage — it is what made the Bluetooth
+domain bug findable, and what allowed the LVACFS fix to be tested with a bind
+mount instead of a build cycle. The plan is a separate clean collection later:
+uninstall Magisk, use the device normally for a day, and collect an uncontaminated
+set to diff against this one. Until that happens, **treat every `zygote`-sourced
+denial as unattributed rather than as a fact about zygote.**
+
 ## Found: Bluetooth runs in the zygote domain
 
 Not contamination — a real bug, and a regression from the release-keys work.
