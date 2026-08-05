@@ -76,6 +76,16 @@ decided, and `verifiedbootstate=orange` alone fails `DEVICE` integrity.
 
 ### Still unverified — needs hands on the device
 
+- [ ] **Extracted vendor blobs are not in git and drift silently.**
+      `vendor/nothing/frogger/` is not a git repo and not a `repo` project, yet
+      `frogger-vendor.mk` copies files straight out of it into the image. So a
+      `blob_fixup` change in `extract-files.py` does **not** change what gets
+      built — only what a future re-extraction would produce, and the extracted
+      tree must then be corrected by hand on the laptop *and* the build server.
+      Hit for real by the LVACFS recording fix (see [audio.md](audio.md)).
+      Options: put the blob tree under git and add it to the local manifest, or
+      re-run `extract-files.py` as part of the build. Until then, any blob edit
+      is a two-machine manual step and easy to half-apply
 - [ ] Real call audio: earpiece and mic in an actual call
 - [x] ~~Speaker playback; if silent, flip `speaker_protection_enabled` to `0`~~ —
       it was silent, and this was the cause. Speaker protection opens a VI

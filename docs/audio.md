@@ -192,6 +192,65 @@ Leaving protection disabled remains correct in the meantime.
 
 ---
 
+## Garbled voice recordings — fixed
+
+**Symptom:** WhatsApp and Telegram voice messages recorded on the device played
+back garbled. Received messages were fine, and music and video were fine — the
+fault was on the **capture** path only.
+
+Both apps record from `AUDIO_SOURCE_MIC`, and both engaged LVACFS, Nothing's
+Goodix mic-processing library:
+
+```
+adev_open_input_stream: sample_rate(16000) channel_mask(0x10) source(1)   WhatsApp
+adev_open_input_stream: sample_rate(48000) channel_mask(0x10) source(1)   Telegram
+goodix_lvacfs: CreateLibraryInstance: ProfileID=1 ... Path=[/vendor/etc/lvacfs_params/1mic/]
+```
+
+Two different sample rates, same result, so rate was not the variable.
+
+**Cause.** LVACFS selects its tuning profile by `DeviceId`, and those IDs are
+AOSP `audio_source_t` values. We carried two LineageOS blob fixups,
+`audio/lvacfs_{1,2}mic_config.patch` ("Map LVACFS MIC_Normal to
+AUDIO_SOURCE_MIC", written for Asteroids), each remapping one line:
+
+```diff
+-5                                       // DeviceId5
++1                                       // DeviceId1
+ …/LVIMFS_Parameter_xxxx_ID5_MIC_Normal.txt
+```
+
+Stock ships **no** `DeviceId 1` entry in the 1-mic or 2-mic configs, so on stock
+a plain `AUDIO_SOURCE_MIC` recording matches no profile and LVACFS leaves it
+alone. The patch made it match, handing source-1 audio a parameter set Nothing
+only ever used for source 5 (`CAMCORDER`).
+
+The 3-mic config is the tell — there stock *does* ship a genuine source-1
+profile, `LVIMFS_Parameter_xxxx_ID1_MIC_HDR_standard.txt`. Nothing provided
+source-1 parameters for the 3-mic case deliberately and omitted them elsewhere.
+The patch filled that gap with the wrong file.
+
+**Confirmed before changing anything** by bind-mounting a corrected config over
+`/vendor/etc/lvacfs_params/1mic/LVACFS_Configuration.txt` with Magisk, restarting
+`android.hardware.audio.service`, and re-recording. Clean.
+
+**Fix:** both fixups dropped from `extract-files.py` and both `.patch` files
+deleted, restoring stock's `DeviceId5`.
+
+**Consequence, by design:** `AUDIO_SOURCE_MIC` recordings now get no LVACFS
+processing — no noise suppression, drier and less processed. That is exactly what
+stock does. Apps using `VOICE_COMMUNICATION` (7), `VOICE_RECOGNITION` (6) and
+`UNPROCESSED` (9) still match their genuine stock profiles and are unaffected.
+
+> **The corrected file is not in git.** `LVACFS_Configuration.txt` reaches the
+> build through `PRODUCT_COPY_FILES` in `vendor/nothing/frogger/frogger-vendor.mk`,
+> from an extracted blob tree that is not a git repo and not a `repo` project.
+> Removing the fixup only changes what a *future* extraction produces. The
+> already-extracted blob has to be corrected on every machine that builds. See
+> [open-items.md](open-items.md).
+
+---
+
 ## Volume controls — fixed
 
 `audio_policy_configuration.xml` installs to `etc/audio/sku_volcano/` and pulls

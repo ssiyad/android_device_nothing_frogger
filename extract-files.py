@@ -67,10 +67,6 @@ blob_fixups: blob_fixups_user_type = {
         .add_needed('libbinder_shim.so'),
     'vendor/bin/xtra-daemon': blob_fixup()
         .add_needed('libbinder_shim.so'),
-    'vendor/etc/lvacfs_params/1mic/LVACFS_Configuration.txt': blob_fixup()
-        .patch_file('audio/lvacfs_1mic_config.patch'),
-    'vendor/etc/lvacfs_params/2mic/LVACFS_Configuration.txt': blob_fixup()
-        .patch_file('audio/lvacfs_2mic_config.patch'),
     'vendor/etc/media_codecs_volcano_v0.xml': blob_fixup()
         .regex_replace(r'(?s)(<MediaCodecs.*?>)',r'\1\n    <Include href="media_codecs_dolby_audio.xml" />'),
     'vendor/lib64/libarcsoft_dark_vision_raw.so': blob_fixup()
