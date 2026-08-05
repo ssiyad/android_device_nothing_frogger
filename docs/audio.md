@@ -237,6 +237,10 @@ The patch filled that gap with the wrong file.
 **Fix:** both fixups dropped from `extract-files.py` and both `.patch` files
 deleted, restoring stock's `DeviceId5`.
 
+**Verified on device 2026-08-06** in the build that shipped the change, with no
+Magisk overlay in play — `/vendor/etc/lvacfs_params/1mic/LVACFS_Configuration.txt`
+reads `5 // DeviceId5` on disk and WhatsApp voice messages record cleanly.
+
 **Consequence, by design:** `AUDIO_SOURCE_MIC` recordings now get no LVACFS
 processing — no noise suppression, drier and less processed. That is exactly what
 stock does. Apps using `VOICE_COMMUNICATION` (7), `VOICE_RECOGNITION` (6) and

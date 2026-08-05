@@ -157,10 +157,15 @@ The remainder is generic app noise — `untrusted_app` reading `proc_net` and
 
 ## Order of work
 
-1. **Exercise the untouched subsystems.** GPS, telephony, camera, tethering, USB.
+**Next session starts at step 1.**
+
+1. **Rebuild with `dontaudit` stripped**, then collect again. Until this happens
+   every count is a floor, not a number. Bundle it with another build rather than
+   spending a cycle on it alone. Current clean baseline to diff against: 1024
+   lines, one boot, post-Bluetooth-fix, in `/data/adb/avc/denials.log`; the
+   pre-fix set is kept at `/data/adb/avc/archive/`.
+2. **Exercise the untouched subsystems.** GPS, telephony, camera, tethering, USB.
    Denials that never fired are the ones that matter.
-2. **Rebuild with `dontaudit` stripped**, then collect again. Bundle this with
-   another build rather than spending a cycle on it alone.
 3. **Write policy by hand.** `audit2allow` on the `hal_nt_charger` denial emits
    `allow hal_nt_charger sysfs:dir { open read }`, which grants access to *all*
    unlabeled sysfs. The correct fix is one `genfs_contexts` line —
