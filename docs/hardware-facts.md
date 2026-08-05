@@ -11,8 +11,8 @@ it. Values marked **same as Asteroids** were verified equal, not assumed.
 | Marketing name | Nothing Phone (4a) | `ro.product.brand_device_name` |
 | Model | `A069` | `ro.product.vendor.model` |
 | Product names | `FroggerEEA`, `FroggerIND`, `FroggerJPN`, `FroggerTUR` | `/odm/etc/build_*.prop` |
-| Build used | `2606301839`, `BQ2A.250913.001-BP2A.250605.031.A3` | `ro.build.version.incremental` |
-| Bootimage fingerprint | `Nothing/Frogger/Frogger:14/UKQ1.250915.001/2606301839:user/release-keys` | `ro.bootimage.build.fingerprint` |
+| Build used | `2603091830`, `BQ2A.250913.001-BP2A.250605.031.A3` | `ro.build.version.incremental` |
+| Stock fingerprint | `Nothing/Frogger/Frogger:16/BQ2A.250913.001-BP2A.250605.031.A3/2603091830:user/release-keys` | verified against the stock B4.1-260309-1830 release, which is where our blobs come from |
 | Bootloader | `02032-LANAI-1` | `ro.boot.bootloader` (Asteroids: `01955-LANAI-1`) |
 | Baseband | `00099-MILOS_GEN_PACK-1` | `ro.boot.expect.baseband` (Asteroids: `00560.1-...`) |
 | Boot SPL / Vendor SPL | 2026-01-05 / 2026-04-05 | `ro.vendor.boot_security_patch`, `ro.vendor.build.security_patch` — **same as Asteroids**, verified not assumed |

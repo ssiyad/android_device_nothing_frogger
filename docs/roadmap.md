@@ -135,10 +135,23 @@ and props so the server-side check sees a plausible stock device. Google has bee
 moving `DEVICE` onto hardware attestation too, so treat this as a maintenance
 burden rather than a fix.
 
-**One thing in our favour:** the build already reports a real stock fingerprint
-(`Nothing/Frogger/Frogger:14/UKQ1.250915.001/2603091830:user/release-keys`), so
-much of what a spoofing module does is already true. After item 1 the `test-keys`
-contradiction goes away too, which removes an obvious tell.
+**One thing in our favour:** the build reports a real stock fingerprint, so much
+of what a spoofing module does is already true, and the `test-keys` contradiction
+is gone since item 1.
+
+That was only half true until 2026-08-05. The fingerprint read
+`Frogger:14/UKQ1.250915.001/…` — Android 14 build IDs on an Android 16 system
+reporting SDK 36 and a 2026-07 patch level, and a fingerprint no Nothing build
+has ever had. It was inherited from the Asteroids tree and never corrected.
+Verified against the stock `B4.1-260309-1830` release the blobs come from and
+fixed to:
+
+```
+Nothing/Frogger/Frogger:16/BQ2A.250913.001-BP2A.250605.031.A3/2603091830:user/release-keys
+```
+
+**Do not "modernise" this value.** It has to match a real Nothing build Google
+knows about. An invented-but-consistent fingerprint is worse than a stale one.
 
 **Expect banking apps and Google Wallet to keep failing.** Plan around that
 rather than chasing it.

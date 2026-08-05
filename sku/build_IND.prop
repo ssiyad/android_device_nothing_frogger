@@ -1,5 +1,5 @@
-ro.odm.build.fingerprint=Nothing/FroggerIND/Frogger:14/UKQ1.250915.001/2603091830:user/release-keys
-ro.vendor.build.fingerprint=Nothing/FroggerIND/Frogger:14/UKQ1.250915.001/2603091830:user/release-keys
+ro.odm.build.fingerprint=Nothing/FroggerIND/Frogger:16/BQ2A.250913.001-BP2A.250605.031.A3/2603091830:user/release-keys
+ro.vendor.build.fingerprint=Nothing/FroggerIND/Frogger:16/BQ2A.250913.001-BP2A.250605.031.A3/2603091830:user/release-keys
 ro.product.odm.name=FroggerIND
 ro.product.vendor.name=FroggerIND
 ro.product.odm.model=A069
