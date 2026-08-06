@@ -32,10 +32,14 @@ from, so the comparison is like-for-like.
  3  qcom, product, bt
 ```
 
-**Do not paste these in wholesale.** Some describe hardware we do not ship, some
-refer to blobs we do not have, and some would enable code paths built from
-generic CAF source that behaves differently from stock's blobs. The list is a
-lead file, not a patch.
+**The gap is largely a mirage.** Both groups investigated so far — audio (81) and
+display (28) — turned out to be **inert**: their consumers are Nothing's
+proprietary framework and HAL components, which LineageOS does not ship, or
+legacy QCOM HALs for other SoCs that we do not build. Copying the properties
+achieves nothing except the appearance of configuration.
+
+Treat this file as a lead list, never a patch, and **always find the reader
+first**.
 
 ## The ones that matter
 
@@ -77,14 +81,45 @@ stock too, since stock also runs a PAL-based HAL.
 **Conclusion: skip the audio group.** Adding 81 properties that nothing reads
 would be noise, and worse, would look like configuration when it is not.
 
-### Display — 28 props, applied but not the flicker fix
+### Display — 28 props, also inert
 
-Includes the 20 `ro.vendor.display.*` calibration entries read by
-`/vendor/lib64/libdpps.so`: `low_brightness_threshold`, `panel.type`,
-backlight min/max, and the 22-point backlight/lux/nits curves. Applied on
-2026-08-06 via a Magisk `post-fs-data.d` script and confirmed **not** to fix the
-screen flicker — but they are stock calibration for hardware we ship, and belong
-in `vendor.prop` regardless.
+The 20 `ro.vendor.display.*` calibration entries (`low_brightness_threshold`,
+`panel.type`, backlight min/max, 22-point backlight/lux/nits curves) were applied
+on device via a Magisk `post-fs-data.d` script and **did not** fix the screen
+flicker. Chasing why produced the reason, and it generalises.
+
+Their only consumer in the entire stock image is
+**`/system/framework/nt-services.jar`** — Nothing's framework services. Grepping
+the unpacked stock partitions finds these strings in exactly two other places:
+`vendor/build.prop`, where they are defined, and `vendor_property_contexts`,
+which labels them. No native binary reads them.
+
+**We do not ship `nt-services.jar`.** We ship `nothing-fwk.jar` and
+`nt-telephony-interface.jar`; nothing we ship reads these properties.
+
+> An earlier version of this document said `libdpps.so` reads them. It does read
+> `ro.vendor.display.*` properties — `cabl`, `paneltype`, `foss`, `sensortype`,
+> `ad.sdr_calib_data` — but **none of the 20**. That claim came from grepping the
+> prefix rather than the keys.
+
+The 8 `vendor.display.*` entries fare no better: none appear in
+`hardware/qcom-caf/sm8650/display`, which is the display HAL we build from
+source, nor in any shipped blob.
+
+**One real difference remains**, and it should be left alone:
+
+```
+vendor.display.enable_rounded_corner   ours=1   stock=0
+vendor.display.enable_ic_hw_roundedcorner  (stock only) = 1
+```
+
+`enable_rounded_corner` *is* read by our display HAL
+(`include/display_properties.h:144`). Stock pairs `0` with hardware rounded
+corners via `enable_ic_hw_roundedcorner`, which our HAL does not read — so
+setting `0` to match stock would disable rounded corners with no hardware
+fallback. Ours is correct as it stands.
+
+**Conclusion: skip the display group too.** Remove the Magisk trial script.
 
 ### Glyph — 20 props, and the LEDs are unexercised
 
@@ -127,15 +162,17 @@ grep -rl "<prop>" --include=*.c --include=*.cpp --include=*.h --include=*.rc \
 strings -a <shipped blob> | grep <prop>
 ```
 
-1. ~~**Audio feature flags**~~ — **skip**, only 4 of 81 are read and all are at
-   their defaults
-2. **Display calibration** — already trialled on device, just needs committing to
-   `vendor.prop`. `libdpps.so` demonstrably reads these
-3. **`ro.hwui.use_vulkan` / `enable_gl_backpressure` / `set_idle_timer_ms`** — align
-   with stock while the flicker is still open
-4. **Glyph** — verify the Glyph HAL/app reads them first, then set before the LEDs
-   are exercised, so failures are not misread
-5. **`ro.vendor.nothing.*`** — 65 flags, needs case-by-case reading
+1. ~~**Audio feature flags**~~ — **skip**, 4 of 81 are read and all already hold
+   the code's default
+2. ~~**Display calibration**~~ — **skip**, sole consumer is `nt-services.jar`,
+   which we do not ship. Verified on device: applying them changed nothing
+3. **`ro.hwui.use_vulkan` / `enable_gl_backpressure` / `set_idle_timer_ms`** — these
+   are AOSP properties with readers in the platform, so unlike the groups above
+   they will actually take effect. Worth aligning with stock while the flicker is
+   open
+4. **Glyph** — expect the same outcome; the Glyph app is Nothing's and we do not
+   ship its framework side. Check before spending time
+5. **`ro.vendor.nothing.*`** — 65 flags, almost certainly read by `nt-services.jar`
 
 Each group should be a separate commit, so a regression can be bisected to a
 subsystem rather than to one 261-line change.
