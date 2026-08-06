@@ -155,15 +155,64 @@ The remainder is generic app noise — `untrusted_app` reading `proc_net` and
 `proc_filesystems`, apps creating profile directories — the sort AOSP normally
 `dontaudit`s.
 
+## Stripping `dontaudit` — no build required
+
+**1358 `dontaudit` rules** (724 plat + 634 vendor) were suppressing denials, in
+permissive mode included. They are gone from the running policy as of
+2026-08-06, and **this needed no build**: the CIL sources ship on the device, so
+the policy can be recompiled and reloaded live.
+
+The build system has no hook for this — nothing under
+`system/sepolicy/build/soong/` references dontaudit — so patching Soong would
+have been the alternative.
+
+```sh
+# 1. Version comes from the vendor partition, NOT from ro.board.api_level.
+cat /vendor/etc/selinux/plat_sepolicy_vers.txt      # 202504
+cat /vendor/etc/selinux/genfs_labels_version.txt    # 202504
+
+# 2. Recompile on device, with the device's own secilc and init's exact
+#    arguments (system/core/init/selinux.cpp), adding -D.
+cd /data/adb/avc/policy/cil
+/system/bin/secilc plat_sepolicy.cil -m -M true -G -N -D -c 30 \
+    plat_map.cil -o /data/adb/avc/policy/pol.nodontaudit -f /sys/fs/selinux/null \
+    system_ext_sepolicy.cil se_map.cil product_sepolicy.cil prod_map.cil \
+    plat_pub_versioned.cil vendor_sepolicy.cil plat_sepolicy_genfs_202504.cil
+
+# 3. Load it. MUST be a single write().
+SZ=$(stat -c %s pol.nodontaudit)
+dd if=pol.nodontaudit of=/sys/fs/selinux/load bs=$SZ count=1
+```
+
+Two traps, both hit:
+
+- **The mapping version is `202504`, not `34.0`.** `ro.board.api_level` is 34 and
+  the mapping directory contains both, so guessing looks plausible and fails with
+  `Failed to resolve expandtypeattribute statement`. The authority is
+  `/vendor/etc/selinux/plat_sepolicy_vers.txt`.
+- **`cat > /sys/fs/selinux/load` fails with `EINVAL`.** The kernel requires the
+  whole policy in one `write()`, and `cat` chunks it. Use `dd bs=<filesize>`.
+
+The load is **not persistent**, so `/data/adb/post-fs-data.d/00-avc-policy.sh`
+reapplies it every boot and appends to `/data/adb/avc/policy/load.log`. Without
+that, the first reboot silently reverts to the suppressed set with nothing to
+indicate it happened. Deleting the script and rebooting reverts everything.
+
+Baselines kept in `/data/adb/avc/archive/`:
+
+```
+denials.prefix-bluetoothbug.log     1117   before the Bluetooth domain fix
+denials.pre-dontaudit-strip.log     2427   after that fix, before the strip
+```
+
+Newly visible after stripping: `{ noatsecure }`, `netd → proc_net:file create`,
+`system_server → cgroup_v2:file create`, and a batch with
+`scontext=u:object_r:unlabeled:s0` on `/proc` — all classic AOSP `dontaudit`
+targets, none of them present in the earlier sets.
+
 ## Order of work
 
-**Next session starts at step 1.**
-
-1. **Rebuild with `dontaudit` stripped**, then collect again. Until this happens
-   every count is a floor, not a number. Bundle it with another build rather than
-   spending a cycle on it alone. Current clean baseline to diff against: 1024
-   lines, one boot, post-Bluetooth-fix, in `/data/adb/avc/denials.log`; the
-   pre-fix set is kept at `/data/adb/avc/archive/`.
+1. ~~**Strip `dontaudit`**~~ — done 2026-08-06, live and persistent across reboots.
 2. **Exercise the untouched subsystems.** GPS, telephony, camera, tethering, USB.
    Denials that never fired are the ones that matter.
 3. **Write policy by hand.** `audit2allow` on the `hal_nt_charger` denial emits
