@@ -105,7 +105,21 @@ TARGET_SCREEN_DENSITY := 480
 TARGET_FS_CONFIG_GEN := $(DEVICE_PATH)/config.fs
 
 # Graphics
-TARGET_USES_VULKAN := true
+#
+# TARGET_USES_VULKAN feeds exactly one thing: ro.hwui.use_vulkan, via
+# build/make/core/sysprop_config.mk:132. HWUI then picks its renderer in
+# frameworks/base/libs/hwui/Properties.cpp:240 --
+#
+#   rendererProperty = GetProperty(PROPERTY_RENDERER, useVulkan ? "skiavk" : "skiagl")
+#
+# so `true` renders the whole UI through Vulkan. Stock does NOT set this
+# property, so stock renders through skiagl. Both stock and we advertise the
+# same android.hardware.vulkan.* features, so this is not about hardware
+# support -- it is a renderer choice, and ours was inherited from Asteroids.
+#
+# Set false to match stock while the screen-flicker issue is open. Vulkan
+# remains available to apps; only HWUI's own renderer changes.
+TARGET_USES_VULKAN := false
 HWUI_COMPILE_FOR_PERF := true
 
 # Kernel

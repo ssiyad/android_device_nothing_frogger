@@ -103,7 +103,11 @@ debug.sf.early.sf.duration=10500000
 debug.sf.earlyGl.app.duration=13666666
 debug.sf.earlyGl.sf.duration=10500000
 debug.sf.enable_adpf_cpu_hint=true
-debug.sf.enable_gl_backpressure=0
+# AOSP defaults this to true (SurfaceFlinger.cpp:533 GetBoolProperty(..., true))
+# and stock sets 1. We were explicitly disabling it, inherited from Asteroids.
+# It gates whether SurfaceFlinger applies backpressure when GPU composition
+# would miss a frame, so switching it off degrades frame pacing.
+debug.sf.enable_gl_backpressure=1
 debug.sf.late.app.duration=13666666
 debug.sf.late.sf.duration=10500000
 debug.sf.predict_hwc_composition_strategy=0
@@ -116,6 +120,13 @@ ro.surface_flinger.has_HDR_display=true
 ro.surface_flinger.has_wide_color_display=true
 ro.surface_flinger.max_virtual_display_dimension=4096
 ro.surface_flinger.protected_contents=true
+# Stock uses 550 here. Deliberately NOT matching it yet: a shorter idle timer
+# means SurfaceFlinger drops to the idle refresh rate sooner and therefore
+# switches refresh rate MORE often, and refresh-rate transitions are the current
+# prime suspect for the screen flicker -- pinning 120Hz is the only thing that
+# has stopped it. Stock also pairs 550 with ro.vendor.display.set_second_timer_ms
+# =3000, a second-stage timer read only by nt-services.jar, which we do not ship.
+# Revisit once the flicker is understood. See docs/vendor-props.md.
 ro.surface_flinger.set_idle_timer_ms=3000
 ro.surface_flinger.set_touch_timer_ms=200
 ro.surface_flinger.supports_background_blur=1
