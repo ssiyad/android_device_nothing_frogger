@@ -1,12 +1,12 @@
-# vendor_nicmd tunes per-queue RPS on the WCN6750 network interfaces:
-#   /sys/devices/platform/soc/17110040.qcom,wcn6750/net/*/queues/rx-*/rps_cpus
+# Deliberately no rules. Same neverallow as hal_thermal_default.te, see there.
 #
 #   avc: denied { add_name write } scontext=u:r:vendor_nicmd:s0
 #        tcontext=u:object_r:sysfs_net:s0 tclass=dir
 #   avc: denied { create } name="rps_cpus" ... tclass=file
 #
-# Already labelled sysfs_net, so this is an allow rule, not labelling. The
-# `create` is the O_CREAT signature of a shell `> file` redirect; the node
-# exists (verified 2026-08-08).
-allow vendor_nicmd sysfs_net:dir { add_name write };
-allow vendor_nicmd sysfs_net:file { create write };
+# Blocked by domain.te:1576, neverallow domain sysfs_type:dir { ... }.
+#
+# Unlike the thermal case the node is not missing -- all 38 rx queues expose
+# rps_cpus -- so the trigger is most likely a probe made before the interface
+# exists. Either way the write cannot be granted, and no `file write` denial has
+# ever been logged.

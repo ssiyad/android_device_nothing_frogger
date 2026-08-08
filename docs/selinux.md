@@ -319,6 +319,37 @@ processes.
 **Handled by filtering, not policy.** `tools/avc-collect.sh` now excludes them
 and writes a note every 500 suppressed, so the set stops being mostly noise.
 
+## Step 4 caught three over-broad rules of my own
+
+Dropping `SELINUX_IGNORE_NEVERALLOWS` failed the build immediately, with three
+violations — all three of them rules written in the previous step:
+
+```
+system/sepolicy/private/domain.te:1576
+neverallow domain sysfs_type:dir
+    { add_name create link remove_name rename reparent rmdir write };
+
+violated by allow hal_thermal_default    sysfs_thermal:dir             { write add_name }
+violated by allow vendor_nicmd           sysfs_net:dir                 { write add_name }
+violated by allow vendor_qti_init_shell  sysfs_transparent_hugepage:dir { write add_name }
+```
+
+AOSP forbids this for **every** domain with no exceptions, which is the policy
+telling us the denial is supposed to fail rather than be granted.
+
+The underlying cause is benign probing. The device has **72 thermal zones and
+only 54 expose `trip_point_1_temp`**; the HAL walks all of them and
+`fopen(path, "w")` passes `O_CREAT`, so the 18 without that node register as
+creation attempts. A shell `> file` redirect does the same for `defrag`.
+
+Nothing is broken by leaving them denied: the nodes that exist are written
+normally, and **a `file write` denial has never appeared — only `create`**. The
+three `.te` files are kept, containing only this explanation, so the rules are
+not re-added later.
+
+This is the value of step 4 being its own build. The rules looked reasonable,
+matched real denials, and were wrong; only the neverallow check said so.
+
 ## Order of work
 
 1. ~~**Strip `dontaudit`**~~ — done 2026-08-06, live and persistent across reboots.
