@@ -207,9 +207,14 @@ mediametrics        → same_process_hal_file  /vendor/lib64/libutils.so
 vendor_qtelephony   → default_android_service  nothing.radio.ntphone
 ```
 
-`hal_thermal_default` wanting `add_name`/`create` on `sysfs_thermal` is
-suspicious — you cannot create files in sysfs, so that likely indicates a missing
-thermal node rather than a policy gap. Investigate before writing a rule.
+> **Retracted.** This section previously called `hal_thermal_default` wanting
+> `add_name`/`create` on `sysfs_thermal` suspicious, on the grounds that files
+> cannot be created in sysfs, and guessed it meant a missing thermal node. Wrong:
+> `trip_point_1_temp` exists on every zone. `create` on an existing file is the
+> **O_CREAT signature** — `fopen(path, "w")` and shell `> file` both pass
+> `O_CREAT|O_TRUNC`, so the kernel checks `create`/`add_name` regardless. Same
+> for `vendor_nicmd` on `rps_cpus` and `vendor_qti_init_shell` on `defrag`. All
+> three are ordinary allow rules, written 2026-08-08.
 
 **Upstream/AOSP, not ours:** `cgroup_v2` creates by `init`/`system_server`/
 `zygote`, `{ noatsecure }`, `netd` on `proc_net`, `dex2oat` searching app data,

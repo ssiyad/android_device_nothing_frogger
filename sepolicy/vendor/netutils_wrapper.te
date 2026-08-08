@@ -1,0 +1,7 @@
+# netutils_wrapper reads a vendor sysfs data node while applying network config.
+#
+#   avc: denied { read } scontext=u:r:netutils_wrapper:s0
+#        tcontext=u:object_r:vendor_sysfs_data:s0 tclass=file
+#
+# Correctly labelled already; read-only access is all that is requested.
+allow netutils_wrapper vendor_sysfs_data:file r_file_perms;

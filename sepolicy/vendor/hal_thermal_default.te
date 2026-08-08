@@ -1,0 +1,18 @@
+# The thermal HAL writes trip points, e.g.
+#   /sys/class/thermal/thermal_zone*/trip_point_1_temp
+#
+#   avc: denied { add_name write } scontext=u:r:hal_thermal_default:s0
+#        tcontext=u:object_r:sysfs_thermal:s0 tclass=dir
+#   avc: denied { create } name="trip_point_1_temp" ... tclass=file
+#
+# The node is already labelled sysfs_thermal, so this is a missing allow rule
+# rather than a labelling gap.
+#
+# `create` on a file that plainly exists looks wrong at first. It is the O_CREAT
+# signature: fopen(path, "w") and shell `> file` both pass O_CREAT|O_TRUNC, so
+# the kernel runs the create and add_name checks even though nothing is created.
+# Verified on device 2026-08-08 -- trip_point_1_temp exists on every thermal
+# zone. An earlier note in the docs guessed this meant a missing thermal node;
+# it does not.
+allow hal_thermal_default sysfs_thermal:dir { add_name write };
+allow hal_thermal_default sysfs_thermal:file { create write };

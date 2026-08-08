@@ -1,0 +1,25 @@
+# hal_nt_charger enumerates thermal zones by walking /sys/devices/virtual to
+# reach /sys/devices/virtual/thermal, then reads /sys/class/thermal/*/type.
+#
+#   avc: denied { open read } path="/sys/devices/virtual"
+#        scontext=u:r:hal_nt_charger:s0 tcontext=u:object_r:sysfs:s0 tclass=dir
+#
+# Everything it actually consumes is already labelled and already allowed by
+# hardware/nothing/sepolicy/common/vendor/hal_nt_charger.te:
+#
+#   /sys/devices/virtual/thermal   sysfs_thermal                r_dir_file(...)
+#   /sys/class/thermal/*/type      sysfs_thermal                r_dir_file(...)
+#   /sys/class/qcom-battery        vendor_sysfs_battery_supply  rw_dir_file(...)
+#
+# The only gap is the generic parent directory it must open to get there.
+#
+# This grants DIRECTORY read on generic sysfs -- listing entries, not reading any
+# file contents. That is deliberately the narrow half of the obvious alternative:
+# audit2allow would suggest sysfs:file access, which would hand over every
+# unlabeled sysfs node on the device.
+#
+# The tempting alternative -- a genfscon for /devices/virtual -- was rejected.
+# genfscon matches by prefix, so it would relabel everything beneath that path
+# which is not more specifically labelled, changing what other domains see for
+# reasons that have nothing to do with the charger HAL.
+allow hal_nt_charger sysfs:dir r_dir_perms;

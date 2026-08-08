@@ -1,0 +1,12 @@
+# vendor_nicmd tunes per-queue RPS on the WCN6750 network interfaces:
+#   /sys/devices/platform/soc/17110040.qcom,wcn6750/net/*/queues/rx-*/rps_cpus
+#
+#   avc: denied { add_name write } scontext=u:r:vendor_nicmd:s0
+#        tcontext=u:object_r:sysfs_net:s0 tclass=dir
+#   avc: denied { create } name="rps_cpus" ... tclass=file
+#
+# Already labelled sysfs_net, so this is an allow rule, not labelling. The
+# `create` is the O_CREAT signature of a shell `> file` redirect; the node
+# exists (verified 2026-08-08).
+allow vendor_nicmd sysfs_net:dir { add_name write };
+allow vendor_nicmd sysfs_net:file { create write };

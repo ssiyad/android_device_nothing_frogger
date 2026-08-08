@@ -1,0 +1,11 @@
+# vendor_qti_init_shell writes the transparent hugepage defrag policy:
+#   /sys/kernel/mm/transparent_hugepage/defrag
+#
+#   avc: denied { add_name write } scontext=u:r:vendor_qti_init_shell:s0
+#        tcontext=u:object_r:sysfs_transparent_hugepage:s0 tclass=dir
+#   avc: denied { create } name="defrag" ... tclass=file
+#
+# Already labelled, so an allow rule. Same O_CREAT-from-shell-redirect pattern
+# as vendor_nicmd and hal_thermal_default; the node exists.
+allow vendor_qti_init_shell sysfs_transparent_hugepage:dir { add_name write };
+allow vendor_qti_init_shell sysfs_transparent_hugepage:file { create write };

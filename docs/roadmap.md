@@ -47,9 +47,15 @@ Remaining, in the order they should be done:
    incomplete.
 5. **Flip to enforcing** and fix what breaks.
 
-Do not write `hal_thermal_default → sysfs_thermal` rules yet. It asks for
-`add_name`/`create` on sysfs, which is impossible, so it more likely indicates a
-missing thermal node than a policy gap.
+**Correction, 2026-08-08.** An earlier note here said `hal_thermal_default`
+asking for `add_name`/`create` on `sysfs_thermal` probably meant a missing
+thermal node. It does not. `trip_point_1_temp` exists on every zone, verified on
+device. `create` on an existing file is the **O_CREAT signature**: both
+`fopen(path, "w")` and a shell `> file` redirect pass `O_CREAT|O_TRUNC`, so the
+kernel runs the `create` and `add_name` checks even though nothing is created.
+The same pattern explains `vendor_nicmd` on `rps_cpus` and
+`vendor_qti_init_shell` on `defrag`; all three nodes exist. These are ordinary
+allow rules.
 
 Camera work will add a large denial surface and force some of this to be
 revisited — which is an argument for getting to enforcing on the current surface
