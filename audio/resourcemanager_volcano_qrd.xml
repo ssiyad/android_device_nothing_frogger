@@ -51,7 +51,6 @@
         <param key="haptics_priority" value ="touch_haptics" />
         <param key="haptics_through_wsa" value ="false" />
         <param key="dummy_dev_enable" value ="false" />
-        <param key="record_use_ap_lvacfs" value="enable" />
     </config_params>
     <config_volume>
         <use_volume_set_param>0</use_volume_set_param>

@@ -33,6 +33,7 @@ Status and blockers live here; task files describe only the work.
 | Task | Status | Blocked by |
 |---|---|---|
 | [Restore speaker protection](tasks/speaker-protection.md) | blocked | no route except replacing PAL with a vendor blob |
+| [Make LVACFS follow the recording source](tasks/lvacfs-source-tracking.md) | open | — |
 
 ### Build and packaging
 

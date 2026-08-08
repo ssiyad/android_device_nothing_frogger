@@ -26,6 +26,16 @@ has the same apparent mismatch.
 LVACFS is Nothing's Goodix mic-processing library. It selects a tuning profile by
 `DeviceId`, and those IDs are AOSP `audio_source_t` values.
 
+**The AP-side path is off, as on stock.** `record_use_ap_lvacfs` is the only key
+that sets `ResourceManager::isLvacfsEnabled`, which gates `Lvacfs::init()` and
+every per-stream call. Stock's `resourcemanager_volcano_qrd.xml` does not carry
+it; it arrived here from the Asteroids port and was removed after it cost about
+30 dB of capture level on every recording. The profile the HAL picks comes from a
+stale `source_` on a reused stream object, so the profile is not the one the app
+asked for — see [tasks/lvacfs-source-tracking.md](../tasks/lvacfs-source-tracking.md).
+The paragraphs below describe the config as stock ships it, and apply if that
+path is ever turned back on.
+
 Stock ships **no** `DeviceId 1` entry in the 1-mic or 2-mic configs, so a plain
 `AUDIO_SOURCE_MIC` recording matches no profile and LVACFS leaves it alone. The
 3-mic config is the exception and does ship a genuine source-1 profile,
