@@ -258,10 +258,19 @@ Two traps, both hit:
 - **`cat > /sys/fs/selinux/load` fails with `EINVAL`.** The kernel requires the
   whole policy in one `write()`, and `cat` chunks it. Use `dd bs=<filesize>`.
 
-The load is **not persistent**, so `/data/adb/post-fs-data.d/00-avc-policy.sh`
-reapplies it every boot and appends to `/data/adb/avc/policy/load.log`. Without
-that, the first reboot silently reverts to the suppressed set with nothing to
-indicate it happened. Deleting the script and rebooting reverts everything.
+The load is **not persistent**, so `tools/00-avc-policy.sh` reapplied it every
+boot from `/data/adb/post-fs-data.d/`.
+
+> **Removed from the device 2026-08-08, and it must stay off for enforcing.**
+> Magisk patches the live policy at boot to add its own domain; this script then
+> loaded a policy recompiled from the shipped CIL, which has no Magisk types,
+> wiping those patches. `magiskd` and `su` ended up as
+> `u:object_r:unlabeled:s0`. Harmless under permissive, but in enforcing it would
+> break root outright and present as an enforcing bug rather than a tooling one.
+>
+> The script is kept in `tools/` because the technique is worth having — it
+> strips `dontaudit` with no build and no flash. Install it for a collection run,
+> then remove it.
 
 Baselines kept in `/data/adb/avc/archive/`:
 
