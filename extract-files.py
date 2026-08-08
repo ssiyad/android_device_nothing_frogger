@@ -75,6 +75,29 @@ blob_fixups: blob_fixups_user_type = {
         .clear_symbol_version('rpcmem_free'),
     'vendor/lib64/libcne.so': blob_fixup()
         .add_needed('libbinder_shim.so'),
+    # libmorpho_video_stabilizer pulls libui, and Soong then sees two versions of
+    # the same aidl_interface in one module and refuses to build:
+    #
+    #   module "com.morpho.node.eisv2": depends on multiple versions of the same
+    #     aidl_interface
+    #       via libcommonchiutils          -> graphics.allocator-V1-ndk
+    #       via libmorpho_video_stabilizer -> libui -> graphics.allocator-V2-ndk
+    #
+    # This is why the Morpho nodes were deferred in c7b6801, on the mistaken
+    # reasoning that they were video-stabilisation only. They are not: the log
+    # shows com.morpho.node.gme failing and taking
+    # MultiCameraBayerSATNoBPSFrogger0_0_cam_2 -- a preview pipeline -- with it.
+    #
+    # Dropping libui from this one blob breaks the V2 edge. blob_fixups is keyed
+    # by path, so unlike lib_fixups it does not affect every blob linking libui.
+    # Safe at runtime because libui is already mapped in the camera provider
+    # process (verified on device), loaded by something other than the camera
+    # libraries, so the symbols still resolve at dlopen.
+    #
+    # The alternative -- dropping allocator-V1-ndk from libcommonchiutils --
+    # would touch a library the working camera path already depends on.
+    'vendor/lib64/libmorpho_video_stabilizer.so': blob_fixup()
+        .remove_needed('libui.so'),
     'vendor/lib64/libmorpho_RapidEffect.so': blob_fixup()
         .clear_symbol_version('AHardwareBuffer_allocate')
         .clear_symbol_version('AHardwareBuffer_describe')

@@ -588,6 +588,9 @@ vendor/lib64/camera/components/com.qti.node.swmctf.so
 vendor/lib64/camera/components/com.qti.node.swmfnr.so
 vendor/lib64/camera/components/com.qti.node.swmlremosaic.so
 vendor/lib64/camera/components/com.qti.node.swpdpc.so
+vendor/lib64/camera/components/com.morpho.node.eisv2.so
+vendor/lib64/camera/components/com.morpho.node.eisv3.so
+vendor/lib64/camera/components/com.morpho.node.gme.so
 vendor/lib64/camera/components/com.qti.node.swpnc.so
 vendor/lib64/camera/components/com.qti.node.swpreprocess.so
 vendor/lib64/camera/components/com.qti.node.swregistration.so
@@ -755,6 +758,8 @@ vendor/lib64/libmmcamera_mfnr.so
 vendor/lib64/libmmcamera_mfnr_t4.so
 vendor/lib64/libmmcamera_pdpc.so
 vendor/lib64/libmorpho_RapidEffect.so
+vendor/lib64/libmorpho_ubwc.so
+vendor/lib64/libmorpho_video_stabilizer.so
 vendor/lib64/libmpbase.so
 vendor/lib64/libnoteengine.so
 vendor/lib64/libntcamallocator.so
