@@ -97,14 +97,44 @@ PayloadBuilder: retrieveKVs: Fallback to find KVs without custom config
 
 leaving the no-custom-config entry, SMECNS.
 
-## Next test
+## Endfire was tested and is worse
 
-Config-only and reversible: change the plain `HANDSETMIC` +
-`PAL_STREAM_DEEP_BUFFER,PAL_STREAM_COMPRESSED` entry in `usecaseKvManager.xml`
-from `0xAD000002` to `0xAD000003`, overlay it with Magisk, reboot and re-measure.
-If the level jumps, the topology selection is the fault and the real fix is
-making the custom key reflect the actual mic count rather than the usecase.
+Changing that entry from `0xAD000002` to `0xAD000003` and rebooting does select
+the dual-mic graph — confirmed, not inferred:
 
-If it does not, the remaining suspect is the gain inside the ACDB topology
-itself, which needs comparison against a stock boot rather than static
-inspection.
+```
+AGM: graph: print_graph_alias: GKV Alias 206 |
+  DeviceTX_Handset_Mic_Instance_Instance_1_DevicePP_Tx_Audio_Fluence_Endfire_StreamTX_PCM_Record
+```
+
+It makes capture dramatically quieter. Per 0.5 s window:
+
+| Clip | Topology | median | max | min |
+|---|---|---|---|---|
+| speech | SMECNS | −58.9 dB | −48.8 dB | −74.1 dB |
+| speech | Endfire | −76.7 dB | −68.7 dB | −100.5 dB |
+| silence | Endfire | −72.3 dB | −64.4 dB | −97.0 dB |
+
+Stretches reach −100 dB, near digital silence — the signature of a beamformer
+nulling its input, consistent with assumed mic geometry that does not match where
+`SWR_MIC0` and `SWR_MIC4` sit on this device. Caveat: the Endfire speech clip has
+no more captured energy than the silent one, so "it cancelled the speech" and
+"that clip was also silent" are not fully separated. Neither reading supports
+Endfire.
+
+So the single-mic topology is *not* the fault, and forcing the dual-mic key would
+make things worse, not better. Do not spend time on the
+`USECASE_AUDIO_RECORD_LOW_LATENCY` gate on this evidence.
+
+## What is left
+
+The gain inside the ACDB topology itself. Static inspection is exhausted: the
+files are byte-identical to stock and the graph PAL builds is the sane one. What
+would actually discriminate is a stock boot with the same instrumentation —
+`tinymix` before and during a capture, and the `GKV Alias` line — so the two can
+be compared directly rather than reasoned about.
+
+`tinymix` is not in the image. Build it with `mka tinymix` and push it to
+`/data/local/tmp`; it is the single most useful instrument found in this
+investigation. Raise the log buffer first (`logcat -G 8M`) — the default ~256 KiB
+rolls the graph-open lines within about 100 seconds.
