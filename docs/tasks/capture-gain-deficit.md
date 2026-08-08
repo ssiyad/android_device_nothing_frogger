@@ -126,56 +126,69 @@ So the single-mic topology is *not* the fault, and forcing the dual-mic key woul
 make things worse, not better. Do not spend time on the
 `USECASE_AUDIO_RECORD_LOW_LATENCY` gate on this evidence.
 
-## Best remaining lead: the record graph asks ACDB with an empty CKV
+## The empty CKV was a misreading — tested and dead
 
-AGM prints the metadata it sets for the capture device and for device+PP:
+AGM prints several metadata blocks per capture. The device-level one
+(`GKV size:1`, the backend alone) reads `CKV count:0` and always will — it
+carries no calibration vector by design. Reading that block and concluding the
+record graph got no calibration was wrong. The record graph's own block, unpatched,
+already had one:
 
 ```
-AGM: metadata: GKV size:2
-AGM: metadata: key:0xa3000000, value:0xa3000004
-AGM: metadata: key:0xad000000, value:0xad000003
-AGM: metadata: CKV count:0
+GKV size:4  key:0xb1000000 value:0xb1000001   (PCM_Record)
+            key:0xa3000000 value:0xa3000004   (Handset_Mic)
+            key:0xad000000 value:0xad000002   (topology)
+CKV count:1 key:0xa4000000 value:0xf
 ```
 
-The Graph Key Vector is right; the **Calibration** Key Vector is empty. CKV is
-what selects which calibration ACDB applies to the graph's modules, so a correct
-topology with no calibration would leave its gain at defaults — which is exactly
-the shape of this fault, given the codec-side chain is provably linear and
-untouched.
+It was tested anyway. `libar-pal` built with `CHANNELS` pushed for capture
+devices, overlaid with Magisk, verified live by both the added log line
+(`CKV CHANNELS 2 for in device 27`) and the CKV going 1 → 2. Level did not move:
 
-`PayloadBuilder::populateDevicePPCkv` (`pal/session/src/PayloadBuilder.cpp:3371`)
-switches on the PAL stream type. Recording opens as `PAL_STREAM_DEEP_BUFFER`
-(`pal_stream_open: Enter, stream type:2`), which lands in a branch that pushes
-CKV entries only for `PAL_DEVICE_OUT_SPEAKER` — nothing for a TX device — and
-ends on an unfinished upstream path:
+| Clip | mean | max |
+|---|---|---|
+| patched | −58.5 dB | −37.1 dB |
+| patched | −57.9 dB | −40.6 dB |
+| unpatched, same config | −56.8 dB | −35.2 dB |
 
-```cpp
-/* TBD: Push Channels for these types once Channels are added */
-//keyVector.push_back(std::make_pair(CHANNELS,
-//                                   dAttr.config.ch_info.channels));
-```
+Note also that this file is shared by every sm8650 device in the tree, so a fault
+here would not be Frogger-specific. That argument alone should have outweighed
+the log reading.
 
-`PAL_STREAM_VOICE_UI` does push `CHANNELS`, commented "for FFNS or FFECNS channel
-based calibration". The record graph is a channel-dependent ECNS topology as
-well, and the device is opened with two channels, so a channel-keyed calibration
-entry would not match an empty CKV.
+## Mic routing is also ruled out
 
-This cannot be tested from the device tree. `resourcemanager`'s
-`PAL_DEVICE_IN_HANDSET_MIC` entry carries backend, channels, samplerate and EC
-settings only — no gain knob. Testing means building `libar-pal` with the
-`CHANNELS` push restored for capture streams and overlaying
-`/vendor/lib64/libar-pal.so` with Magisk. Same tree that built the ROM, one
-changed function, removable by deleting the file.
+`TX SMIC MUX1` was swept across SoundWire ports during a live capture with
+continuous speech. Median level per port over the window each was active:
 
-Treat it as a hypothesis. Two before it looked at least as good and both were
-wrong.
+| Port | median | p75 |
+|---|---|---|
+| `SWR_MIC4` (in use) | −54.1 dB | −49.2 dB |
+| `SWR_MIC0` (in use) | −57.0 dB | −53.8 dB |
+| `SWR_MIC5` | −59.7 dB | −55.8 dB |
+| `SWR_MIC7` | −60.4 dB | −53.6 dB |
+| `SWR_MIC6` | −69.5 dB | −59.2 dB |
 
-## If that fails
+The two ports already in use are the loudest. No port offers anything like the
+missing 25 dB, and a win that size would be unmissable against this spread.
+`SWR_MIC1`–`MIC3` were not covered — the sweep script fired early because
+`TX DEC1 MUX` keeps reading `SWR_MIC` after a capture ends, so detect capture
+some other way if repeating this.
 
-Comparing against a stock boot with the same instrumentation — `tinymix` idle and
-during capture, plus the `GKV Alias` and `CKV count` lines — would discriminate
-directly rather than by reasoning. Noted only for completeness: flashing stock is
-ruled out.
+## What is left
+
+Nothing cheap. Every device-specific candidate reachable without a stock
+reference has been eliminated: config, ACDB contents, properties, topology
+selection, mic routing, and the codec gain chain. What remains is the gain inside
+the ACDB topology, and discriminating that means running the same instrumentation
+on a stock boot — `tinymix` idle and during capture, plus the `GKV Alias` and
+`CKV count` lines — so the two can be compared directly. Flashing stock is ruled
+out, so this is parked rather than blocked on a next step.
+
+Method notes for whoever picks it up: `tinymix` is not in the image, build it with
+`mka tinymix`; raise the log buffer with `logcat -G 8M` or the graph lines roll
+out inside 100 seconds; the Lineage Recorder names files by **start** time; and
+`ffmpeg -af volumedetect` over a whole clip hides everything — window it, and
+confirm speech is actually present before comparing two clips.
 
 `tinymix` is not in the image. Build it with `mka tinymix` and push it to
 `/data/local/tmp`; it is the single most useful instrument found in this
