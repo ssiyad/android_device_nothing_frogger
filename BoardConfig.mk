@@ -117,9 +117,13 @@ TARGET_FS_CONFIG_GEN := $(DEVICE_PATH)/config.fs
 # same android.hardware.vulkan.* features, so this is not about hardware
 # support -- it is a renderer choice, and ours was inherited from Asteroids.
 #
-# Set false to match stock while the screen-flicker issue is open. Vulkan
-# remains available to apps; only HWUI's own renderer changes.
-TARGET_USES_VULKAN := false
+# Briefly set false on 2026-08-08 to test whether HWUI's renderer was behind the
+# screen flicker. It was not -- the flicker persisted on skiagl -- so this is
+# back to Asteroids' original deliberate choice (b31bc78). Vulkan is the better
+# renderer on paper and there is no reason to carry a deviation from it that
+# buys nothing. Evidence points at refresh-rate transitions instead: pinning
+# 120Hz is the only thing that has ever stopped the flicker.
+TARGET_USES_VULKAN := true
 HWUI_COMPILE_FOR_PERF := true
 
 # Kernel
