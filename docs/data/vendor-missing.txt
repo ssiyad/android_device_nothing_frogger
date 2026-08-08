@@ -474,7 +474,7 @@ wifi/peach_v2/WCNSS_qcom_cfg.ini
 wifi/vendor_cmd.xml
 wifi/wcn6450/WCNSS_qcom_cfg.ini
 
-## /vendor/lib64  (364 files)
+## /vendor/lib64  (363 files)
 android.automotive.watchdog-V2-ndk.so
 android.hardware.audio.common-V1-ndk.so
 android.hardware.audio.common@2.0-util.so
@@ -555,7 +555,6 @@ libGPQeSE.so
 libGPTEE_vendor.so
 libMobileAPI_SHARED.so
 libOmxCore.so
-libQnnHtpV73Stub.so
 libTrustedUIAIDL.so
 lib_android_keymaster_keymint_utils.so
 lib_rectify.so

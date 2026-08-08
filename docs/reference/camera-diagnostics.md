@@ -52,6 +52,30 @@ CHI nodes `dlopen` their libraries, so absence from `DT_NEEDED` proves nothing
 about whether a node requires a library. Diff whole directories against stock
 rather than reasoning from the ELF headers of one blob.
 
+The converse check is still worth running, and is cheap — it now comes back
+clean:
+
+```sh
+cd vendor/nothing/frogger/proprietary/vendor
+for f in $(find lib64/camera lib64/libcamx* lib64/libchi* -name "*.so"); do
+    readelf -d "$f" | sed -n 's/.*NEEDED.*\[\(.*\)\]/\1/p'
+done | sort -u > /tmp/needed.txt
+adb shell 'ls /vendor/lib64/ /vendor/lib64/camera/components/ /system/lib64/' |
+    sort -u > /tmp/ondevice.txt
+comm -23 /tmp/needed.txt /tmp/ondevice.txt
+```
+
+## `dlopen` failures hide outside the CamX tags
+
+`libQnnHtpV73Stub.so` was missing while every `CamX`/`ChiX` grep looked healthy,
+because the QNN runtime logs the failure under its own `QnnDsp` tag as a
+**warning**, and only the downstream `Failed to load skel` is an error. The DSP
+half of the pair (`vendor/lib/rfsa/adsp/libQnnHtpV73Skel.so`) shipped from the
+start, which is what made the gap easy to miss.
+
+Grep a session for `dlopen`, `not found` and `No such file` without filtering by
+tag before concluding the blob set is complete.
+
 ## dmesg
 
 Kernel logs rotate in about four minutes on this device. Capture promptly.
