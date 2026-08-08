@@ -46,6 +46,57 @@ failed to apply.
 out in stock. It is cheaper than blob diffing when a `dlopen` target needs
 naming.
 
+## Proving a rail is actually driven
+
+A device node existing proves the driver loaded, not that anything uses it. For
+anything that ends in a regulator — SOIS, a sensor supply — the rail itself is
+the evidence. Snapshot every camera rail, open the camera, snapshot again, diff:
+
+```sh
+snap() { adb shell "su -c 'for d in /sys/class/regulator/*/; do
+  n=\$(cat \$d/name 2>/dev/null)
+  case \$n in SGM*|WR_*) echo \"\$n \$(cat \$d/state)\";; esac
+done'" | tr -d '\r' | sort; }
+
+snap > /tmp/closed.txt
+# open the camera, wait ~10s
+snap > /tmp/open.txt
+diff /tmp/closed.txt /tmp/open.txt
+```
+
+Diffing *all* of them is what makes this trustworthy — the rails that obviously
+must come on are the control. If none change, the session never started; if only
+some change, read which sensor is streaming before concluding anything.
+
+Three traps, each of which reads as a broken driver:
+
+- **`num_users` is 0 even for rails in use.** It is not a consumer count you can
+  read this way. `SGM_LDO4` (`cam_vio`) reports 0 with a session live. Use
+  `state`.
+- **`/sys/kernel/debug/regulator/` does not exist here**, so `regulator_summary`
+  is not available to list consumers. Establish the sole consumer from the
+  devicetree instead.
+- **The rails belong to one sensor.** A wide-sensor rail stays off during a tele
+  session, which looks identical to a broken driver. Confirm which camera opened
+  (`CameraId-N opened successfully`) before reading the diff.
+
+## Opening the camera from adb is unreliable
+
+`am start -a android.media.action.STILL_IMAGE_CAMERA` resolves to
+`ResolverActivity` — a chooser — because no app is the default handler. The
+intent silently lands on a gallery instead, and a rail diff taken around it shows
+nothing changing for the obvious reason.
+
+```sh
+adb shell 'cmd package resolve-activity --brief -c android.intent.category.LAUNCHER org.lineageos.aperture'
+adb shell 'am start -n org.lineageos.aperture/.CameraLauncher'
+adb shell 'dumpsys window | grep mCurrentFocus'   # always confirm what came up
+```
+
+The GCam fishfood build that is installed has no launcher activity and cannot be
+started this way at all. Aperture can. Always verify the foreground activity
+before trusting any measurement taken around it.
+
 ## CHI node dependencies
 
 CHI nodes `dlopen` their libraries, so absence from `DT_NEEDED` proves nothing

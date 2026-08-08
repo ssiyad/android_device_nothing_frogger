@@ -4,7 +4,9 @@ Preview opens, streams and tears down, and every `DT_NEEDED` of every camera blo
 resolves on the device. These are what a working session logs anyway. None is
 known to break a user-visible feature; none is known to be harmless either.
 
-Captured from a GCam preview session on the rear camera (`cam_1`).
+Captured from preview sessions on the rear camera (`cam_1`, GCam) and the tele
+(`cam_3`, Aperture). Occurrence counts are from the `cam_1` session; counts do
+not carry across sensors or apps.
 
 | Error | Source | Reading |
 |---|---|---|
@@ -15,7 +17,8 @@ Captured from a GCam preview session on the rear camera (`cam_1`).
 | `Invalid pointer pHwCfgWrapper 0x0` | `camxnodelegacy.cpp:23305` | `GetOEMFeatureTypeMask()` on the ZSL preview pipeline. |
 | `CheckMctfTransformCondition Failed` | `ica32setting.cpp:394` | MCTF transform, with alignment matrix and grid both disabled. |
 | `StoreNothingMeta() Get package name faled result -2` | `camxhwinterface.cpp:342` | Nothing per-package camera metadata; `-2` is `ENOENT`. |
-| `releasePNC failed` | `camxchinodeswpnc.cpp:2441` | Teardown only. `com.qti.node.swpnc` consumes OIS samples, but its failure is in `LoadLib()` and is independent of the SOIS masks. |
+| `releasePNC failed` | `camxchinodeswpnc.cpp:2441` | Teardown only. `com.qti.node.swpnc` consumes OIS samples, but its failure is in `LoadLib()` and is independent of the SOIS masks — it persists with the masks at their stock `0x9`. |
+| `Sensor[3]: Current DAC Ratio N is not equal to last DAC Ratio M` | `camxsensornode.cpp:4225` | Once per AF step on the tele, ~160 in a short preview. Slot 3 has an actuator but no `nt_sois-supply`, so nothing stabilises it. Establish whether this is normal AF chatter before treating it as a fault. |
 
 ## Not on this list
 
@@ -26,10 +29,17 @@ debug-logging config that is absent by design.
 ## Method
 
 ```sh
-adb logcat -c && adb shell 'am start -a android.media.action.STILL_IMAGE_CAMERA'
+adb logcat -c
+adb shell 'input keyevent KEYCODE_WAKEUP'
+adb shell 'am start -n org.lineageos.aperture/.CameraLauncher'
+adb shell 'dumpsys window | grep mCurrentFocus'   # confirm the camera came up
 timeout 30 adb logcat > cam.log
 grep -E " E (CamX|ChiX)" cam.log | grep -viE "PreLoadLiberary|PopulateFuseId"
 ```
 
-The screen must be awake — a dozing device accepts the intent and never starts
-the HAL, which looks like a clean log.
+Name the component. The `android.media.action.STILL_IMAGE_CAMERA` action hits a
+chooser and lands on a gallery, which looks like a clean log — see
+[camera-diagnostics.md](../reference/camera-diagnostics.md).
+
+The screen must be awake for the same reason: a dozing device accepts the intent
+and never starts the HAL.

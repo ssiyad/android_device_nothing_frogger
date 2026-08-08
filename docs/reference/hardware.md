@@ -79,13 +79,38 @@ Driver `CONFIG_LEDS_AW20036_FROGGER`.
 
 | Slot | CCI | csiphy | Part | Peripherals |
 |---|---|---|---|---|
-| cam-sensor0 | cci0 | 0 | S5KGN9 wide | eeprom, actuator |
+| cam-sensor0 | cci0 | 0 | S5KGN9 wide | eeprom, actuator, SOIS |
 | cam-sensor1 | cci0 | 1 | S5KKD1 front | eeprom |
 | cam-sensor2 | cci1 | 3 | IMX355 ultrawide | eeprom |
-| cam-sensor3 | cci1 | 2 | S5KJN5 tele | eeprom, actuator, OIS |
+| cam-sensor3 | cci1 | 2 | S5KJN5 tele | eeprom, actuator |
 
-The tele is a Phone (4a) Pro part and does not probe on a plain Frogger. Stock
-ships the same node set for both board-ids and lets it fail, so the node is kept.
+All four probe on this IND unit, tele included, and the framework exposes five
+cameras, four of them back-facing. The tele acquires, starts and streams.
+
+Stock ships the same node set for both board-ids, so the node set is kept as-is.
+
+### OIS
+
+There is no `ois-src`, no `qcom,ois` and no `cam_ois` reference anywhere in the
+devicetrees, so the Qualcomm OIS subdev is not in play on this device at all. The
+only stabilisation path is Nothing's **SOIS** (sensor-shift), and it sits on the
+**wide**, not the tele:
+
+| Fact | Value |
+|---|---|
+| Node | `qcom,cam-sensor0` |
+| Rail | `SGM_LDO6` — `nt_sois-supply` is its only consumer |
+| Voltage | requested 3004000 µV; the LDO reports 2988000, which is its step, not a fault |
+| Control | `/dev/nt_cam_dev`, ioctl `NT_DEV_CONTROL_CMD` |
+| Masks | `enableCameraSOISMask=0x9`, `SOISOptimizationEnable=0x9` |
+
+The masks are indexed by sensor slot, so `0x9` selects slots 0 and 3 — but slot 3
+has no `nt_sois-supply`, so the driver skips it and only the wide is ever
+powered. The OEM devicetree is identical here, so that is stock behaviour rather
+than a porting gap.
+
+Test OIS on the **main camera**. Testing the telephoto proves nothing about this
+path.
 
 Supplies come from two I2C LDO chips, **not** the PMIC:
 
