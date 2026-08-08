@@ -15,6 +15,12 @@ Status and blockers live here; task files describe only the work.
 | [Write missing allow rules](tasks/selinux-allow-rules.md) | open | collect denials |
 | [Switch to enforcing](tasks/selinux-enforcing.md) | blocked | label sysfs nodes, write allow rules |
 
+### Camera
+
+| Task | Status | Blocked by |
+|---|---|---|
+| [Explain the errors a healthy session logs](tasks/camera-hal-errors.md) | open | — |
+
 ### Thermal
 
 | Task | Status | Blocked by |
