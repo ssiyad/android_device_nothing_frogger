@@ -1,12 +1,8 @@
-# Deliberately no rules. Same neverallow as hal_thermal_default.te, see there.
+# Deliberately no rules. Same neverallow as hal_thermal_default.te.
 #
 #   avc: denied { add_name write } scontext=u:r:vendor_nicmd:s0
 #        tcontext=u:object_r:sysfs_net:s0 tclass=dir
 #   avc: denied { create } name="rps_cpus" ... tclass=file
 #
-# Blocked by domain.te:1576, neverallow domain sysfs_type:dir { ... }.
-#
-# Unlike the thermal case the node is not missing -- all 38 rx queues expose
-# rps_cpus -- so the trigger is most likely a probe made before the interface
-# exists. Either way the write cannot be granted, and no `file write` denial has
-# ever been logged.
+# All 38 rx queues expose rps_cpus, so the trigger is a probe made before the
+# interface exists. Only create is denied, never file write.

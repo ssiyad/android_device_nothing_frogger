@@ -106,23 +106,8 @@ TARGET_FS_CONFIG_GEN := $(DEVICE_PATH)/config.fs
 
 # Graphics
 #
-# TARGET_USES_VULKAN feeds exactly one thing: ro.hwui.use_vulkan, via
-# build/make/core/sysprop_config.mk:132. HWUI then picks its renderer in
-# frameworks/base/libs/hwui/Properties.cpp:240 --
-#
-#   rendererProperty = GetProperty(PROPERTY_RENDERER, useVulkan ? "skiavk" : "skiagl")
-#
-# so `true` renders the whole UI through Vulkan. Stock does NOT set this
-# property, so stock renders through skiagl. Both stock and we advertise the
-# same android.hardware.vulkan.* features, so this is not about hardware
-# support -- it is a renderer choice, and ours was inherited from Asteroids.
-#
-# Briefly set false on 2026-08-08 to test whether HWUI's renderer was behind the
-# screen flicker. It was not -- the flicker persisted on skiagl -- so this is
-# back to Asteroids' original deliberate choice (b31bc78). Vulkan is the better
-# renderer on paper and there is no reason to carry a deviation from it that
-# buys nothing. Evidence points at refresh-rate transitions instead: pinning
-# 120Hz is the only thing that has ever stopped the flicker.
+# Sets ro.hwui.use_vulkan, which selects HWUI's renderer: skiavk when true,
+# skiagl when false.
 TARGET_USES_VULKAN := true
 HWUI_COMPILE_FOR_PERF := true
 
@@ -148,9 +133,8 @@ BOARD_RAMDISK_USE_LZ4 := true
 BOARD_USES_GENERIC_KERNEL_IMAGE := true
 
 TARGET_KERNEL_SOURCE := kernel/nothing/sm7635
-# NullDebris' fork keeps the LineageOS fragment naming. frogger_perf.config does
-# not exist upstream yet -- it has to be added to the kernel repo, derived from
-# the OEM tree's arch/arm64/configs/vendor/Frogger.config. See docs/open-items.md.
+# frogger_perf.config lives in the kernel repo, derived from the OEM tree's
+# arch/arm64/configs/vendor/Frogger.config.
 TARGET_KERNEL_CONFIG := \
     gki_defconfig \
     vendor/pineapple_perf.config \
@@ -176,16 +160,10 @@ TARGET_KERNEL_EXT_MODULE_ROOT := kernel/nothing/sm7635-modules
 TARGET_KERNEL_ADDITIONAL_FLAGS += \
     KBUILD_DTC_INCLUDE=$(abspath $(TARGET_KERNEL_EXT_MODULE_ROOT)/qcom/opensource/camera-kernel)
 
-# The external module builds do not see CONFIG_NOTHING_IS_FROGGER from the
-# kernel's autoconf.h, even though it is set in .config. Every
-# #if IS_ENABLED(CONFIG_NOTHING_IS_FROGGER) guard in audio-kernel therefore
-# compiled its #else branch, so machine_dlkm.ko went out looking for Asteroids'
-# tfa98xx codecs, which can never register here. The sound card then deferred
-# forever, AudioService blocked, the watchdog killed system_server, and the
-# device bootlooped.
-#
-# KCFLAGS is appended to KBUILD_CFLAGS for the kernel and every external
-# module, and =1 is what IS_ENABLED() tests for.
+# External module builds do not see CONFIG_NOTHING_IS_FROGGER from the kernel's
+# autoconf.h, so every IS_ENABLED() guard in audio-kernel compiles its #else
+# branch and the machine driver binds the wrong codec. KCFLAGS is appended to
+# KBUILD_CFLAGS for the kernel and every external module.
 TARGET_KERNEL_ADDITIONAL_FLAGS += \
     KCFLAGS=-DCONFIG_NOTHING_IS_FROGGER=1
 
@@ -267,16 +245,8 @@ TARGET_USERIMAGES_USE_F2FS := true
 
 # SELinux
 #
-# Step 4 of the plan in docs/selinux.md: SELINUX_IGNORE_NEVERALLOWS is now
-# removed, so neverallow violations fail the build instead of being suppressed.
-#
-# This is a build-time check and deliberately separate from flipping enforcing.
-# A neverallow violation means the policy is *wrong* -- some rule grants access
-# AOSP states must never be granted -- rather than merely incomplete, so it
-# usually needs a real fix rather than another allow rule.
-#
-# Still permissive at runtime (androidboot.selinux=permissive above). That comes
-# out last, once the denial set is clean.
+# Off, so neverallow violations fail the build. Independent of the runtime mode,
+# which androidboot.selinux above controls.
 SELINUX_IGNORE_NEVERALLOWS := false
 
 include hardware/nothing/config.mk

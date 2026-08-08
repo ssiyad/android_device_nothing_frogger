@@ -21,11 +21,9 @@ touch "$LOG" "$KEYS"
 # Never run two collectors: the second would duplicate every line, since each
 # holds its own in-memory copy of the seen set.
 #
-# Checking `kill -0` alone is NOT enough. PIDs are reused across reboots, and on
-# 2026-08-06 the stale pid file held 2259, which after a reboot belonged to
-# /vendor/bin/qms -- so the guard saw a live process, assumed a collector was
-# already running, and exited. The collector silently missed two boots, which is
-# precisely the data that matters most. Confirm the PID is actually us.
+# `kill -0` alone is not enough. PIDs are reused across reboots, so a stale pid
+# file can name a live unrelated process and suppress the collector entirely.
+# Match the cmdline as well.
 if [ -f "$PIDF" ]; then
     oldpid=$(cat "$PIDF" 2>/dev/null)
     if [ -n "$oldpid" ] && kill -0 "$oldpid" 2>/dev/null &&
@@ -54,9 +52,6 @@ while true; do
     # see the comment "we want to generate an selinux audit for each non-permitted property
     # access in this function"). The foreach() path does check first, and that
     # check is suppressed by dontaudit, so it stays silent.
-    #
-    # They are not an artefact of stripping dontaudit either: 992 of 1117
-    # denials in the pre-strip archive were these, with dontaudit intact.
     #
     # The only rule that would silence them is get_prop(domain, property_type),
     # which grants getattr/open/read/map on EVERY property to that domain --

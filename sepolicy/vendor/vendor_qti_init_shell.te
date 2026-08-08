@@ -1,8 +1,8 @@
-# Deliberately no rules. Same neverallow as hal_thermal_default.te, see there.
+# Deliberately no rules. Same neverallow as hal_thermal_default.te.
 #
 #   avc: denied { add_name write } scontext=u:r:vendor_qti_init_shell:s0
 #        tcontext=u:object_r:sysfs_transparent_hugepage:s0 tclass=dir
 #   avc: denied { create } name="defrag" ... tclass=file
 #
-# Blocked by domain.te:1576. A shell `> file` redirect passes O_CREAT, which is
-# what produces the create check on an existing node.
+# A shell `> file` redirect passes O_CREAT, which produces the create check on
+# an existing node.

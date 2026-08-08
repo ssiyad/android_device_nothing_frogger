@@ -2,16 +2,7 @@ r_dir_file(hal_light_default, mnt_vendor_file)
 
 allow hal_light_default led_device:chr_file rw_file_perms;
 
-# The Glyph LED controller (aw20036) exposes its attributes in sysfs, not only
-# through /dev. hal_light_default writes dev_color to set the notification LED
-# colour, and had no sysfs_leds rule at all -- only led_device:chr_file above.
-#
-#   avc: denied { write } name="dev_color" scontext=u:r:hal_light_default:s0
-#        tcontext=u:object_r:sysfs:s0 tclass=file
-#
-# The generic sysfs tcontext there was a second bug: dev_color was missing from
-# genfs_contexts while its five siblings were labelled. Both are fixed together;
-# labelling alone would have moved the denial to sysfs_leds rather than resolved
-# it.
+# The Glyph LED controller (aw20036) exposes its attributes in sysfs as well as
+# through /dev. dev_color sets the notification LED colour.
 allow hal_light_default sysfs_leds:dir search;
 allow hal_light_default sysfs_leds:file rw_file_perms;

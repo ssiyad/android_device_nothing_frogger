@@ -2,33 +2,20 @@
 #
 # DIAGNOSTIC ONLY -- DO NOT INSTALL WHEN GOING ENFORCING.
 #
-# Removed from the device 2026-08-08. It clobbers Magisk: Magisk patches the
-# live policy at boot to add its own domain, and this script then loads a policy
-# recompiled from the shipped CIL, which has no Magisk types. The result was
-# magiskd and su running as u:object_r:unlabeled:s0. Harmless under permissive,
-# but in enforcing it would break root outright and would present as an
-# enforcing bug rather than a tooling one.
+# Recompiles the current on-disk SELinux policy with dontaudit stripped and
+# loads it, from Magisk post-fs-data on every boot. Install to
+# /data/adb/post-fs-data.d/ for a collection run, then remove it.
 #
-# Kept because the technique is worth having: it strips dontaudit with no build
-# and no flash. Install to /data/adb/post-fs-data.d/ for a collection run, then
-# remove it again.
+# Magisk patches the live policy at boot to add its own domain. The policy
+# recompiled here comes from the shipped CIL and has no Magisk types, so loading
+# it leaves magiskd and su as u:object_r:unlabeled:s0.
 #
-# Recompile the CURRENT on-disk SELinux policy with dontaudit stripped, then
-# load it. Runs from Magisk post-fs-data on every boot.
+# Recompiling from /system, /vendor, /product and /system_ext rather than
+# loading a saved binary keeps this tracking whatever the ROM ships; a stale
+# snapshot would silently revert genfs labels the build shipped.
 #
-# It recompiles rather than loading a saved binary, and that matters. The first
-# version of this script loaded a fixed pol.nodontaudit captured on 2026-08-06.
-# After the 2026-08-08 flash it dutifully reloaded that stale snapshot over the
-# new policy, silently reverting the genfs labels that build had just shipped --
-# the labels looked broken when in fact they were correct on disk.
-#
-# Recompiling from /system, /vendor, /product and /system_ext means this always
-# tracks whatever the ROM ships, and only ever removes dontaudit.
-#
-# Safe by construction:
-#   - the device is permissive, so no policy loaded here can block anything
-#   - any failure leaves the policy init already loaded, which is the normal one
-#   - deleting this file and rebooting reverts entirely
+# Any failure leaves the policy init already loaded. Deleting this file and
+# rebooting reverts entirely.
 #
 LOG=/data/adb/avc/policy/load.log
 OUT=/data/adb/avc/policy/pol.nodontaudit

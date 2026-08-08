@@ -1,8 +1,6 @@
-# Files present in stock B4.1-260309-1830 and absent from our build.
-# Generated 2026-08-08 by diffing the live device against the stock dump at
-# ~/sources/android/downloads/firmwares/frogger/extracted
-# Comparison is against the DEVICE, not the blob tree, so files we ship from
-# the device tree rather than as blobs are correctly counted as present.
+# Files present in stock B4.1-260309-1830 and absent from this build.
+# Compared against a running device rather than the blob tree, so files shipped
+# from the device tree are correctly counted as present.
 
 ## /vendor/etc  (470 files)
 Diag.cfg

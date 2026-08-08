@@ -1,7 +1,5 @@
-# Vendor properties present in stock B4.1-260309-1830 and absent from our build.
-# Generated 2026-08-06 by diffing /vendor/build.prop (ours, on device) against
-# the stock dump at ~/sources/android/downloads/firmwares/frogger/extracted.
-# 261 entries. Not all should be adopted -- see docs/vendor-props.md.
+# Vendor properties present in stock B4.1-260309-1830 and absent from this build.
+# 261 entries. Not all should be adopted -- see docs/tasks/vendor-properties.md.
 
 audio.sys.noisy.broadcast.delay=600
 audio.sys.offload.pstimeout.secs=3

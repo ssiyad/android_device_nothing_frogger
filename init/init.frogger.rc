@@ -30,14 +30,9 @@ on post-fs-data
     symlink /mnt/vendor/persist/sensors/registry/registry/volcano_qrd_ois_manager_0.json.ois_manager_0_platform.ois.fac_cal.bias /data/vendor/camera/ois_gyro_offset
     chown cameraserver audio /data/vendor/camera/ois_gyro_offset
 
-    # Asteroids appends ro.boot.pbid here to pick _volcano_v1_Base or
-    # _volcano_v1_Pro. Frogger has no pbid, so init could not expand the
-    # reference and skipped the setprop entirely, leaving the property
-    # empty and the framework falling back to the generic
-    # media_profiles.xml -- which declares no "low" or "high" quality and
-    # describes six cameras rather than five. CamcorderProfile requires
-    # low and high, so every EncoderProfiles lookup came back empty and
-    # CameraX refused to bind a video use case.
+    # No ro.boot.pbid to interpolate. An unset variant falls back to the generic
+    # media_profiles.xml, which declares no low or high quality and so yields an
+    # empty CamcorderProfile.
     setprop ro.media.xml_variant.profiles "_volcano_v1"
 
 on early-boot

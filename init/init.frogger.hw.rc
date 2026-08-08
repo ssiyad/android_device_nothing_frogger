@@ -6,11 +6,7 @@
 on early-init
     setprop ro.boot.product.hardware.sku ${ro.boot.hardware.sku}
 
-# Asteroids distinguishes its Base and Pro variants with ro.boot.pbid and gates
-# both the camera overlay mount and the USB product string on it. Frogger has no
-# ro.boot.pbid at all -- see docs/hardware-facts.md -- so those blocks never ran
-# and the USB product string was simply never set. There is one variant here, so
-# set it unconditionally.
+# One hardware variant, so no ro.boot.pbid gate.
 on fs
     setprop vendor.usb.product_string "Nothing Phone (4a)"
 

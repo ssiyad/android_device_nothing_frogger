@@ -45,17 +45,10 @@ PRODUCT_VIRTUAL_AB_COMPRESSION_METHOD := lz4
 
 # API
 #
-# Do NOT raise this to 36 to match stock's ro.product.first_api_level. This is
-# not just a property -- it is the compliance switch that decides which launch
-# requirements the build must satisfy, and Frogger meets the Android 16 ones no
-# better than the blobs do. Setting 36 turned on the 16KB page-size check
-# (rejecting adpl and ATFWD-daemon, which are 4KB, on a CONFIG_ARM64_4K_PAGES
-# kernel) and then made host_init_verifier fatal on stock init scripts that
-# declare no user, such as vendor.nicmd. Both are stock blobs on a device whose
-# vendor partition is API 34; the requirements simply do not apply.
-#
-# Stock reporting 36 is not evidence we should: stock is not built through
-# AOSP's checks. The property cosmetically differing from stock costs nothing.
+# Selects which launch requirements the build must satisfy. 36 enables the 16KB
+# page-size check, which rejects the 4KB adpl and ATFWD-daemon blobs on a
+# CONFIG_ARM64_4K_PAGES kernel, and makes host_init_verifier fatal on stock init
+# scripts that declare no user, such as vendor.nicmd.
 PRODUCT_SHIPPING_API_LEVEL := 35
 
 # ART
@@ -188,9 +181,8 @@ PRODUCT_PACKAGES += \
 # Device Extras
 # Disabled: hardware/nothing/config.mk keys the DeviceExtras sepolicy dirs off
 # this package, and its public type `device_extras` fails
-# treble_sepolicy_tests_202404 -- a public type needs an entry in
-# system/sepolicy/private/compat/<ver>/<ver>.ignore.cil, which lives in a repo
-# we do not fork. See docs/open-items.md for the two ways to restore this.
+# treble_sepolicy_tests_202404 for want of a compat mapping entry.
+# See docs/tasks/device-extras.md.
 #
 # PRODUCT_PACKAGES += \
 #     DeviceExtras
@@ -214,8 +206,7 @@ PRODUCT_PACKAGES += \
 
 
 # eUICC
-# On Frogger stock, only sku_JPN carries the euicc permission (the Pro SKUs that
-# had it on Asteroids do not exist here).
+# Only sku_JPN carries the euicc permission on stock.
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.telephony.euicc.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_JPN/android.hardware.telephony.euicc.xml
 
@@ -249,11 +240,9 @@ PRODUCT_PACKAGES += \
     vulkan.pastel
 
 # Glyph
-# Deliberately not built yet. Frogger's Glyph is 6 channels in a 6x1 layout
-# (ro.vendor.glyph.{channels,row,column}) driven by CONFIG_LEDS_AW20036_FROGGER,
-# which is a different arrangement from the Phone (3a) -- so this needs a real
-# new ParanoidGlyphPhone4a target upstream, not a rename of the 3a one.
-# Re-enable once that exists; see docs/open-items.md.
+# Not built: 6 channels in a 6x1 layout (ro.vendor.glyph.{channels,row,column})
+# driven by CONFIG_LEDS_AW20036_FROGGER needs a ParanoidGlyphPhone4a target,
+# which does not exist upstream. See docs/tasks/glyph-leds.md.
 #
 # PRODUCT_PACKAGES += \
 #     ParanoidGlyphPhone4a \
@@ -430,9 +419,7 @@ PRODUCT_PACKAGES += \
 # Security
 BOOT_SECURITY_PATCH := 2026-01-05
 INIT_BOOT_SECURITY_PATCH := $(BOOT_SECURITY_PATCH)
-# Must describe the blobs we ship, which come from the 2603091830 images
-# (see docs/decisions.md 2). The reference phone reported 2026-04-05, but
-# those vendor files were never extracted.
+# Describes the shipped blobs, which come from the 2603091830 images.
 VENDOR_SECURITY_PATCH := 2025-09-05
 
 # Sensors

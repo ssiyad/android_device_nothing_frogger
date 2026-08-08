@@ -13,12 +13,11 @@ Battery | Li-ion, non-removable
 Display | 1224 x 2720 pixels, 120 Hz AMOLED, 480 dpi
 Fingerprint | Goodix optical under-display
 
-Values above are the ones this tree actually derives from and were read off a
-live device; anything not listed is intentionally omitted rather than guessed.
-See `docs/hardware-facts.md` for the full set of measured values and how each
-one was obtained.
+Full set of device-specific values: `docs/reference/hardware.md`.
 
 ## Notes
 
 This tree targets Frogger only. The Phone (4a) Pro (_"FroggerPro"_) shares the
-platform but is not supported here — see `docs/decisions.md`.
+platform but is not supported here.
+
+Documentation index: `docs/index.md`.

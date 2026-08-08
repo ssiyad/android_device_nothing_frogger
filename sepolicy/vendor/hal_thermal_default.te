@@ -1,23 +1,11 @@
-# Deliberately no rules. See the note below before adding any.
-#
-# The thermal HAL produces these denials:
+# Deliberately no rules.
 #
 #   avc: denied { add_name write } scontext=u:r:hal_thermal_default:s0
 #        tcontext=u:object_r:sysfs_thermal:s0 tclass=dir
 #   avc: denied { create } name="trip_point_1_temp" ... tclass=file
 #
-# Allowing them was tried on 2026-08-08 and the build rejected it:
-#
-#   system/sepolicy/private/domain.te:1576
-#   neverallow domain sysfs_type:dir
-#       { add_name create link remove_name rename reparent rmdir write };
-#
-# AOSP forbids this for *every* domain, with no exceptions, so the denial is
-# meant to fail. The cause is benign probing: the device has 72 thermal zones
-# and only 54 expose trip_point_1_temp. The HAL walks all of them, and
-# fopen(path, "w") passes O_CREAT, so the 18 without that node look like
-# creation attempts.
-#
-# Nothing is broken by this. The zones that have the node are written normally
-# -- there has never been a `file write` denial, only `create`. If a real write
-# is ever refused, that will show up as its own denial and can be granted then.
+# domain.te neverallows sysfs_type:dir { add_name create write } for every
+# domain, so this cannot be granted. The HAL walks all 72 thermal zones and
+# fopen(path, "w") passes O_CREAT, so the 18 that do not expose
+# trip_point_1_temp register as creation attempts. Zones that do expose it are
+# written normally; only create is denied, never file write.

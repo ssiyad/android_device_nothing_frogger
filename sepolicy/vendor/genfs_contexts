@@ -10,21 +10,15 @@ genfscon sysfs /panel_feature/panel_id1    u:object_r:vendor_sysfs_graphics:s0
 # Audio jack / accessory detection
 #
 # system_server reads the extcon cable name to detect headset insertion. AOSP
-# already permits it -- system/sepolicy/private/system_server.te has
-# r_dir_file(system_server, sysfs_extcon) -- so only the label was missing, and
-# the node fell back to generic sysfs:
-#
-#   avc: denied { read } name="name" scontext=u:r:system_server:s0
-#        tcontext=u:object_r:sysfs:s0 tclass=file
-#
-# Labelling the directory covers cable.N/name for every cable on the codec.
+# already allows it via r_dir_file(system_server, sysfs_extcon), so no rule is
+# needed. Labelling the directory covers cable.N/name for every cable on the
+# codec.
 genfscon sysfs /devices/platform/soc/soc:spf_core_platform/soc:spf_core_platform:lpass-cdc/wcd9378-codec/extcon    u:object_r:sysfs_extcon:s0
 
 # Lights
 #
-# dev_color was the one aw20036_led attribute missing from this list, so it fell
-# back to generic sysfs and hal_light_default was denied writing it. The other
-# five below were labelled; this is the notification-LED colour node.
+# aw20036_led attributes. dev_color is the notification-LED colour node written
+# by hal_light_default.
 genfscon sysfs /devices/platform/soc/8c0000.qcom,qupv3_1_geni_se/880000.i2c/i2c-7/7-003a/leds/aw20036_led/dev_color          u:object_r:sysfs_leds:s0
 genfscon sysfs /devices/platform/soc/8c0000.qcom,qupv3_1_geni_se/880000.i2c/i2c-7/7-003a/leds/aw20036_led/all_brightness    u:object_r:sysfs_leds:s0
 genfscon sysfs /devices/platform/soc/8c0000.qcom,qupv3_1_geni_se/880000.i2c/i2c-7/7-003a/leds/aw20036_led/all_white_brightness    u:object_r:sysfs_leds:s0

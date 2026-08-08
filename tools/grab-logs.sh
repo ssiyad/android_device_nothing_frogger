@@ -56,7 +56,7 @@ if "$ADB" shell 'mkdir -p /tmp/ntlog && mount -o ro /dev/block/by-name/nt_log /t
     "$ADB" pull /tmp/ntlog/boot_log     "$OUT/nt_boot_log"     >/dev/null 2>&1
     "$ADB" pull /tmp/ntlog/recovery_log "$OUT/nt_recovery_log" >/dev/null 2>&1
     "$ADB" shell 'umount /tmp/ntlog' 2>/dev/null
-    # Which kernel each archive belongs to -- stock is 6.1.x, ours is 6.6.x.
+    # Which kernel each archive belongs to.
     if [ -d "$OUT/nt_boot_log" ]; then
         info "boot archives (kernel version per archive):"
         for f in "$OUT"/nt_boot_log/*.tar.gz; do
