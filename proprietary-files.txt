@@ -316,7 +316,9 @@ vendor/etc/camera/camera_temp_power_ctrl.json
 vendor/etc/camera/camxoverridesettings.txt
 vendor/etc/camera/decision.json
 vendor/etc/camera/decision_pro.json
+vendor/etc/camera/facedetect/VegaAlign.model
 vendor/etc/camera/facedetect/VegaDetect.model
+vendor/etc/camera/facedetect/VegaTrack.model
 vendor/etc/camera/facesr.model
 vendor/etc/camera/facesr_zoom.model
 vendor/etc/camera/filter/aifeiertieta/config.json
