@@ -142,18 +142,78 @@ domain, failing in ways that look nothing like a missing `allow` rule.
 adb shell 'ps -A -Z -o LABEL,NAME | grep com.android.bluetooth'   # want u:r:bluetooth:s0
 ```
 
-## Genuinely device-specific denials so far
+## The real collection: 2698 denials over 2.5 days
 
-Small, and both already suspected:
+Collected 2026-08-06 → 08-08 with `dontaudit` stripped, daily driving, no reboot.
 
 ```
-hal_fingerprint_default → default_prop:file   { getattr map open read }
-hal_nt_charger          → sysfs:dir           { open read }   /sys/devices/virtual
+2698   total unique
+2243   /dev/__properties__ enumeration   (83%)  -- hal_camera_default 1300, zygote 896
+ 456   everything else
+ 111   device-relevant (vendor/HAL/init/system domains)
 ```
 
-The remainder is generic app noise — `untrusted_app` reading `proc_net` and
-`proc_filesystems`, apps creating profile directories — the sort AOSP normally
-`dontaudit`s.
+**The property enumeration is one behaviour, not 2243 problems.** Two processes
+walk the property area and each property type counts separately. Address it with
+a single rule when the time comes; do not let it distort the numbers.
+
+Of the remaining 456, most are app-level (`untrusted_app` 148, `isolated_app` 31,
+`gmscore_app` 20) — generic AOSP noise. Magisk contributes a visible set too,
+identifiable by `trawcon="u:r:magisk:s0"` or `/debug_ramdisk/.magisk/` paths;
+those are artefacts of root and must not be written into policy.
+
+### Fixed: two labelling bugs, one of them functional
+
+**Glyph notification LED.** `hal_light_default` writes `dev_color` on the
+`aw20036_led` node, which was the one attribute missing from the `genfs_contexts`
+list where five siblings were already labelled. It fell back to generic `sysfs`.
+There was a second bug behind it: `hal_light_default` had no `sysfs_leds` rule at
+all, only `led_device:chr_file`. Labelling alone would have moved the denial
+rather than fixed it, so both were needed.
+
+**Headset/accessory detection.** `system_server` reads the extcon cable name on
+the WCD9378 codec to detect insertion. AOSP already permits this —
+`system/sepolicy/private/system_server.te:494` has
+`r_dir_file(system_server, sysfs_extcon)` — so **only the label was missing** and
+the node fell back to generic `sysfs`.
+
+That second one is the case this document warned about: `audit2allow` would have
+emitted `allow system_server sysfs:file read`, granting access to *all* unlabeled
+sysfs, when the correct fix is one `genfscon` line and no new allow rule at all.
+
+### Remaining, categorised
+
+**Labelling gaps** — `tcontext=u:object_r:sysfs:s0` with a specific path, so
+`genfs_contexts` is the fix:
+
+```
+/sys/devices/platform/soc/1d84000.ufshc/.../mq/0/nr_tags   init      open
+/sys/devices/virtual                                       hal_nt_charger  open read (dir)
+/sys/block, sda2, read_ahead_kb, gc_urgent                 vold, vendor_qti_init_shell
+```
+
+`/sys/devices/virtual` needs care — it is a very large subtree and must not be
+labelled wholesale to satisfy one directory read.
+
+**Missing allow rules** — target type is already correct, so the `.te` is the fix:
+
+```
+hal_thermal_default → sysfs_thermal   { add_name write }  trip_point_1_temp/hyst
+vendor_nicmd        → sysfs_net       rps_cpus, rx-0
+netutils_wrapper    → vendor_sysfs_*  xt_idletimer timers
+vendor_qccvendor    → vendor_sysfs_soc_sensitive  /sys/devices/soc0/serial_number
+hal_fingerprint_default → default_prop, overlay_prop (persist.vendor.overlay.fp_serial)
+mediametrics        → same_process_hal_file  /vendor/lib64/libutils.so
+vendor_qtelephony   → default_android_service  nothing.radio.ntphone
+```
+
+`hal_thermal_default` wanting `add_name`/`create` on `sysfs_thermal` is
+suspicious — you cannot create files in sysfs, so that likely indicates a missing
+thermal node rather than a policy gap. Investigate before writing a rule.
+
+**Upstream/AOSP, not ours:** `cgroup_v2` creates by `init`/`system_server`/
+`zygote`, `{ noatsecure }`, `netd` on `proc_net`, `dex2oat` searching app data,
+`kernel` capabilities. Leave these alone.
 
 ## Stripping `dontaudit` — no build required
 
