@@ -113,7 +113,25 @@ debug.sf.late.sf.duration=10500000
 debug.sf.predict_hwc_composition_strategy=0
 debug.sf.treat_170m_as_sRGB=1
 debug.sf.use_phase_offsets_as_durations=1
-persist.sys.sf.native_mode=260
+# Stock sets persist.sys.sf.native_mode=260. That is a *vendor* display colour
+# setting: SurfaceFlinger casts it straight to a RenderIntent
+# (CompositionEngine/src/Output.cpp, "default: // vendor display color setting"),
+# and vendor render intents start at 256. Stock's display HAL advertises intent
+# 260 because its colour management is fully initialised; ours advertises only
+# ColorMode::NATIVE with COLORIMETRIC, so 260 matches nothing.
+#
+# The result was every frame logging
+#   "map unknown (BT709 sRGB Full range)/(Unknown RenderIntent) to default color mode"
+# and Night Light having no visible effect: the framework computed the correct
+# tint matrix and SurfaceFlinger held it, but the colour pipeline was running on
+# an invalid render intent.
+#
+# 0 is kManaged. We were shipping 260 ourselves, inherited from Asteroids, not
+# merely picking it up from stock. Note it is a persist property, so on a device
+# that already holds 260 in /data the stored value wins and it must be reset once
+# with setprop.
+persist.sys.sf.native_mode=0
+
 ro.surface_flinger.force_hwc_copy_for_virtual_displays=true
 ro.surface_flinger.game_default_frame_rate_override=60
 ro.surface_flinger.has_HDR_display=true
