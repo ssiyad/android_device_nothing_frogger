@@ -96,6 +96,22 @@ blob_fixups: blob_fixups_user_type = {
     #
     # The alternative -- dropping allocator-V1-ndk from libcommonchiutils --
     # would touch a library the working camera path already depends on.
+    # libarcsoft_triple_sat.old.so is a copy of the primary library under a
+    # different filename, and carries DT_SONAME "libarcsoft_triple_sat.so".
+    # Soong rejects that:
+    #
+    #   error: DT_SONAME "libarcsoft_triple_sat.so" must be equal to the file
+    #   name "libarcsoft_triple_sat.old.so"
+    #
+    # ChiNode3SAT dlopens the primary by full path and only falls back to .old,
+    # so this file should never be reached now that the primary ships. Kept for
+    # parity with stock rather than dropped, with the soname corrected.
+    #
+    # Note this also changes linker behaviour if the fallback is ever taken:
+    # with the stock soname the linker would return the already-loaded primary,
+    # whereas now it would map a second copy.
+    'vendor/lib64/libarcsoft_triple_sat.old.so': blob_fixup()
+        .fix_soname(),
     'vendor/lib64/libmorpho_video_stabilizer.so': blob_fixup()
         .remove_needed('libui.so'),
     'vendor/lib64/libmorpho_RapidEffect.so': blob_fixup()
