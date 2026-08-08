@@ -275,6 +275,50 @@ Newly visible after stripping: `{ noatsecure }`, `netd → proc_net:file create`
 `scontext=u:object_r:unlabeled:s0` on `/proc` — all classic AOSP `dontaudit`
 targets, none of them present in the earlier sets.
 
+## Step 3 resolved: the property enumeration needs no policy
+
+83% of every collection was `getattr`/`map`/`open`/`read` on
+`/dev/__properties__/u:object_r:*_prop:s0`. It is **by design** and must not be
+given an allow rule.
+
+bionic opens property context files by two paths, and they behave differently on
+purpose (`bionic/libc/system_properties/`):
+
+```
+foreach()             CheckAccess() -> access(R_OK) -> audit_access -> dontaudit -> SILENT
+GetPropAreaForName()  Open() directly
+                      "we explicitly do not check no_access_ in this case because
+                       unlike the case of foreach(), we want to generate an selinux
+                       audit for each non-permitted property access in this function"
+```
+
+So AOSP deliberately logs a denial when a process looks up a property it is not
+entitled to read. The denial *is* the intended behaviour; the read returns
+nothing and the process carries on.
+
+**Not an artefact of stripping dontaudit.** 992 of the 1117 denials in
+`archive/denials.prefix-bluetoothbug.log` are these, collected with dontaudit
+fully intact. The generic rule `dontaudit domain property_type:file audit_access`
+covers only the `access()` probe, not the open.
+
+**The obvious fix is a trap.** From `system/sepolicy/public/te_macros`:
+
+```
+define(`get_prop', `allow $1 $2:file { getattr open read map };')
+```
+
+`get_prop(domain, property_type)` grants a domain read on *every property on the
+device*. It would delete property sandboxing to quieten a log — the same shape of
+error as `audit2allow` handing over all of unlabeled sysfs, only larger.
+
+The domains involved also change between boots — `zygote` and
+`hal_camera_default` on one, `permissioncontroller_app` and `bluetooth` on
+another — which is what a generic mechanism looks like, not a few misbehaving
+processes.
+
+**Handled by filtering, not policy.** `tools/avc-collect.sh` now excludes them
+and writes a note every 500 suppressed, so the set stops being mostly noise.
+
 ## Order of work
 
 1. ~~**Strip `dontaudit`**~~ — done 2026-08-06, live and persistent across reboots.

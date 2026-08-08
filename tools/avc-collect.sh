@@ -47,6 +47,30 @@ while true; do
         while ((getline k < KEYS) > 0) seen[k] = 1
         close(KEYS)
     }
+    # Property-file denials are excluded from the main log and only counted.
+    # They are BY DESIGN, not a policy gap: the bionic GetPropAreaForName() opens
+    # the context file without a prior access() check specifically so a
+    # non-permitted property read generates an audit (contexts_serialized.cpp,
+    # see the comment "we want to generate an selinux audit for each non-permitted property
+    # access in this function"). The foreach() path does check first, and that
+    # check is suppressed by dontaudit, so it stays silent.
+    #
+    # They are not an artefact of stripping dontaudit either: 992 of 1117
+    # denials in the pre-strip archive were these, with dontaudit intact.
+    #
+    # The only rule that would silence them is get_prop(domain, property_type),
+    # which grants getattr/open/read/map on EVERY property to that domain --
+    # deleting property sandboxing to quieten a log. Never do that.
+    #
+    # Left uncounted they were 83% of the set and buried everything real.
+    /avc: *denied/ && (/__properties__/ || /tcontext=u:object_r:[a-z0-9_]*_prop:/) {
+        propcount++
+        if (propcount % 500 == 0) {
+            print "  [" propcount " property-file denials suppressed]" >> LOG
+            fflush(LOG)
+        }
+        next
+    }
     /avc: *denied/ {
         line = $0
         perms = ""; sc = ""; tc = ""; cls = ""; nm = ""; pth = ""
