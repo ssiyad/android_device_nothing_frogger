@@ -25,20 +25,19 @@ checks used at the time, which is the reason that section is kept.
 
 ### Priority order
 
-**Camera is sidelined** as of 2026-08-05 — see [camera.md](camera.md). The plan
-for what follows is in [roadmap.md](roadmap.md); the short version:
+Agreed 2026-08-08. Detail in [roadmap.md](roadmap.md).
 
-1. **GApps survive a flash** — implemented, needs one test: flash a ROM without
-   reflashing GApps
-2. **Signing and keys** — first, because re-signing forces a factory reset and
-   invalidates anything Magisk has patched
-3. **Magisk / Zygisk / Play Integrity** — after signing, or it must be redone.
-   `STRONG` integrity is not reachable; be clear about that before starting
-4. **SELinux enforcing** — denial collection should start *now*, in parallel.
-   Both counts quoted so far (5, then 0) understate it: permissive only logs
-   paths that ran, and `dontaudit` hides more
-5. **NFC** — `com.android.nfc` ships disabled, cause uninvestigated
-6. Everything under [Cleanup](#cleanup-no-boot-needed)
+1. **SELinux enforcing** — *in progress*. Collection is finished and trustworthy;
+   policy is being written. See [selinux.md](selinux.md)
+2. **Camera** — next. Parked since 2026-08-05, see [camera.md](camera.md)
+3. **Glyph LEDs** — last, deliberately parked. The sepolicy side is now correct
+   (`dev_color` labelled, `hal_light_default` allowed); the 20
+   `ro.vendor.glyph.*` properties are almost certainly inert like every other
+   Nothing property group we have checked
+4. Everything under [Cleanup](#cleanup-no-boot-needed)
+
+Closed since this list was last written: signing and keys, Magisk, NFC (no
+hardware), the screen flicker, and speaker protection (dead end).
 
 ### Verified working on hardware
 
@@ -57,7 +56,8 @@ Checked 2026-08-04 on the 15:08 build:
 
 ### Broken or missing
 
-- [ ] **Camera — enumerates but cannot open a session.** Five sensors, 25 v4l2
+- [ ] **Camera — enumerates but cannot open a session.** **Next workstream after SELinux** (agreed 2026-08-08).
+      Five sensors, 25 v4l2
       subdevs, flash and torch work. `com.qti.node.swpnc` fails in `LoadLib()`
       and takes the provider down. Parked — see [camera.md](camera.md)
 - [x] ~~**NFC — `com.android.nfc` is in the disabled package list.**~~ — not a

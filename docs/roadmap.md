@@ -1,18 +1,63 @@
 # Roadmap
 
-Planned work after camera was sidelined (2026-08-05). Signing is done; Magisk is
-next, and SELinux collection should run in parallel with it.
+Current order, agreed 2026-08-08: **finish SELinux, then camera.** Glyph is last
+and deliberately not being worked on.
 
 | # | Workstream | State |
 |---|---|---|
-| 0 | GApps survive a flash | **unproven** — see below |
-| 1 | Signing and keys | **done and verified on device** |
-| 2 | Magisk / Zygisk / Play Integrity | Magisk 30.7 installed; PIF not enabled |
-| 3 | SELinux enforcing | collecting — see [selinux.md](selinux.md) |
+| 1 | **SELinux enforcing** | **in progress** — collection done, policy being written. See [selinux.md](selinux.md) |
+| 2 | **Camera** | next — parked since 2026-08-05. See [camera.md](camera.md) |
+| 3 | Glyph LEDs | last priority, not started. Policy is now correct; the 20 `ro.vendor.glyph.*` props are almost certainly inert |
+| — | Signing and keys | done and verified |
+| — | Magisk / Zygisk | Magisk 30.7 running; PlayIntegrityFork downloaded, never enabled |
+| — | GApps survive a flash | **unproven** — reflash MindTheGapps after every ROM sideload |
+| — | Screen flicker | **fixed** — non-seamless 30Hz DFPS entry, devicetrees `726bba1c` |
+| — | Speaker protection | closed dead end, see [audio.md](audio.md) |
+
+## Where SELinux actually stands
+
+Collection is **finished** and the data is trustworthy for the first time — both
+the Bluetooth domain bug and the stale-policy bug that corrupted earlier sets are
+fixed.
+
+```
+still permissive     androidboot.selinux=permissive   BoardConfig.mk:141
+neverallows ignored  SELINUX_IGNORE_NEVERALLOWS       BoardConfig.mk:273
+2701 denials         dontaudit stripped, recompiled each boot
+   2243 (83%)        two processes walking /dev/__properties__
+    111              device-relevant
+      2              fixed and verified on device
+```
+
+Remaining, in the order they should be done:
+
+1. **Labelling gaps** — `genfs_contexts` entries, no new allow rules. UFS
+   `nr_tags` for `init`, `/sys/block` and `sda2` for `vold`, `read_ahead_kb`.
+   `/sys/devices/virtual` for `hal_nt_charger` needs thought: it is a very large
+   subtree and must not be labelled wholesale to satisfy one directory read.
+2. **Missing allow rules** — target type already correct, so `.te` work:
+   `vendor_nicmd`, `netutils_wrapper`, `vendor_qccvendor`,
+   `hal_fingerprint_default`, `mediametrics`, `vendor_qtelephony`.
+3. **Decide on the property enumeration.** 2243 of 2701 denials are `zygote` and
+   `hal_camera_default` doing `getattr`/`map`/`open` across ~200 property types.
+   That is one behaviour, not 2243 problems. Understand why before writing a rule
+   that broadly grants property access.
+4. **Drop `SELINUX_IGNORE_NEVERALLOWS`.** Separate from flipping enforcing and
+   usually harder: a neverallow violation means the policy is *wrong*, not merely
+   incomplete.
+5. **Flip to enforcing** and fix what breaks.
+
+Do not write `hal_thermal_default → sysfs_thermal` rules yet. It asks for
+`add_name`/`create` on sysfs, which is impossible, so it more likely indicates a
+missing thermal node than a policy gap.
+
+Camera work will add a large denial surface and force some of this to be
+revisited — which is an argument for getting to enforcing on the current surface
+first, not for delaying camera.
 
 ---
 
-## 0. GApps survive a ROM flash
+## Reference: GApps and a ROM flash
 
 **Wired up, but not proven to work.** `POSTINSTALL_PATH_system` points at
 `backuptool_postinstall.sh` (`09c8a6d`), and MindTheGapps installs
@@ -39,7 +84,7 @@ GApps. See [open-items.md](open-items.md).
 
 ---
 
-## 1. Signing and keys — done and verified
+## Reference: signing and keys
 
 **Verified on device 2026-08-05:**
 
@@ -82,13 +127,15 @@ not release-keys. They live in `vendor/lineage-priv/keys/` on both the laptop an
 the build server, wired by `vendor/lineage/config/common.mk:304`
 (`-include vendor/lineage-priv/keys/keys.mk`) with no device-tree change.
 
-`vendor/lineage-priv` is inside no git repo and is not a repo project, so the
-keys cannot be committed or pushed by accident. **They are not backed up by
-anything automatic** — no passphrase means the files are the entire secret.
+`vendor/lineage-priv` is now a checkout of that private repo rather than an
+untracked directory, so the keys survive a machine loss and stay identical on
+both machines.
 
-**Remaining:** back the nine keys up somewhere off both the laptop and the build
-server. Losing them means no future build can be installed over an existing one
-without a factory reset.
+**Backed up 2026-08-08** to the private repo `ssiyad/android-private-keys`,
+cloned to `vendor/lineage-priv/` on both machines. Verified private before the
+push (unauthenticated api.github.com and github.com both returned 404). The
+`.pk8` files have no passphrase, so that repo being private is the only
+protection: if it is ever made public, regenerate all nine.
 
 **Still open:** AVB. We currently build with
 `BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3`, which disables verification
@@ -99,7 +146,7 @@ Integrity** — see below.
 
 ---
 
-## 2. Magisk, Zygisk, Play Integrity
+## Reference: Magisk, Zygisk, Play Integrity
 
 **Unblocked** — signing is done, so a patched boot image will not be invalidated
 out from under it. Both Magisk and KernelSU patch or replace boot artefacts, and
@@ -158,35 +205,13 @@ rather than chasing it.
 
 ---
 
-## 3. SELinux enforcing — see [selinux.md](selinux.md)
-
-Collection is running. `selinux.md` holds the detail; the short version:
-
-- A denial **collector** runs from Magisk `service.d` and accumulates a
-  deduplicated set across reboots.
-- An earlier claim that **Zygisk pollutes the data has been retracted** — zygote
-  still dominated a Magisk-free boot. The zygote-attributed Bluetooth denials
-  were the domain bug below, not tooling interference.
-- Collection found a real bug — **`com.android.bluetooth` runs in the `zygote`
-  domain**, because our Bluetooth signing key did not match the certificate in
-  `plat_mac_permissions.xml`. **Fixed and verified on device 2026-08-06** —
-  `com.android.bluetooth` now runs in `u:r:bluetooth:s0`. Permissive hid it
-  entirely.
-- **NFC is not applicable** — Frogger has no NFC hardware.
-
-Still to do: exercise GPS, telephony, camera, tethering and USB; rebuild with
-`dontaudit` stripped; then write policy by hand, `genfs_contexts` first.
-
----
-
 ## Where things stand
 
 ```
-0. GApps             addon.d unproven — reflash GApps after every ROM sideload
-1. Signing + keys    done, verified on device, no wipe required
-2. Magisk / PIF      Magisk 30.7 rooted and verified; PIFork downloaded, not enabled
-3. SELinux           collector running; Bluetooth domain bug found and fixed
+SELinux    in progress -- collection done, policy being written, still permissive
+Camera     next
+Glyph      last, deliberately parked
 ```
 
-SELinux collection runs in parallel with everything else; it costs nothing and
-the data only accumulates.
+Everything else is either done, closed as a dead end, or a standing tax
+(reflash GApps and re-patch Magisk after every ROM flash).
