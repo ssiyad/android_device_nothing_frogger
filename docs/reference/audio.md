@@ -29,10 +29,12 @@ LVACFS is Nothing's Goodix mic-processing library. It selects a tuning profile b
 **The AP-side path is off, as on stock.** `record_use_ap_lvacfs` is the only key
 that sets `ResourceManager::isLvacfsEnabled`, which gates `Lvacfs::init()` and
 every per-stream call. Stock's `resourcemanager_volcano_qrd.xml` does not carry
-it; it arrived here from the Asteroids port and was removed after it cost about
-30 dB of capture level on every recording. The profile the HAL picks comes from a
-stale `source_` on a reused stream object, so the profile is not the one the app
-asked for — see [tasks/lvacfs-source-tracking.md](../tasks/lvacfs-source-tracking.md).
+it; it arrived here from the Asteroids port and was removed to match stock. The
+profile the HAL picks comes from a stale `source_` on a reused stream object, so
+the profile is not the one the app asked for — see
+[tasks/lvacfs-source-tracking.md](../tasks/lvacfs-source-tracking.md). This is
+*not* why capture is quiet; that is
+[tasks/capture-gain-deficit.md](../tasks/capture-gain-deficit.md).
 The paragraphs below describe the config as stock ships it, and apply if that
 path is ever turned back on.
 

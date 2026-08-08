@@ -43,13 +43,20 @@ PayloadBuilder: getSelectorValues: 2937: custom config key:camcorder_landscape
 PayloadBuilder: retrieveKVs: 2769: Fallback to find KVs without custom config
 ```
 
-## Why it mattered
+## What this did not cause
+
+The low capture level. Turning the AP path off left recordings unchanged-to-
+quieter, so the profile mismatch is a correctness bug, not the source of the
+deficit. See [capture-gain-deficit.md](capture-gain-deficit.md), which supersedes
+the causal claim in `1a828a3`'s commit message.
+
+## Why it looked like it mattered
 
 `LVIMFS_Parameter_xxxx_ID5_MIC_Normal.txt` from the 2mic set is the camcorder
-tuning — a device held at arm's length, beam steered off the near field. Applied
-to a phone held at the mouth it cost about 30 dB. A 13.6 s recording at normal
-speaking distance measured `mean_volume -47.6 dB`, `max_volume -24.2 dB`, against
-−25 to −15 dB mean for voice notes recorded on other handsets.
+tuning, and recordings were quiet, so the profile looked like the attenuator. It
+was not: disabling the AP path did not raise the level. The wrong profile is
+still wrong — it hands every recording a tuning meant for a device held at arm's
+length — but the cost is character, not level.
 
 This is also why [the earlier fix](../reference/audio.md) did not settle it. That
 change removed a `DeviceId 1` mapping so that `AUDIO_SOURCE_MIC` would match no
