@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Camera
+/dev/nt_cam_dev    0660    system    camera
+
 # eSE
 /dev/st54spi    0660    secure_element    secure_element
 

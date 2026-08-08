@@ -1,3 +1,7 @@
 allow hal_camera_default vendor_ntf_file:file r_file_perms;
 
+# SOIS: the CHI override opens /dev/nt_cam_dev and drives the OIS regulator
+# through NT_DEV_CONTROL_CMD.
+allow hal_camera_default nt_cam_device:chr_file rw_file_perms;
+
 hal_client_domain(hal_camera_default, vendor_hal_qspmhal)

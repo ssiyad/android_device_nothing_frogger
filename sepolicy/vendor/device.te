@@ -1,2 +1,5 @@
+# Camera
+type nt_cam_device, dev_type;
+
 # Lights
 type led_device, dev_type;
