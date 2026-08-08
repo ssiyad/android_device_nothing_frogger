@@ -266,11 +266,18 @@ TARGET_RECOVERY_UI_MARGIN_HEIGHT := 100
 TARGET_USERIMAGES_USE_F2FS := true
 
 # SELinux
-# BRING-UP ONLY: policy is permissive (androidboot.selinux=permissive above) and
-# neverallow checks are suppressed so denials do not block boot or the build.
-# Both must be removed before this is shippable -- a release build must boot
-# enforcing with a clean policy. Tracked in docs/open-items.md.
-SELINUX_IGNORE_NEVERALLOWS := true
+#
+# Step 4 of the plan in docs/selinux.md: SELINUX_IGNORE_NEVERALLOWS is now
+# removed, so neverallow violations fail the build instead of being suppressed.
+#
+# This is a build-time check and deliberately separate from flipping enforcing.
+# A neverallow violation means the policy is *wrong* -- some rule grants access
+# AOSP states must never be granted -- rather than merely incomplete, so it
+# usually needs a real fix rather than another allow rule.
+#
+# Still permissive at runtime (androidboot.selinux=permissive above). That comes
+# out last, once the denial set is clean.
+SELINUX_IGNORE_NEVERALLOWS := false
 
 include hardware/nothing/config.mk
 include device/lineage/sepolicy/libperfmgr/sepolicy.mk
