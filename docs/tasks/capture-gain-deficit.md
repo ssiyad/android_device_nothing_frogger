@@ -126,13 +126,56 @@ So the single-mic topology is *not* the fault, and forcing the dual-mic key woul
 make things worse, not better. Do not spend time on the
 `USECASE_AUDIO_RECORD_LOW_LATENCY` gate on this evidence.
 
-## What is left
+## Best remaining lead: the record graph asks ACDB with an empty CKV
 
-The gain inside the ACDB topology itself. Static inspection is exhausted: the
-files are byte-identical to stock and the graph PAL builds is the sane one. What
-would actually discriminate is a stock boot with the same instrumentation —
-`tinymix` before and during a capture, and the `GKV Alias` line — so the two can
-be compared directly rather than reasoned about.
+AGM prints the metadata it sets for the capture device and for device+PP:
+
+```
+AGM: metadata: GKV size:2
+AGM: metadata: key:0xa3000000, value:0xa3000004
+AGM: metadata: key:0xad000000, value:0xad000003
+AGM: metadata: CKV count:0
+```
+
+The Graph Key Vector is right; the **Calibration** Key Vector is empty. CKV is
+what selects which calibration ACDB applies to the graph's modules, so a correct
+topology with no calibration would leave its gain at defaults — which is exactly
+the shape of this fault, given the codec-side chain is provably linear and
+untouched.
+
+`PayloadBuilder::populateDevicePPCkv` (`pal/session/src/PayloadBuilder.cpp:3371`)
+switches on the PAL stream type. Recording opens as `PAL_STREAM_DEEP_BUFFER`
+(`pal_stream_open: Enter, stream type:2`), which lands in a branch that pushes
+CKV entries only for `PAL_DEVICE_OUT_SPEAKER` — nothing for a TX device — and
+ends on an unfinished upstream path:
+
+```cpp
+/* TBD: Push Channels for these types once Channels are added */
+//keyVector.push_back(std::make_pair(CHANNELS,
+//                                   dAttr.config.ch_info.channels));
+```
+
+`PAL_STREAM_VOICE_UI` does push `CHANNELS`, commented "for FFNS or FFECNS channel
+based calibration". The record graph is a channel-dependent ECNS topology as
+well, and the device is opened with two channels, so a channel-keyed calibration
+entry would not match an empty CKV.
+
+This cannot be tested from the device tree. `resourcemanager`'s
+`PAL_DEVICE_IN_HANDSET_MIC` entry carries backend, channels, samplerate and EC
+settings only — no gain knob. Testing means building `libar-pal` with the
+`CHANNELS` push restored for capture streams and overlaying
+`/vendor/lib64/libar-pal.so` with Magisk. Same tree that built the ROM, one
+changed function, removable by deleting the file.
+
+Treat it as a hypothesis. Two before it looked at least as good and both were
+wrong.
+
+## If that fails
+
+Comparing against a stock boot with the same instrumentation — `tinymix` idle and
+during capture, plus the `GKV Alias` and `CKV count` lines — would discriminate
+directly rather than by reasoning. Noted only for completeness: flashing stock is
+ruled out.
 
 `tinymix` is not in the image. Build it with `mka tinymix` and push it to
 `/data/local/tmp`; it is the single most useful instrument found in this
