@@ -49,6 +49,81 @@ intended for another source and garbles capture. Recordings from
 `VOICE_COMMUNICATION` (7), `VOICE_RECOGNITION` (6) and `UNPROCESSED` (9) match
 genuine stock profiles.
 
+## Speaker protection
+
+There is none, and stock has none either. `speaker_protection_enabled` is `0` in
+`resourcemanager_volcano_qrd.xml` against stock's `1`, but that flag only picks
+which branch PAL takes — it is not the difference between a protected speaker
+and an unprotected one.
+
+Setting it to `1` here silences the speaker. The PAL we build carries no Awinic
+code at all — nothing under `hardware/qcom-caf/sm8650/audio` matches `awinic` or
+`aw882` — so `1` selects QCOM's VI-feedback path, which opens a capture stream
+on the VI TX backend alongside playback. That TX side never opens, and it takes
+the Rx session down with it:
+
+```
+PAL: SpeakerProtection: viTxSetupThreadLoop: txPcm open not ready
+AGM: Backend:24 <-> Frontend:121 Connect failed error:-22
+PAL: StreamPCM: start: Rx session start is failed with status -22
+```
+
+**The Awinic algorithm is compiled out of the driver, on stock too.**
+`aw882xx_dsp.h:17` reads `/*#define AW_QCOM_PLATFORM*/`, and no Kbuild or
+Makefile in the audio-kernel supplies `-DAW_QCOM_PLATFORM`. So the `#else`
+branch compiles and `aw_send_afe_cal_apr()`, `aw_send_afe_rx_module_enable()`,
+`aw_send_afe_tx_module_enable()` and `aw_set_port_id()` are stubs returning 0.
+Every DSP operation — enabling the SKT protection module `0x10013D02`, pushing
+the calibrated `Re`, setting `VMAX` — reports success and does nothing. The OEM
+tree that stock's `aw882xx_dlkm.ko` is built from has the same line commented
+out, so this is Awinic's shipping configuration rather than a porting loss.
+
+**Neither monitor mode can start, and a vendor PAL would not change that.**
+`aw_monitor_work_func()` requires `monitor_cfg->monitor_status ==
+AW_MON_CFG_OK`, which only the `monitor_update` sysfs handler sets, by parsing
+`aw882xx_pid_2329_monitor.bin`. That file is absent from this tree, from the
+device, and from the stock image. `hal_monitor` is not a way around it:
+`aw882xx_monitor_hal_work()` calls that same `aw_monitor_work_func()`, so the
+HAL kcontrol meets the identical gate and returns `VMAX_NONE`. Shipping stock's
+`libar-pal.so` to drive `aw882xx_hal_monitor_time` would get the same answer,
+which is why swapping the source PAL for the vendor blob is not a route to
+protection.
+
+On device this reads as `monitor-mode` parsed correctly into
+`AW_MON_KERNEL_MODE`, with monitor enable `0`, `dsp_re` `0` and `algo_state`
+unreadable. `monitor-mode` is set to `kernel_monitor` as the more honest of two
+non-working settings; changing it fixes nothing.
+
+`aw882xx_acf.bin` does not fill the gap. It is Awinic reference tuning for
+`aw88271` against a detected `0x2329`, carries a data type absent from
+`aw882xx_bin_parse.h`, and has no `vcalb` — the constant that scales raw
+readings into impedance. It holds register profiles and nothing else.
+
+What remains is static, and identical to stock: the register profile from
+`aw882xx_acf.bin`, which we ship byte for byte from the same OTA, including the
+boost peak-current limit (`ipeak_desc` → `AW_PID_2329_BSTCTRL1_REG`). The amp
+holds the hardware limits its tuning sets. Neither build tracks coil temperature
+or excursion, so sustained maximum volume has no adaptive backstop — on stock
+either.
+
+### Do not re-run calibration
+
+```
+/dev/aw882xx_smartpa                    crw------- 10,111
+/mnt/vendor/persist/audio/aw_cali.bin   20 bytes, factory data
+```
+
+`aw882xx_calib.c` reads exactly that path, so the coil resistance is already
+stored. Do **not** add an init service for `aw882xx_cali`. It is a calibration
+utility, not a monitor daemon, and its `cali` verb *measures* coil resistance
+and overwrites `aw_cali.bin`. Run at boot, with playback active or the device in
+a pocket, it replaces good factory data with a bad measurement.
+
+```
+./aw882xx_cali [back_end_name] [dev_name] cali [cali_re_time(ms)]
+./aw882xx_cali [back_end_name] [dev_name] get_re_range
+```
+
 ## Effects
 
 `audio_effects.xml` installs to `etc/audio/sku_volcano/`. The effects HAL is
