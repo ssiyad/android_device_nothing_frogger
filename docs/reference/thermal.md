@@ -50,14 +50,19 @@ Constraints on that swap:
   rather than downgrades. Dropping the HAL entirely fails `check_vintf`.
 - No sepolicy change: same path, so the same `hal_thermal_default_exec` label,
   and the same `vendor.thermal-hal` service name.
-- The blob carries `;MODULE_SUFFIX=.prebuilt` in `proprietary-files.txt`, and
-  must keep it. `hardware/qcom-caf/common/BoardConfigQcom.mk` imports the
-  `hardware/qcom-caf/thermal` namespace for every platform that is not legacy
-  UM, so the source module stays exported whether or not anything asks for it,
-  and Soong rejects one module name reaching a partition from two namespaces
-  (`build/soong/fsgen/fsgen_mutators.go`, "found in multiple namespaces"). The
-  suffix renames the module only — `stem` keeps the installed filename — so the
-  source module drops out of `PRODUCT_PACKAGES` and the collision with it.
+- `device.mk` must keep `PRODUCT_SOURCE_ROOT_DIRS += -hardware/qcom-caf/thermal/`.
+  Dropping the source HAL from `PRODUCT_PACKAGES` does not get it out of the
+  way, in two stages: `hardware/qcom-caf/common/BoardConfigQcom.mk` imports that
+  namespace for every platform that is not legacy UM, so Soong first rejects one
+  module name reaching a partition from two namespaces
+  (`build/soong/fsgen/fsgen_mutators.go`), and renaming the blob's module past
+  that only exposes the next collision — a `cc` module copies its unstripped
+  binary to `symbols/vendor/bin/hw/<stem>` whether or not anything installs it,
+  so both modules claim that path and ninja refuses the duplicate rule. Pruning
+  the directory is what lets the blob keep the stock module name and filename.
+  The leading `-` marks a disallowed prefix, matched as a string, so the
+  trailing slash matters: without it the entry would also prune
+  `hardware/qcom-caf/thermal-legacy-um`.
 - `android.hardware.thermal-V1-ndk.so` and `libnl.so` stay in `/vendor` on their
   own — the Lineage power HAL, `liblmthermallistner.so`, `libsdmextension.so`
   and the wifi stack link them.

@@ -19,7 +19,7 @@ Status and blockers live here; task files describe only the work.
 
 | Task | Status | Blocked by |
 |---|---|---|
-| [Confirm the stock thermal HAL](tasks/thermal-hal.md) | awaiting extraction and build | — |
+| [Confirm the stock thermal HAL](tasks/thermal-hal.md) | builds; awaiting a flash | — |
 
 ### Audio
 
