@@ -17,6 +17,14 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 # it (vendor/lineage/config/common.mk). BoardConfig.mk does not work -- board
 # config is evaluated after product config.
 
+# Put the time of day in LINEAGE_BUILD_DATE, so the zip name and
+# ro.lineage.version identify a single build rather than a day's worth of them.
+# Two builds on the same date otherwise produce the same file name, and the
+# packaging step writes the zip through whatever inode already holds that name.
+# Like WITH_ADB_INSECURE above, this is read by vendor/lineage/config/common.mk
+# and so must precede the inherit below.
+LINEAGE_VERSION_APPEND_TIME_OF_DAY := true
+
 $(call inherit-product, device/nothing/frogger/device.mk)
 $(call inherit-product, vendor/lineage/config/common_full_phone.mk)
 
