@@ -491,6 +491,14 @@ PRODUCT_BOOT_JARS += \
     nt-telephony-interface \
     telephony-ext
 
+# Thermal
+# The HAL is stock's blob. hardware/qcom-caf/common imports the source HAL's
+# namespace for every non-legacy platform, and a cc module copies its unstripped
+# binary into symbols/ whether or not anything installs it, so the source tree
+# has to leave the build entirely for the blob to keep the stock filename.
+PRODUCT_SOURCE_ROOT_DIRS += \
+    -hardware/qcom-caf/thermal/
+
 # USB
 PRODUCT_COPY_FILES += \
     frameworks/native/data/etc/android.hardware.usb.accessory.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.usb.accessory.xml \
