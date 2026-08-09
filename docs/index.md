@@ -15,12 +15,6 @@ Status and blockers live here; task files describe only the work.
 | [Write missing allow rules](tasks/selinux-allow-rules.md) | open | collect denials |
 | [Switch to enforcing](tasks/selinux-enforcing.md) | blocked | label sysfs nodes, write allow rules |
 
-### Thermal
-
-| Task | Status | Blocked by |
-|---|---|---|
-| [Confirm the stock thermal HAL](tasks/thermal-hal.md) | builds; awaiting a flash | — |
-
 ### Audio
 
 | Task | Status | Blocked by |

@@ -29,18 +29,24 @@ The source HAL's thresholds are compiled in and chosen by soc_id — 636 selects
     [CRITICAL] = 65000, [EMERGENCY] = 70000, [SHUTDOWN] = 95000 } }
 ```
 
-36.5 °C is marginally above body temperature, so ordinary use pushes
-`PowerManager.getCurrentThermalStatus()` to LIGHT or MODERATE and apps show
-throttling warnings while nothing is in fact throttled. There is no per-device
-override and no property hook, and `thermalConfig.cpp` is shared by every
-Qualcomm device in Lineage, so the ladder cannot be corrected from here.
+`sys-therm-0` is the XO thermistor, which idles between 35.6 and 36.6 °C with
+the phone doing nothing, so that ladder opens below room-temperature idle:
+`PowerManager.getCurrentThermalStatus()` sat at LIGHT or MODERATE while nothing
+was throttled. There is no per-device override and no property hook, and
+`thermalConfig.cpp` is shared by every Qualcomm device in Lineage, so the ladder
+cannot be corrected from here.
 
-Nothing's blob ("Nothing skin thermal config" appears in it) carries sensor
-names but no thresholds at all. It reads `persist.vendor.thermal.thresholds`,
-which no partition sets, so it logs `Thresholds is not defined` and never
-computes a severity. Its `.rc` mirrors `sys.thermal.thresholds` onto that
-persist property and restarts the service, so thresholds can be supplied at
-runtime if that ever becomes worth doing.
+Nothing's blob ("Nothing skin thermal config" appears in it) reads skin from
+`shell_max` instead, and carries its own ladder — LIGHT 39, MODERATE 43, SEVERE
+44, CRITICAL 50, EMERGENCY 54, SHUTDOWN 63 °C, plus a cold shutdown at -20 °C.
+Every other type matches the common Qualcomm table: 95 °C severe and 115 °C
+shutdown for CPU, GPU and NSP, 80 and 90 for battery. `dumpsys thermalservice`
+prints the live set as `TemperatureThreshold` lines.
+
+`persist.vendor.thermal.thresholds` overrides that ladder, and the `.rc` mirrors
+`sys.thermal.thresholds` onto it and restarts the service, so it can be changed
+at runtime. Nothing sets it, and the `Thresholds is not defined` path the binary
+carries never runs.
 
 Constraints on that swap:
 
@@ -74,6 +80,9 @@ whose `type` *starts with* the configured name — a prefix compare, not equalit
 So a config asking for `sys-therm-1` would happily bind `sys-therm-10`, and two
 zones sharing a name resolve to whichever `readdir` reaches first.
 
+Zone numbers are not stable across boots — `sys-therm-0` has been both
+`thermal_zone41` and `thermal_zone42`. Match on `type`, never on the number.
+
 ## Two `battery` zones, both stock
 
 ```
@@ -100,7 +109,12 @@ battery readings about a degree apart reaches the framework.
 
 ## The skin sensor
 
+Skin is `shell_max`, one of four virtual zones — `shell_front`, `shell_frame`,
+`shell_back`, `shell_max` — that hold a placeholder until `thermal-engine-v2`
+starts maintaining them. They read 20 °C for the first moments of a boot, then
+track: 34.0 °C on all four with the CPUs at 38 and the XO thermistor at 35.6.
+
 `volcano-pmic-overlay.dtsi` maps `sys-therm-0` to
-`PMK8550_ADC5_GEN3_AMUX_THM1_XO_THERM_100K_PU`, the XO thermistor, which runs
-hotter than the case. Whether that is the right sensor to call skin is
-unconfirmed and moot while the shipped HAL derives no severity from it.
+`PMK8550_ADC5_GEN3_AMUX_THM1_XO_THERM_100K_PU`, the XO thermistor. It runs
+hotter than the case and near the source HAL's LIGHT threshold at idle, which is
+what made that HAL unusable here. Nothing's blob does not read it.
