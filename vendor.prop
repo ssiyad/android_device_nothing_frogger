@@ -136,6 +136,14 @@ ro.surface_flinger.force_hwc_copy_for_virtual_displays=true
 ro.surface_flinger.game_default_frame_rate_override=60
 ro.surface_flinger.has_HDR_display=true
 ro.surface_flinger.has_wide_color_display=true
+# Sizes SurfaceFlinger's own framebuffer (NUM_FRAMEBUFFER_SURFACE_BUFFERS), which
+# is on the critical path whenever SF falls back to client composition. AOSP
+# defaults to 2 (SurfaceFlinger.cpp max_frame_buffer_acquired_buffers(2)); stock
+# sets 3, and we were taking the default while shipping stock's phase durations.
+# Those durations describe a pipeline 13.67ms app + 10.5ms SF = 24.2ms deep,
+# which at 120Hz is ~2.9 vsync periods against only 2 buffers, so the producer
+# blocks in dequeueBuffer/waitForBufferRelease instead of pipelining.
+ro.surface_flinger.max_frame_buffer_acquired_buffers=3
 ro.surface_flinger.max_virtual_display_dimension=4096
 ro.surface_flinger.protected_contents=true
 # Stock uses 550 here. Deliberately NOT matching it yet: a shorter idle timer
@@ -147,6 +155,12 @@ ro.surface_flinger.protected_contents=true
 # Revisit once the flicker is understood. See docs/vendor-props.md.
 ro.surface_flinger.set_idle_timer_ms=3000
 ro.surface_flinger.set_touch_timer_ms=200
+# Stock sets 0, and blur is not free here: it forces SurfaceFlinger into client
+# composition for the shade and quick settings, the only full-screen blur the
+# device draws. Measured over five shade open/close cycles, disabling it halves
+# the median SystemUI frame time (30ms -> 15ms) and drops jank from 41% to 14%.
+# Kept enabled anyway -- it is a per-user appearance call, and Developer Options
+# exposes it as "Disable window blurs" (Settings.Global disable_window_blurs).
 ro.surface_flinger.supports_background_blur=1
 ro.surface_flinger.use_color_management=true
 ro.surface_flinger.use_content_detection_for_refresh_rate=true

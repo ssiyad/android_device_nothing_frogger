@@ -51,6 +51,38 @@ PLL reprogram and shows as flicker on every transition.
 `qcom,dsi-supported-dfps-list` carries `<120 90 60>` for both nt37706a variants.
 Adding a rate requires checking it against the porch table first.
 
+## Composition pipeline depth
+
+The phase durations are stock's: 13.67 ms app plus 10.5 ms SF, applied as
+durations because `debug.sf.use_phase_offsets_as_durations=1`. That describes a
+pipeline 24.2 ms deep, which at 120 Hz is about 2.9 vsync periods, so
+SurfaceFlinger has to keep roughly three frames in flight to pipeline at all.
+
+`ro.surface_flinger.max_frame_buffer_acquired_buffers` sizes the framebuffer that
+carries that depth — it appears in the SF dump as
+`NUM_FRAMEBUFFER_SURFACE_BUFFERS`. AOSP defaults it to 2
+(`max_frame_buffer_acquired_buffers(2)`); stock sets 3. Taking the default while
+shipping stock's durations starves the pipeline, and the producer blocks in
+`dequeueBuffer` → `waitForBufferRelease` rather than pipelining.
+
+The framebuffer is only on the critical path when SurfaceFlinger falls back to
+**client composition**. Background blur is what forces that here: it is the sole
+full-screen blur the device draws, behind the notification shade and quick
+settings. Stock ships `ro.surface_flinger.supports_background_blur=0` for that
+reason, so on stock the buffer count and the blur cost are tuned together.
+
+This tree keeps blur enabled, because it is an appearance choice rather than a
+correctness one. The cost is real and measurable — over five shade open/close
+cycles, disabling blur halves the median SystemUI frame time (30 ms to 15 ms) and
+drops jank from 41% to 14% — so the buffer count carries a load stock never asks
+it to. Blur is switchable per user without a rebuild, through Developer Options'
+"Disable window blurs", which is `Settings.Global disable_window_blurs`.
+
+Two related stock properties are inert in this tree and are deliberately not
+carried: `debug.sf.enable_advanced_sf_phase_offset` appears nowhere in
+SurfaceFlinger, and `debug.sf.latch_unsignaled` has been superseded by
+`debug.sf.auto_latch_unsignaled`.
+
 ## `ro.surface_flinger.set_idle_timer_ms`
 
 A shorter idle timer drops to the idle refresh rate sooner and therefore switches
