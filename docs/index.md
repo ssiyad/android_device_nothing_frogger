@@ -19,7 +19,7 @@ Status and blockers live here; task files describe only the work.
 
 | Task | Status | Blocked by |
 |---|---|---|
-| [Replace the source-built thermal HAL](tasks/thermal-hal.md) | deferred | — |
+| [Confirm the stock thermal HAL](tasks/thermal-hal.md) | awaiting extraction and build | — |
 | [Resolve the duplicate `battery` zone](tasks/thermal-battery-zones.md) | open | — |
 
 ### Audio
@@ -57,6 +57,7 @@ Status and blockers live here; task files describe only the work.
 |---|---|
 | [hardware.md](reference/hardware.md) | Device-specific values: identity, display, sensors, SKUs |
 | [audio.md](reference/audio.md) | Card layout, LVACFS, volume configuration |
+| [thermal.md](reference/thermal.md) | HAL provenance, zone lookup, what mitigates |
 | [display.md](reference/display.md) | Colour pipeline, DFPS constraints, panel feature attributes |
 | [devicetree.md](reference/devicetree.md) | Overlay model, board-id matching, verification |
 | [camera-diagnostics.md](reference/camera-diagnostics.md) | Reading camera failures by layer, and the errors a healthy session logs |
