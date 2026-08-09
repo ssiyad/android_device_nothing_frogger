@@ -54,6 +54,37 @@ Constraints on that swap:
   own — the Lineage power HAL, `liblmthermallistner.so`, `libsdmextension.so`
   and the wifi stack link them.
 
+## Zone lookup is by name, first match wins
+
+`get_tzn()` walks `/sys/class/thermal` with `readdir` and takes the first zone
+whose `type` *starts with* the configured name — a prefix compare, not equality.
+So a config asking for `sys-therm-1` would happily bind `sys-therm-10`, and two
+zones sharing a name resolve to whichever `readdir` reaches first.
+
+## Two `battery` zones, both stock
+
+```
+thermal_zone49 battery 31294
+thermal_zone61 battery 30000
+```
+
+`thermal_zone49` is the devicetree zone: sensor
+`PMIV0104_ADC5_GEN3_AMUX_THM1_BATT_THERM_30K_PU`, `user_space` governor, two
+125 °C passive trips.
+
+`thermal_zone61` is registered by the power supply core for the `battery`
+supply, and reports `/sys/class/power_supply/battery/temp` × 100. `usb` and
+`wireless` come from the same place. None of the three has trip points, which is
+how a driver-registered zone is told apart from a devicetree one.
+
+Both exist on stock — the base DTB carries the zone and the charger driver
+registers the supply — and neither can be removed from here: an overlay cannot
+delete a node from the base DTB, and the second name is the power supply's own.
+
+It also does not matter. The HAL's battery entry sets `no_trip_set`, so no trips
+are written to whichever zone it binds, and the only consequence is which of two
+battery readings about a degree apart reaches the framework.
+
 ## The skin sensor
 
 `volcano-pmic-overlay.dtsi` maps `sys-therm-0` to

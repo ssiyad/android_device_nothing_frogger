@@ -20,7 +20,6 @@ Status and blockers live here; task files describe only the work.
 | Task | Status | Blocked by |
 |---|---|---|
 | [Confirm the stock thermal HAL](tasks/thermal-hal.md) | awaiting extraction and build | — |
-| [Resolve the duplicate `battery` zone](tasks/thermal-battery-zones.md) | open | — |
 
 ### Audio
 

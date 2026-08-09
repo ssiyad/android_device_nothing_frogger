@@ -12,6 +12,10 @@ Consequences:
 
 - **An overlay cannot delete a node from the base DTB.** `/delete-node/` entries
   are silent no-ops, so a base node survives alongside any replacement.
+- **A replacement must not redefine the labels of the node it shadows.**
+  Phandle references resolve to the last definition, so a stolen label points
+  the original's users at the copy's nodes. A thermal zone that lost its trip
+  labels this way failed every cooling-device bind with `-ENXIO`.
 - The platform camera block must not be re-added to the overlay; a sensors-only
   include is correct.
 - The merge script **globs `DTB_OBJ` for `*.dtbo`** rather than reading the
