@@ -1655,7 +1655,7 @@ vendor/etc/init/vendor.qti.tftp.rc
 system_ext/bin/sltntc
 system_ext/etc/sltntc/sltntc.conf
 system_ext/etc/sltntc/sltntc_SM7635.conf
-vendor/bin/hw/android.hardware.thermal-service.qti
+vendor/bin/hw/android.hardware.thermal-service.qti;MODULE_SUFFIX=.prebuilt
 vendor/bin/thermal-engine-v2
 vendor/etc/init/android.hardware.thermal-service.qti.rc
 vendor/etc/init/init_thermal-engine-v2.rc
