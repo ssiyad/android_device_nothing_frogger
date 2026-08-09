@@ -748,8 +748,7 @@
                  13-0035. The AW882xx feedback path is wired differently.
 
                  Consequence: no excursion or thermal limiting on the speaker. Fine
-                 for normal levels, worth revisiting before sustained loud playback.
-                 See docs/open-items.md. -->
+                 for normal levels, worth revisiting before sustained loud playback. -->
             <speaker_protection_enabled>0</speaker_protection_enabled>
             <fractional_sr>0</fractional_sr>
             <!-- To enable external EC reference the flag extec_ref_enabled must be added as 1 -->

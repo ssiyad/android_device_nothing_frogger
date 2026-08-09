@@ -494,8 +494,10 @@
 
     <path name="speaker-mic">
         <path name="amic_1_3" />
-        <ctl name="ADC1 Volume" value="6" />
-        <ctl name="ADC2 Volume" value="6" />
+        <!-- 17 to match handset-mic; same routing and same stock value, and
+             this is the path speakerphone capture takes. -->
+        <ctl name="ADC1 Volume" value="17" />
+        <ctl name="ADC2 Volume" value="17" />
     </path>
 
     <path name="speaker-mic-liquid">
@@ -575,8 +577,11 @@
 
     <path name="handset-mic">
         <path name="amic_1_3" />
-        <ctl name="ADC1 Volume" value="6" />
-        <ctl name="ADC2 Volume" value="6" />
+        <!-- 17 (+25.5 dB), not stock's 6 (+9 dB). Capture lands about 17 dB
+             below other handsets through an identical pipeline, and the analog
+             PGA is the only gain stage ahead of the ADC. -->
+        <ctl name="ADC1 Volume" value="17" />
+        <ctl name="ADC2 Volume" value="17" />
     </path>
 
     <path name="handset-mic-ull">
@@ -587,8 +592,10 @@
 
     <path name="handset-mic-unprocessed">
         <path name="amic_1_3" />
-        <ctl name="ADC1 Volume" value="6" />
-        <ctl name="ADC2 Volume" value="6" />
+        <!-- 17 to match handset-mic. AUDIO_SOURCE_UNPROCESSED is meant to be
+             untouched by processing, not quiet. -->
+        <ctl name="ADC1 Volume" value="17" />
+        <ctl name="ADC2 Volume" value="17" />
         <ctl name="TX_DEC2 Volume" value="84" />
     </path>
 
