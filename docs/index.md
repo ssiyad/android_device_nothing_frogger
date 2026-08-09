@@ -15,12 +15,6 @@ Status and blockers live here; task files describe only the work.
 | [Write missing allow rules](tasks/selinux-allow-rules.md) | open | collect denials |
 | [Switch to enforcing](tasks/selinux-enforcing.md) | blocked | label sysfs nodes, write allow rules |
 
-### Camera
-
-| Task | Status | Blocked by |
-|---|---|---|
-| [Explain the errors a healthy session logs](tasks/camera-hal-errors.md) | open | — |
-
 ### Thermal
 
 | Task | Status | Blocked by |
@@ -65,7 +59,7 @@ Status and blockers live here; task files describe only the work.
 | [audio.md](reference/audio.md) | Card layout, LVACFS, volume configuration |
 | [display.md](reference/display.md) | Colour pipeline, DFPS constraints, panel feature attributes |
 | [devicetree.md](reference/devicetree.md) | Overlay model, board-id matching, verification |
-| [camera-diagnostics.md](reference/camera-diagnostics.md) | Reading camera failures by layer |
+| [camera-diagnostics.md](reference/camera-diagnostics.md) | Reading camera failures by layer, and the errors a healthy session logs |
 | [vendor-blobs.md](reference/vendor-blobs.md) | Blob list method, fixup scoping, inventory |
 | [repositories.md](reference/repositories.md) | Forks, branches, signing keys |
 

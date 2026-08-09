@@ -18,9 +18,22 @@ A HAL built from source, missing a device-specific data file that stock ships:
 | audio | LVACFS profile mapping |
 | audio | `aw882xx_pid_2329_monitor.bin` — absent from stock too |
 | display | QDCM panel calibration |
-| camera | Vega face-detect models, Morpho and ArcSoft nodes |
 
 Diff whole directories against stock rather than chasing one filename at a time.
+
+**Camera is exhausted.** Every camera blob shipped here is byte-identical to
+stock — 85 libraries in `vendor/lib64`, 161 in `vendor/lib64/camera/`, and all of
+`vendor/etc/camera/`. What stock has and this build does not is
+`camera/node/com.nothing.node.filtereditor.so` with the three colour-LUT
+directories under `etc/camera/filter/` it reads, the ArcSoft and Morpho libraries
+the Nothing camera app links, and the AIDL/NDK interface libraries LineageOS
+builds from source. All belong to the Nothing camera app and are unreachable from
+Aperture or GCam. A missing camera blob is no longer a live hypothesis for a
+camera fault.
+
+**`grep -r` silently misses matches inside these blobs** — they contain NUL bytes
+and this grep prints nothing at all for a binary match without `-a`. A negative
+result from a non-`-a` grep over `extracted/` or `proprietary/` is worthless.
 
 ## Groups deliberately not shipped
 

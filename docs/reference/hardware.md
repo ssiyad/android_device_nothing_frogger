@@ -77,23 +77,51 @@ Driver `CONFIG_LEDS_AW20036_FROGGER`.
 
 ## Camera sensors
 
-| Slot | CCI | csiphy | Part | Peripherals |
-|---|---|---|---|---|
-| cam-sensor0 | cci0 | 0 | S5KGN9 wide | eeprom, actuator, SOIS |
-| cam-sensor1 | cci0 | 1 | S5KKD1 front | eeprom |
-| cam-sensor2 | cci1 | 3 | IMX355 ultrawide | eeprom |
-| cam-sensor3 | cci1 | 2 | S5KJN5 tele | eeprom, actuator |
+| Slot | CCI | csiphy | Part | Peripherals | Focus | PDAF |
+|---|---|---|---|---|---|---|
+| cam-sensor0 | cci0 | 0 | S5KGN9 wide | eeprom, actuator, SOIS | AF | Type-2 PD |
+| cam-sensor1 | cci0 | 1 | S5KKD1 front | eeprom | fixed | none |
+| cam-sensor2 | cci1 | 3 | IMX355 ultrawide | eeprom | fixed | none |
+| cam-sensor3 | cci1 | 2 | S5KJN5 tele | eeprom, actuator, OIS rails | AF | 2PD |
+
+CCI nodes are `qcom,cci0@ac15000` and `qcom,cci1@ac16000`.
 
 All four probe on this IND unit, tele included, and the framework exposes five
 cameras, four of them back-facing. The tele acquires, starts and streams.
 
 Stock ships the same node set for both board-ids, so the node set is kept as-is.
 
+Framework mapping, from `dumpsys media.camera`:
+
+| HAL device | Sensor | Focal |
+|---|---|---|
+| 0 | logical multi-camera, `physicalIds [2 4 3]` | 5.56 mm |
+| 1 | front S5KKD1 | 2.68 mm |
+| 2 | ultrawide IMX355 | 1.64 mm |
+| 3 | tele S5KJN5 | 12.19 mm |
+| 4 | wide S5KGN9 | 5.56 mm |
+
+**PDAF type is declared in `vendor/lib64/camera/com.qti.sensormodule.<sensor>.bin`
+and nowhere else** — not the devicetree, not `camxoverridesettings.txt`, not a
+pdlib config. `strings` the bin: `PDConfigData` + `com.qti.stats.pdlib` +
+`<sensor>_pdaf` present means PDAF, absent means none. The same trick reads
+`actuatorDriver` and `SOISChipInfo`. Cheaper still, the session log prints the
+capabilities directly at `camxsensornode.cpp:5666 ProcessSensorModeUpdate()`.
+
+Two framework values mislead here:
+
+- **`availableOpticalStabilization [0 1]` is reported by all five cameras**,
+  including the fixed-focus ultrawide. It is a CamX blanket default, not
+  evidence of OIS hardware.
+- `minimumFocusDistance` is the discriminator: `10.0` on the two focusable
+  sensors, `0.0` on the two fixed-focus ones.
+
 ### OIS
 
 There is no `ois-src`, no `qcom,ois` and no `cam_ois` reference anywhere in the
-devicetrees, so the Qualcomm OIS subdev is not in play on this device at all. The
-only stabilisation path is Nothing's **SOIS** (sensor-shift), and it sits on the
+devicetrees, so the Qualcomm OIS subdev is not in play on this device at all.
+
+Nothing's **SOIS** (sensor-shift) is a separate path, and it sits on the
 **wide**, not the tele:
 
 | Fact | Value |
@@ -104,13 +132,28 @@ only stabilisation path is Nothing's **SOIS** (sensor-shift), and it sits on the
 | Control | `/dev/nt_cam_dev`, ioctl `NT_DEV_CONTROL_CMD` |
 | Masks | `enableCameraSOISMask=0x9`, `SOISOptimizationEnable=0x9` |
 
-The masks are indexed by sensor slot, so `0x9` selects slots 0 and 3 — but slot 3
-has no `nt_sois-supply`, so the driver skips it and only the wide is ever
-powered. The OEM devicetree is identical here, so that is stock behaviour rather
-than a porting gap.
+The masks are indexed by sensor slot, so `0x9` selects slots 0 and 3 — but
+`nt_sois-supply` exists on `qcom,cam-sensor0` only, so the driver sets
+`ois_rgltr = NULL` for slot 3, logs a `CAM_WARN` and skips it. Only the wide is
+ever sensor-shift powered. The OEM devicetree is identical here — slot 0 is the
+sole `nt_sois-supply` consumer in both trees — so that is stock behaviour rather
+than a porting gap. Our 6.6 driver does consume the property
+(`cam_sensor_nothing.c` `of_property_read_bool`), so the skip is a real decision,
+not an unread binding.
 
-Test OIS on the **main camera**. Testing the telephoto proves nothing about this
-path.
+**The tele is not OIS-less**, despite having no sensor-shift rail. It carries
+conventional OIS power:
+
+| Supply | Rail | GPIO |
+|---|---|---|
+| `cam_v_custom1-supply` | `camera3_ois_enable_ldo`, fixed 1.8 V | tlmm 161 |
+| `cam_v_custom2-supply` | `camera3_ois_vdd_ldo`, fixed 3.3 V | tlmm 146 |
+
+Both are registered on device and read `disabled` with the camera closed. What
+slot 3 lacks is Nothing's sensor-shift rail and an `ois-src` subdev.
+
+Test **sensor-shift** SOIS on the main camera; testing the telephoto proves
+nothing about that path.
 
 Supplies come from two I2C LDO chips, **not** the PMIC:
 

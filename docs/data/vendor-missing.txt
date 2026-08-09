@@ -2,7 +2,7 @@
 # Compared against a running device rather than the blob tree, so files shipped
 # from the device tree are correctly counted as present.
 
-## /vendor/etc  (470 files)
+## /vendor/etc  (468 files)
 Diag.cfg
 Diag_audio.cfg
 Diag_audio_modem.cfg
@@ -29,8 +29,6 @@ audio_policy_configuration.xml
 bluetooth_qti_audio_policy_configuration.xml
 bluetooth_qti_hearing_aid_audio_policy_configuration.xml
 bpf/info
-camera/facedetect/VegaAlign.model
-camera/facedetect/VegaTrack.model
 camera/filter/amber/config.json
 camera/filter/amber/content.json
 camera/filter/amber/effect_content.json
@@ -474,7 +472,7 @@ wifi/peach_v2/WCNSS_qcom_cfg.ini
 wifi/vendor_cmd.xml
 wifi/wcn6450/WCNSS_qcom_cfg.ini
 
-## /vendor/lib64  (363 files)
+## /vendor/lib64  (353 files)
 android.automotive.watchdog-V2-ndk.so
 android.hardware.audio.common-V1-ndk.so
 android.hardware.audio.common@2.0-util.so
@@ -527,9 +525,6 @@ android.hardware.wifi-V1-ndk.so
 android.hardware.wifi.supplicant-V2-ndk.so
 android.se.omapi-V1-ndk.so
 android.system.wifi.keystore@1.0.so
-camera/components/com.morpho.node.eisv2.so
-camera/components/com.morpho.node.eisv3.so
-camera/components/com.morpho.node.gme.so
 camera/node/com.nothing.node.filtereditor.so
 egl/libEGL_angle.so
 egl/libGLESv1_CM_angle.so
@@ -567,8 +562,6 @@ libapengine.so
 libappclassifier.so
 libarcsoft_Anti_EyeGlass_Reflection.so
 libarcsoft_Anti_Glass_Reflection.so
-libarcsoft_triple_sat.old.so
-libarcsoft_triple_sat.so
 libarcsoft_triple_zoomtranslator.old.so
 libarcsoft_triple_zoomtranslator.so
 libarmemlog.so
@@ -619,9 +612,6 @@ libmeters.so
 libmiracast.so
 libmm-hdcpmgr.so
 libmm-omxcore.so
-libmmcamera_pnc.so
-libmorpho_ubwc.so
-libmorpho_video_stabilizer.so
 libnative-api.so
 libnicm_vh.so
 liboemaids_vendor.so
@@ -630,7 +620,6 @@ libperfconfig.so
 libperfgluelayer.so
 libperfioctl.so
 libplatformconfig.so
-libpnc_cl_program.bin
 libpolygon.so
 libpowercallback.so
 libprefapps.so
@@ -698,7 +687,6 @@ libsubsystem_control.so
 libsysmon_cdsp_skel.so
 libtensorflowlite_c.so
 libtriplecam_optical_zoom_control.so
-libtriplecam_video_optical_zoom.so
 libtrustedapploader.so
 libtzdrmgenprov.so
 libvideoutils.so
