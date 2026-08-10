@@ -33,7 +33,7 @@ public final class GlyphApplication extends Application {
         mNotificationIndicator = new NotificationIndicator(this);
         mNotificationIndicator.register();
 
-        mFaceDownStatus = new FaceDownStatus(this, handler, mMusicVisualizer::onFaceDownChanged);
+        mFaceDownStatus = new FaceDownStatus(this, handler);
         mFaceDownStatus.register();
     }
 }

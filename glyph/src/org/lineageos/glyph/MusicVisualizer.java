@@ -130,11 +130,6 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
         update();
     }
 
-    /** Called when the phone is turned over, since that decides whether to run. */
-    void onFaceDownChanged() {
-        update();
-    }
-
     private void update() {
         final boolean media = mMedia;
         final boolean ringing = mRinging;
@@ -144,15 +139,6 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
             Panel.get().releaseWhite(mOwner);
             mOwner = owner;
             mHeight = 0;
-        }
-
-        // Nothing on the strip is visible face-up, and an attached effect chain
-        // costs whether or not anyone is looking.
-        if (!Panel.get().isFaceDown()) {
-            mSettling = false;
-            mHandler.removeCallbacks(mAttach);
-            detach();
-            return;
         }
 
         if (ringing) {
