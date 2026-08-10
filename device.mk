@@ -240,13 +240,8 @@ PRODUCT_PACKAGES += \
     vulkan.pastel
 
 # Glyph
-# Not built: 6 channels in a 6x1 layout (ro.vendor.glyph.{channels,row,column})
-# driven by CONFIG_LEDS_AW20036_FROGGER needs a ParanoidGlyphPhone4a target,
-# which does not exist upstream. See docs/tasks/glyph-leds.md.
-#
-# PRODUCT_PACKAGES += \
-#     ParanoidGlyphPhone4a \
-#     GlyphAdapter
+PRODUCT_PACKAGES += \
+    Glyph
 
 # HIDL
 PRODUCT_PACKAGES += \

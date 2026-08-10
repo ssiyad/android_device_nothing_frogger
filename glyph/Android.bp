@@ -1,0 +1,28 @@
+//
+// SPDX-FileCopyrightText: 2026 The LineageOS Project
+// SPDX-License-Identifier: Apache-2.0
+//
+
+android_app {
+    name: "Glyph",
+
+    srcs: ["src/**/*.java"],
+    certificate: "platform",
+    platform_apis: true,
+    system_ext_specific: true,
+    privileged: true,
+    optimize: {
+        enabled: false,
+    },
+    required: [
+        "default_permissions_org.lineageos.glyph",
+    ],
+}
+
+prebuilt_etc {
+    name: "default_permissions_org.lineageos.glyph",
+    sub_dir: "default-permissions",
+    src: "default-permissions-org.lineageos.glyph.xml",
+    filename_from_src: true,
+    system_ext_specific: true,
+}

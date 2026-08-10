@@ -67,13 +67,33 @@ Panel firmware `focaltech_ts_fw_boe.bin` / `focaltech_ts_fw_vxn.bin`.
 
 ## Glyph
 
-```
-ro.vendor.glyph.channels=6
-ro.vendor.glyph.row=6
-ro.vendor.glyph.column=1
-```
+Six white segments in a 6×1 column plus a red indicator, on an aw20036 at
+`i2c-7` address `0x3a`, driven by `CONFIG_LEDS_AW20036_FROGGER`. Stock describes
+the layout as `ro.vendor.glyph.channels=6`, `ro.vendor.glyph.row=6`,
+`ro.vendor.glyph.column=1`.
 
-Driver `CONFIG_LEDS_AW20036_FROGGER`.
+All of it is reachable from `/sys/class/leds/aw20036_led/`, so no HAL and no
+vendor service is involved. `init.frogger.rc` chowns the nodes to `system` and
+`genfs_contexts` labels them `sysfs_leds`.
+
+| Node | Write | Effect |
+|---|---|---|
+| `operating_mode` | `1` / `2` / `0` | active / stand-by / off |
+| `frame_brightness` | six values, `0`–`255` | the white segments, index 0 at the top |
+| `single_brightness` | `26 <0-255>` | the red indicator |
+
+Brightness writes only reach the chip in `operating_mode 1`. A pattern survives
+suspend, so an indicator needs no wakelock to stay lit, and 20 of 255 is a
+usable dim level.
+
+**The red indicator is a seventh channel, not one of the six.** A six-value
+`frame_brightness` write leaves it alone, because the driver latches the last
+value written to register 26 and re-applies it on every frame. That is what lets
+a recording indicator and a progress bar share the strip without arbitration.
+Seven values drive all seven at once.
+
+`frame_brightness` also accepts 36, 20, 11 and 5 values, for the other panels the
+driver serves. On Frogger only the 6 and 7 forms map to LEDs that exist.
 
 ## Camera sensors
 

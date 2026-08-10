@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     SPDX-FileCopyrightText: 2026 The LineageOS Project
+     SPDX-License-Identifier: Apache-2.0
+-->
+<!-- RECORD_AUDIO is a runtime permission, so the platform signature does not
+     grant it. -->
+<exceptions>
+    <exception package="org.lineageos.glyph">
+        <permission name="android.permission.RECORD_AUDIO" fixed="false" />
+    </exception>
+</exceptions>
