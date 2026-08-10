@@ -1,0 +1,10 @@
+# Deliberately no rules.
+#
+#   avc: denied { sys_nice } capability=23 scontext=u:r:vendor_modprobe:s0
+#        tcontext=u:r:vendor_modprobe:s0 tclass=capability
+#   avc: denied { setsched } scontext=u:r:vendor_modprobe:s0
+#        tcontext=u:r:kernel:s0 tclass=process
+#
+# modprobe raises its own scheduling priority to shorten the module-load pass.
+# Stock grants it sys_module and nothing else, and boots enforcing, so the
+# sched_setscheduler failure costs a little boot time and nothing else.

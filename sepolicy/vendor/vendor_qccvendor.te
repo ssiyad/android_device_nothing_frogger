@@ -1,0 +1,11 @@
+# Deliberately no rules.
+#
+#   avc: denied { getattr open read } path="/sys/devices/soc0/serial_number"
+#        scontext=u:r:vendor_qccvendor:s0
+#        tcontext=u:object_r:vendor_sysfs_soc_sensitive:s0 tclass=file
+#
+# qcc-vendor is Qualcomm's telemetry daemon and the node is the SoC serial. The
+# type is declared by device/qcom/sepolicy_vndr and granted to no domain at all,
+# which is the point of the name; stock does not label the node and so never
+# reaches this type. Granting it would hand a hardware identifier to a reporting
+# daemon to silence one log line.

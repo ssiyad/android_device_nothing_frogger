@@ -1,3 +1,7 @@
 # Allow libperfmgr to write CPU frequency scaling sysfs nodes
 allow hal_power_default sysfs_devices_system_cpu:file { open read write getattr };
 allow hal_power_default sysfs_devices_system_cpu:dir { open read search };
+
+# libperfmgr holds a PM QoS request open on /dev/cpu_dma_latency. QTI grants the
+# same access to its own perf HAL; here that code runs as hal_power_default.
+allow hal_power_default vendor_latency_device:chr_file rw_file_perms;

@@ -26,7 +26,12 @@
 /vendor/bin/hw/android\.hardware\.secure_element-service\.thales    u:object_r:hal_secure_element_default_exec:s0
 
 # Vibrator
-/dev/aac_richtap                                                           u:object_r:aac_richtap_device:s0
+#
+# The driver exposes two nodes and stock labels both. rt_ics reaches the haptic
+# engine through aac_richtap; ics_sfdc is labelled so that nothing hits the
+# generic device type if it is opened.
+/dev/aac_richtap    u:object_r:aac_richtap_device:s0
+/dev/ics_sfdc       u:object_r:aac_richtap_device:s0
 
 # Wakeup
 /sys/devices/platform/hypervisor/hypervisor:qcom,resource-manager-rpc@[0-9a-f]+/wakeup(/.*)?    u:object_r:sysfs_wakeup:s0

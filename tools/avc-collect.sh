@@ -58,7 +58,13 @@ while true; do
     # deleting property sandboxing to quieten a log. Never do that.
     #
     # Left uncounted they were 83% of the set and buried everything real.
-    /avc: *denied/ && (/__properties__/ || /tcontext=u:object_r:[a-z0-9_]*_prop:/) {
+    # Match on the context file being named, not on the type name. QTI ships
+    # property types that do not end in _prop -- vendor_confqmaa,
+    # vendor_wifi_version, vendor_ctl_port-bridge_prop -- and a suffix test
+    # lets those through. Denials logged without a path= still carry
+    # name="u:object_r:<type>:s0", which nothing but a property file has.
+    /avc: *denied/ && (/__properties__/ || /name="u:object_r:[^"]*"/ ||
+                       /tcontext=u:object_r:[a-z0-9_]*_prop:/) {
         propcount++
         if (propcount % 500 == 0) {
             print "  [" propcount " property-file denials suppressed]" >> LOG
