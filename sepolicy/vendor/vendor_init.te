@@ -1,2 +1,6 @@
 set_prop(vendor_init, vendor_qms_prop)
 set_prop(vendor_init, vendor_ssr_prop)
+
+# init stats the haptic node every boot. Granting the stat costs nothing next to
+# a vibrator that fails once enforcing for a reason nobody would look for here.
+allow vendor_init aac_richtap_device:chr_file getattr;

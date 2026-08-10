@@ -36,6 +36,34 @@ for a collection run and remove it afterwards: the recompiled policy carries no
 Magisk types, so leaving it in place wipes the domain Magisk patches in at boot
 and leaves `magiskd` and `su` as `u:object_r:unlabeled:s0`.
 
+Three things follow from that, and each one costs a boot to rediscover:
+
+- **`service.d` scripts do not run.** init refuses to start a service whose
+  `seclabel` no longer resolves, so Magisk's `late_start` service mode never
+  happens. `tools/01-avc-collect.sh` starts the collector from `post-fs-data.d`
+  instead, ordered after the policy script.
+- **Every second boot is a safe-mode boot.** `late_start` is also where Magisk
+  reaches boot-complete, so its bootloop protection never clears and the next
+  boot comes up with no modules, no `post-fs-data.d` and no policy strip.
+  Expect collections to alternate, and check `/cache/magisk.log` for
+  `Safe mode triggered` before trusting an empty log.
+- **`su` leaves `PATH` on those boots.** `/debug_ramdisk/su` still works.
+
+The script also grows the log buffers to 16 MiB before loading the policy,
+because the stripped policy is what produces the flood: the default 256 KiB
+wraps within seconds, and the collector cannot start until `sys.boot_completed`.
+`persist.logd.size` cannot do this — logd sizes its buffers long before `/data`
+is mounted. Confirm a collection actually reached the start of the boot rather
+than assuming it:
+
+```sh
+grep -o 'audit(0.0:[0-9]*)' /data/adb/avc/denials.log |
+    sed 's/[^0-9.]//g;s/^0.0//' | sort -n | head -1
+```
+
+Audit serials start at 1 each boot. A minimum in the thousands means the buffer
+wrapped and the early-boot window is gone.
+
 ## Collector
 
 `tools/avc-collect.sh` gathers denials continuously, because logcat rotates in
@@ -43,7 +71,7 @@ minutes and one-shot captures miss whatever was not running at the time.
 
 | Path | Contents |
 |---|---|
-| `/data/adb/avc/collect.sh` | the collector, started from `/data/adb/service.d` |
+| `/data/adb/avc/collect.sh` | the collector |
 | `/data/adb/avc/denials.log` | unique full lines |
 | `/data/adb/avc/seen.keys` | normalised keys; dedup survives reboots |
 | `/data/adb/avc/archive/` | logs from earlier builds |

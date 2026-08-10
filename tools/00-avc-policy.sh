@@ -8,7 +8,16 @@
 #
 # Magisk patches the live policy at boot to add its own domain. The policy
 # recompiled here comes from the shipped CIL and has no Magisk types, so loading
-# it leaves magiskd and su as u:object_r:unlabeled:s0.
+# it leaves magiskd and su as u:object_r:unlabeled:s0. Two consequences follow,
+# and both look like something else:
+#
+#   - init refuses to start a service whose seclabel no longer resolves, so
+#     Magisk's late_start service mode never runs. service.d scripts do not
+#     execute; use post-fs-data.d.
+#   - late_start is also where Magisk reaches boot-complete, so its bootloop
+#     protection never clears and the NEXT boot comes up in safe mode with no
+#     modules, no post-fs-data.d and no su on PATH. Collections alternate with
+#     safe-mode boots; /debug_ramdisk/su still works on those.
 #
 # Recompiling from /system, /vendor, /product and /system_ext rather than
 # loading a saved binary keeps this tracking whatever the ROM ships; a stale
@@ -22,6 +31,20 @@ OUT=/data/adb/avc/policy/pol.nodontaudit
 mkdir -p /data/adb/avc/policy
 
 log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$LOG"; }
+
+# Grow the log buffers before the policy goes in, because the stripped policy
+# is what produces the flood. The default 256 KiB per buffer wraps within
+# seconds of the load and the collector, which cannot start until logd and
+# sys.boot_completed are up, then replays a buffer whose oldest entry is already
+# ten thousand audits into the boot.
+#
+# persist.logd.size cannot do this: logd sizes its buffers at startup, long
+# before /data is mounted and the persistent properties exist. Resizing a
+# running logd is the only thing that works this early.
+#
+# Under timeout because post-fs-data blocks the boot: anything that stalls here
+# takes Magisk's whole post-fs-data stage with it.
+/system/bin/timeout 5 /system/bin/logcat -b all -G 16M >/dev/null 2>&1
 
 # Mapping version comes from the vendor partition. NOT from ro.board.api_level:
 # that reads 34 while the real value is 202504, and the wrong one fails with
