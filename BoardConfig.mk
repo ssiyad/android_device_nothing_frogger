@@ -123,7 +123,6 @@ BOARD_BOOTCONFIG := \
     androidboot.hardware=qcom \
     androidboot.load_modules_parallel=true \
     androidboot.memcg=1 \
-    androidboot.selinux=permissive \
     androidboot.usbcontroller=a600000.dwc3
 
 BOARD_KERNEL_BASE := 0x00000000
@@ -245,8 +244,10 @@ TARGET_USERIMAGES_USE_F2FS := true
 
 # SELinux
 #
-# Off, so neverallow violations fail the build. Independent of the runtime mode,
-# which androidboot.selinux above controls.
+# Enforcing: there is no androidboot.selinux in BOARD_BOOTCONFIG above, which is
+# what a permissive build overrides it with.
+#
+# Off, so neverallow violations fail the build. Independent of the runtime mode.
 SELINUX_IGNORE_NEVERALLOWS := false
 
 include hardware/nothing/config.mk

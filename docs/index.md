@@ -12,7 +12,7 @@ Status and blockers live here; task files describe only the work.
 |---|---|---|
 | [Collect denials](tasks/selinux-denial-collection.md) | open | — |
 | [Write missing allow rules](tasks/selinux-allow-rules.md) | parked | nothing publishes the services involved |
-| [Switch to enforcing](tasks/selinux-enforcing.md) | open | — |
+| [Switch to enforcing](tasks/selinux-enforcing.md) | needs a device check | — |
 
 ### Audio
 
