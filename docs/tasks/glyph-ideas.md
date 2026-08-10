@@ -23,7 +23,6 @@ Diluting it costs more than any use of it gains.
 
 | Indicator | Signal | Notes |
 |---|---|---|
-| Battery level | `BatteryManager` | Six segments over a vertical strip is the mapping the hardware asks for. Stock read the same thing: the `glyph_app` domain already grants `vendor_sysfs_battery_supply`. |
 | Charge rate | `current_now` | Encode watts in the animation speed. Spots a weak charger or a bad cable from across the room, which no other surface reports at a glance. |
 | Priority senders | `Ranking.getChannel().isImportantConversation()`, `Ranking.matchesInterruptionFilter()` | Both are configured through stock UI, so this needs no settings surface of its own. |
 | Self-timer countdown | camera app | The strip faces the subject, so they can see the count rather than guessing. |
@@ -41,6 +40,5 @@ screen is against the table and the sensor cannot be reached. The proximity
 sensor faces the same wrong way, and SystemUI gates the tap on it anyway.
 
 Every gesture sensor on this device points at the face that is hidden whenever
-the strip is visible. Detecting the flip itself is the way in: showing status
-for a few seconds as the phone is set down needs no gesture and arrives at the
-moment the information is wanted.
+the strip is visible. Detecting the flip is what replaces it, and the vendor
+`screen_upward` sensor reports that directly.

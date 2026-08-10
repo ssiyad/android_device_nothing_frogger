@@ -10,6 +10,7 @@ three signals. None of it has run on the device yet.
 | Timer | The white segments fill from the bottom as a clock-app timer runs out, and freeze while it is paused. |
 | Progress | A download or other determinate progress notification fills the segments, and yields to a timer. |
 | Music | The column rises and falls with how loud the output mix is, and reads at a glance. |
+| Face-down | Setting the phone down on its face shows the charge level for three seconds, over anything else, and hands the strip back after. |
 
 Recording is confirmed: the red LED blinks while the camera app records with
 audio. So are the timer bar, the release back to stand-by, and the `glyph_app`
@@ -26,6 +27,16 @@ output from wherever `USAGE_MEDIA` currently routes, so the visualiser should
 follow an A2DP route, but it prefers a compressed-offload output and the effect
 forces such a stream back to PCM. Check that it still reacts, and watch what it
 costs.
+
+## What the logs should settle
+
+`screen_upward` and `pocket_mode` are Nothing sensors with no source in the
+tree, and which value each reports for which state is undocumented. Both are
+logged at every change under the `Glyph` tag. Flip the phone and pocket it once
+with `logcat -s Glyph` running, and both polarities are settled.
+
+The accelerometer sample exists to avoid needing the first of those. Once the
+pocket polarity is known, the gate can be tightened without guessing.
 
 ## Known gaps
 

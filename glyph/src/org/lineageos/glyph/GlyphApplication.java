@@ -15,6 +15,7 @@ public final class GlyphApplication extends Application {
     private RecordingIndicator mRecordingIndicator;
     private MusicVisualizer mMusicVisualizer;
     private NotificationIndicator mNotificationIndicator;
+    private FaceDownStatus mFaceDownStatus;
 
     @Override
     public void onCreate() {
@@ -31,5 +32,8 @@ public final class GlyphApplication extends Application {
 
         mNotificationIndicator = new NotificationIndicator(this);
         mNotificationIndicator.register();
+
+        mFaceDownStatus = new FaceDownStatus(this, handler);
+        mFaceDownStatus.register();
     }
 }
