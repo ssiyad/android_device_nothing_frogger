@@ -20,6 +20,27 @@ a `CONFIG_ARM64_4K_PAGES` kernel, and makes `host_init_verifier` fatal on stock
 init scripts that declare no user, such as `vendor.nicmd`. Stock reporting 36 is
 not a reason to claim it.
 
+## Privileged permissions are a boot requirement, not a grant
+
+A package in `priv-app` that requests a permission at `signature|privileged`
+must appear in a `etc/permissions` allowlist, or
+`PermissionManagerService.onSystemReady()` throws and takes `system_server` with
+it. The device then loops on the boot logo, and the only clue is one line in the
+crash buffer naming the package and permission.
+
+**Being platform-signed does not exempt it.** Signing decides whether the
+permission can be granted; the allowlist is a separate consistency check over
+what a privileged package is allowed to ask for, and it fires either way. This
+cost a boot to learn: `SCHEDULE_EXACT_ALARM` looks ordinary, is
+`signature|privileged|appop`, and was not needed at all — an app running as
+`android.uid.system` is exempt from the exact-alarm check through
+`UserHandle.isCore`.
+
+So the cheapest rule is to check `protectionLevel` in
+`frameworks/base/core/res/AndroidManifest.xml` before adding any permission to a
+privileged package, and to prefer dropping a privileged permission over
+allowlisting one that the system uid already makes unnecessary.
+
 ## SELinux
 
 The runtime mode is bootconfig, and a permissive build is one that *adds*
