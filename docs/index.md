@@ -32,6 +32,7 @@ Status and blockers live here; task files describe only the work.
 | Task | Status | Blocked by |
 |---|---|---|
 | [Verify the Glyph indicators](tasks/glyph-indicators.md) | open | — |
+| [Further Glyph indicators](tasks/glyph-ideas.md) | open | — |
 | [Re-enable DeviceExtras](tasks/device-extras.md) | open | — |
 | [Evaluate vendor property groups](tasks/vendor-properties.md) | open | — |
 | [Express deferred devicetree items as overrides](tasks/devicetree-overrides.md) | open | — |

@@ -7,13 +7,26 @@ three signals. None of it has run on the device yet.
 
 | Indicator | Expected |
 |---|---|
-| Recording | The red LED blinks while any camera app records video with audio. |
-| Timer | The white segments drain from the top as a clock-app timer counts down, and freeze while it is paused. |
-| Music | The white segments track the output mix while media plays, bass at the bottom. |
+| Timer | The white segments fill from the bottom as a clock-app timer runs out, and freeze while it is paused. |
+| Progress | A download or other determinate progress notification fills the segments, and yields to a timer. |
+| Music | The column rises and falls with how loud the output mix is, and reads at a glance. |
+| Sound flash | The whole strip blinks once on a touch or notification sound, and what was underneath comes back. |
 
-Also confirm the strip returns to stand-by when nothing is active, that no
-denials appear against `glyph_app`, and that notification access is granted
-without a visit to Settings.
+Recording is confirmed: the red LED blinks while the camera app records with
+audio. So are the timer bar, the release back to stand-by, and the `glyph_app`
+domain running clean with no denials.
+
+A spectrum across the six segments was tried first and read as undifferentiated:
+six brightnesses cannot be ranked by eye, and music's energy sits so low that
+the bass segments pinned while the rest stayed dark. Loudness as the height of
+the column replaces it, scaled against a decaying peak so quiet material still
+uses the whole strip, with the topmost lit segment carrying the fraction.
+
+Bluetooth is worth a pass of its own. `selectOutputForMusicEffects()` picks the
+output from wherever `USAGE_MEDIA` currently routes, so the visualiser should
+follow an A2DP route, but it prefers a compressed-offload output and the effect
+forces such a stream back to PCM. Check that it still reacts, and watch what it
+costs.
 
 ## Known gaps
 
@@ -26,6 +39,14 @@ without a visit to Settings.
   paused at once carries a different label and is read as running.
 
 ## Rejected
+
+**A declared notification listener approved by `config_defaultListenerAccessPackages`.**
+That configuration seeds the approved list only when a profile is created, so a
+declared listener is inert on any device that was not wiped — it binds on a
+clean flash and never again. Registering as a system service instead needs no
+approval, survives an existing profile, and keeps the component out of the
+user's notification-access list, where it would otherwise invite being switched
+off.
 
 **`ParanoidGlyphPhone4a`.** It does not exist upstream, and building a target
 for it would have meant a Glyph app with its own settings for something the

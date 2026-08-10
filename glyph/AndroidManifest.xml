@@ -19,15 +19,5 @@
         android:defaultToDeviceProtectedStorage="true"
         android:directBootAware="true"
         android:label="Glyph"
-        android:persistent="true">
-
-        <service
-            android:name=".TimerListener"
-            android:exported="true"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
-        </service>
-    </application>
+        android:persistent="true" />
 </manifest>

@@ -289,10 +289,6 @@
     <!-- Shutdown if the battery temperature exceeds (this value * 0.1) Celsius. -->
     <integer name="config_shutdownBatteryTemperature">600</integer>
 
-    <!-- Colon-separated packages whose notification listeners are approved without the user
-         having to grant notification access. -->
-    <string name="config_defaultListenerAccessPackages" translatable="false">org.lineageos.glyph</string>
-
     <!-- Type of the tap sensor. Empty if tap is not supported. -->
     <string name="config_dozeTapSensorType" translatable="false">org.lineageos.sensor.single_tap</string>
 
