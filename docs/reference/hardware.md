@@ -58,6 +58,22 @@ udfpsBounds=Rect(509, 2382 - 715, 2588)
 Nothing does not use AOSP's `config_udfpsProps`. The SystemUI service dump is the
 only source without root.
 
+## Orientation sensors
+
+Nothing ships `android.sensor.screen_upward` (65538) and
+`android.sensor.pocket_mode` (65539), both on-change and wake-up, computed in
+the sensor hub and needing no permission. Nothing in this tree consumed them
+before, so neither is documented anywhere.
+
+**`screen_upward` is not a boolean.** It reports 0, 1 and 2; setting the phone
+down on its face and lifting it again alternates **0 and 2**, while 1 appears
+once at registration. Reading it as up-or-down therefore gets the common case
+wrong in a way that still looks like the sensor working, which is why the flip
+is treated as a trigger and gravity decides the direction.
+
+`pocket_mode` reports two fields, `5.00, 89.00` at rest, so it is not a boolean
+either and its meaning is still unread.
+
 ## Touchscreen
 
 Focaltech, at
@@ -93,7 +109,11 @@ a recording indicator and a progress bar share the strip without arbitration.
 Seven values drive all seven at once.
 
 `frame_brightness` also accepts 36, 20, 11 and 5 values, for the other panels the
-driver serves. On Frogger only the 6 and 7 forms map to LEDs that exist.
+driver serves. **Driving all 36 changes nothing beyond the six squares and red**,
+so those seven are the whole of what is addressable. Nothing describes each
+square as holding nine individually controllable mini-LEDs; whatever that means
+for the panel, they are ganged behind one channel here, and six steps plus a
+fractional top segment is the real resolution.
 
 The chip carries three pattern engines that breathe on their own once started,
 which is the only way to blink without waking the machine. Neither is reachable

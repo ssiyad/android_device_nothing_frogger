@@ -35,7 +35,7 @@ final class FaceDownStatus implements SensorEventListener {
     private static final String SCREEN_UPWARD = "android.sensor.screen_upward";
     private static final String POCKET_MODE = "android.sensor.pocket_mode";
 
-    private static final int BRIGHTNESS = 140;
+    private static final int BRIGHTNESS = 80;
     private static final long DURATION_MS = 3000;
 
     /** Gravity along z, in m/s². Near -9.8 is flat on its face. */

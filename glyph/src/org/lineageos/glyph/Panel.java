@@ -38,7 +38,8 @@ final class Panel {
     static final int OWNER_MUSIC = 0;
     static final int OWNER_NOTIFICATION = 1;
     static final int OWNER_STATUS = 2;
-    private static final int OWNERS = 3;
+    static final int OWNER_RINGING = 3;
+    private static final int OWNERS = 4;
 
     /**
      * Red carries two meanings, told apart by rhythm: a steady glow for

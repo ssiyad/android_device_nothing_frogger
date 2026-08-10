@@ -17,7 +17,7 @@ import java.util.List;
  * source. Video recorded with audio muted does not register.
  */
 final class RecordingIndicator extends AudioManager.AudioRecordingCallback {
-    private static final int BRIGHTNESS = 160;
+    private static final int BRIGHTNESS = 110;
     private static final long BLINK_MS = 700;
 
     private final Handler mHandler;

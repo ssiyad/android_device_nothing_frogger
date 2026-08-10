@@ -9,6 +9,7 @@ import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.AudioPlaybackConfiguration;
 import android.media.audiofx.Visualizer;
+import android.os.Handler;
 import android.util.Log;
 
 import java.util.List;
@@ -22,6 +23,9 @@ import java.util.List;
  * The topmost lit segment carries the fraction, which gives the column a
  * smoothness six steps cannot.
  *
+ * A ringtone drives the same meter, so an incoming call arrives as the shape of
+ * whatever is ringing rather than as a generic blink, and it outranks music.
+ *
  * The effect is attached only while something is actually playing, because an
  * attached effect chain costs whether or not the capture callback finds
  * anything.
@@ -31,25 +35,47 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
 
     private static final int CAPTURE_SIZE = 128;
 
-    private static final int BRIGHTNESS = 200;
+    private static final int BRIGHTNESS = 110;
 
     /**
-     * Loudness is scaled against a decaying peak, so quiet material uses the
-     * whole column instead of a corner of it.
+     * Loudness maps to height on a fixed decibel scale rather than against a
+     * running peak. A peak that adapts has to start somewhere, and starting at
+     * the first sample it sees makes the opening frame full scale — which turns
+     * every short sound into a flash of the whole strip.
      */
-    private static final double REFERENCE_DECAY = 0.995;
+    private static final double FLOOR_DB = -28;
+
+    /** Loud enough to fill the column. Ordinary music sits well below it. */
+    private static final double CEILING_DB = -4;
 
     /** Root-mean-square below this is silence rather than quiet. */
     private static final double SILENCE = 0.005;
+
+    /**
+     * How long a player has to stay active before the strip reacts. UI clicks
+     * go out as media on this device — Spotify sonifies through a SoundPool
+     * tagged USAGE_MEDIA — and the player type that would tell them apart is
+     * anonymised away, so duration is what separates a tap from a track.
+     */
+    private static final long SETTLE_MS = 600;
 
     /** Fraction of the old height retained as the meter falls. */
     private static final double RELEASE = 0.85;
 
     private final int[] mLevels = new int[Panel.SEGMENTS];
 
+    private final Handler mHandler;
+
     private Visualizer mVisualizer;
-    private double mReference;
+    private boolean mSettling;
     private double mHeight;
+    private int mOwner = Panel.OWNER_MUSIC;
+
+    private final Runnable mAttach = this::attach;
+
+    MusicVisualizer(Handler handler) {
+        mHandler = handler;
+    }
 
     private final Visualizer.OnDataCaptureListener mCaptureListener =
             new Visualizer.OnDataCaptureListener() {
@@ -63,10 +89,10 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
             }
             final double rms = Math.sqrt(sum / waveform.length);
 
-            mReference = Math.max(rms, mReference * REFERENCE_DECAY);
-
-            final double height = rms < SILENCE || mReference < SILENCE
-                    ? 0 : Panel.SEGMENTS * Math.min(1, rms / mReference);
+            final double decibels = 20 * Math.log10(rms);
+            final double scaled = (decibels - FLOOR_DB) / (CEILING_DB - FLOOR_DB);
+            final double height = rms < SILENCE ? 0
+                    : Panel.SEGMENTS * Math.min(1, Math.max(0, scaled));
 
             // Rise with the music, fall behind it.
             mHeight = height > mHeight ? height : mHeight * RELEASE + height * (1 - RELEASE);
@@ -77,7 +103,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
                         : fill <= 0 ? 0 : (int) (BRIGHTNESS * fill);
             }
 
-            Panel.get().setWhite(Panel.OWNER_MUSIC, mLevels);
+            Panel.get().setWhite(mOwner, mLevels);
         }
 
         @Override
@@ -89,17 +115,38 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
     public void onPlaybackConfigChanged(List<AudioPlaybackConfiguration> configs) {
         // Unprivileged callers are only handed configurations that are active,
         // so presence is the whole of the test.
-        boolean playing = false;
+        boolean media = false;
+        boolean ringing = false;
         for (AudioPlaybackConfiguration config : configs) {
-            if (config.getAudioAttributes().getUsage() == AudioAttributes.USAGE_MEDIA) {
-                playing = true;
-                break;
+            final int usage = config.getAudioAttributes().getUsage();
+            if (usage == AudioAttributes.USAGE_MEDIA) {
+                media = true;
+            } else if (usage == AudioAttributes.USAGE_NOTIFICATION_RINGTONE) {
+                ringing = true;
             }
         }
 
-        if (playing) {
+        final int owner = ringing ? Panel.OWNER_RINGING : Panel.OWNER_MUSIC;
+        if (owner != mOwner) {
+            Panel.get().releaseWhite(mOwner);
+            mOwner = owner;
+            mHeight = 0;
+        }
+
+        if (ringing) {
+            // A ring is worth showing at once, and nothing sonifies a ringtone
+            // by accident, so it does not wait to settle.
+            mSettling = false;
+            mHandler.removeCallbacks(mAttach);
             attach();
+        } else if (media) {
+            if (!mSettling) {
+                mSettling = true;
+                mHandler.postDelayed(mAttach, SETTLE_MS);
+            }
         } else {
+            mSettling = false;
+            mHandler.removeCallbacks(mAttach);
             detach();
         }
     }
@@ -126,7 +173,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
             return;
         }
         release();
-        Panel.get().releaseWhite(Panel.OWNER_MUSIC);
+        Panel.get().releaseWhite(mOwner);
     }
 
     private void release() {
@@ -136,7 +183,6 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
         mVisualizer.setEnabled(false);
         mVisualizer.release();
         mVisualizer = null;
-        mReference = 0;
         mHeight = 0;
     }
 }

@@ -36,10 +36,10 @@ import android.util.Log;
 public final class NotificationIndicator extends NotificationListenerService {
     private static final String TAG = "Glyph";
 
-    private static final int BRIGHTNESS = 120;
+    private static final int BRIGHTNESS = 70;
 
     /** Dim enough to sit there for hours without becoming the room's light. */
-    private static final int WAITING_BRIGHTNESS = 30;
+    private static final int WAITING_BRIGHTNESS = 20;
 
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private final int[] mLevels = new int[Panel.SEGMENTS];
