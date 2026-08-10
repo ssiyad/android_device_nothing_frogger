@@ -11,7 +11,7 @@ three signals. None of it has run on the device yet.
 | Progress | A download or other determinate progress notification fills the segments, and yields to a timer. |
 | Music | The column rises and falls with how loud the output mix is, and reads at a glance. |
 | Face-down | Setting the phone down on its face shows the charge level for three seconds, over anything else, and hands the strip back after. |
-| Waiting | A missed call, a message, a priority conversation or a high-importance notification leaves red glowing dim until it is dealt with. |
+| Waiting | A missed call, a priority conversation, or a channel the user themselves set to alert leaves red glowing dim until it is dealt with. |
 | Ringing | An incoming call drives the meter from the ringtone itself, over everything except the face-down status. |
 
 Recording is confirmed: the red LED blinks while the camera app records with
@@ -51,6 +51,20 @@ pocket polarity is known, the gate can be tightened without guessing.
   paused at once carries a different label and is read as running.
 
 ## Rejected
+
+**Channel importance on its own as a measure of importance.** It reads as the
+obvious app-independent floor and is worthless: 172 of the 519 channels on this
+phone sit at high or above, because high is simply what a channel that alerts
+costs, so the test matched everything that made a sound. `hasUserSetImportance`
+is the field that separates a decision from a default, and it holds for seven.
+
+Conversations cannot carry the test alone either. WhatsApp posts every ordinary
+chat to a shared `individual_chat_defaults` channel and creates no conversation
+channels at all, so a rule built on them is inert on the phone it has to work
+on. Per-chat channels appear only once custom notifications are turned on for
+that chat, and the importance still has to be set from Android's settings
+rather than in the app, since an app choosing its own channel's importance does
+not set the user-locked bit.
 
 **Blinking the whole strip for short sounds.** Touch feedback, the lock and
 unlock sounds and the charging chime all carry

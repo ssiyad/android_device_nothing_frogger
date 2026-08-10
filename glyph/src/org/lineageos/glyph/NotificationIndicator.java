@@ -153,9 +153,9 @@ public final class NotificationIndicator extends NotificationListenerService {
      * Glows red while anything worth turning the phone over for is waiting.
      *
      * What counts is decided by settings the user already keeps elsewhere: a
-     * conversation marked priority, a channel raised to high importance, and
-     * whatever Do Not Disturb is currently letting through. Nothing here has a
-     * setting of its own.
+     * conversation marked priority, a channel the user themselves set to alert,
+     * a call already missed, and whatever Do Not Disturb is letting through.
+     * Nothing here has a setting of its own.
      */
     private void updateWaiting(StatusBarNotification[] active) {
         final RankingMap rankings = getCurrentRanking();
@@ -194,12 +194,16 @@ public final class NotificationIndicator extends NotificationListenerService {
         }
 
         final NotificationChannel channel = ranking.getChannel();
-        if (channel != null && (channel.isImportantConversation()
-                || channel.getImportance() >= NotificationManager.IMPORTANCE_HIGH)) {
-            return true;
+        if (channel == null) {
+            return false;
         }
 
-        return Notification.CATEGORY_MESSAGE.equals(notification.category);
+        // The importance an app picked says nothing about what matters: a third
+        // of the channels on this phone ship at high, because that is simply
+        // what alerting costs. Only the user having chosen it is a statement.
+        return channel.isImportantConversation()
+                || (channel.hasUserSetImportance()
+                        && channel.getImportance() >= NotificationManager.IMPORTANCE_HIGH);
     }
 
     /** Returns -1 unless the notification carries determinate progress. */
