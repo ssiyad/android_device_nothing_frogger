@@ -35,7 +35,7 @@ group rather than to a single large change.
 |---|---|
 | `vendor.display.enable_rounded_corner=1` | Read by the display HAL (`include/display_properties.h`). Stock pairs `0` with `enable_ic_hw_roundedcorner`, which this HAL does not read, so matching stock removes rounded corners with no hardware fallback |
 | `ro.vendor.build.version.sdk=36` | Vendor is legitimately built against an older API under Treble |
-| `ro.product.first_api_level=35` | See [clear bring-up switches](release-switches.md) |
+| `ro.product.first_api_level=35` | See [build-config.md](../reference/build-config.md) |
 
 `ro.bionic.cpu_variant` and `dalvik.vm.isa.arm64.variant` are `cortex-a76` where
 stock uses `kryo300`. These affect code generation and are worth checking against

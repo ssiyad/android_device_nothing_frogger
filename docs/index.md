@@ -12,7 +12,6 @@ Status and blockers live here; task files describe only the work.
 |---|---|---|
 | [Collect denials](tasks/selinux-denial-collection.md) | open | — |
 | [Write missing allow rules](tasks/selinux-allow-rules.md) | parked | nothing publishes the services involved |
-| [Switch to enforcing](tasks/selinux-enforcing.md) | needs a device check | — |
 
 ### Audio
 
@@ -27,7 +26,6 @@ Status and blockers live here; task files describe only the work.
 | [Version the extracted vendor blob tree](tasks/vendor-blob-tree.md) | open | — |
 | [Sign vbmeta and decide on re-locking](tasks/avb-verified-boot.md) | open | — |
 | [Make GApps survive a ROM flash](tasks/gapps-persistence.md) | open | — |
-| [Clear bring-up switches before release](tasks/release-switches.md) | blocked | switch SELinux to enforcing |
 
 ### Features and cleanup
 
@@ -54,6 +52,7 @@ Status and blockers live here; task files describe only the work.
 | [devicetree.md](reference/devicetree.md) | Overlay model, board-id matching, verification |
 | [camera-diagnostics.md](reference/camera-diagnostics.md) | Reading camera failures by layer, and the errors a healthy session logs |
 | [vendor-blobs.md](reference/vendor-blobs.md) | Blob list method, fixup scoping, inventory |
+| [build-config.md](reference/build-config.md) | API levels, SELinux mode, switches that must not be tidied away |
 | [repositories.md](reference/repositories.md) | Forks, branches, signing keys |
 
 ## Data

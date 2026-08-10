@@ -1,7 +1,26 @@
 # SELinux
 
-How policy for this device is decided: where a rule belongs, and which denials
-are meant to stay denied.
+The device runs enforcing. How policy is decided: where a rule belongs, and
+which denials are meant to stay denied.
+
+## Checking the mode still holds
+
+```sh
+getenforce
+cat /proc/bootconfig | grep selinux     # nothing: enforcing
+ps -A -Z -o LABEL,NAME | grep unlabeled # nothing
+```
+
+Every process should sit in its own domain. A subsystem left in `zygote` points
+at certificate matching in `plat_mac_permissions.xml` rather than a missing
+`allow`. Any `unlabeled` process means something reloaded a policy recompiled
+from the shipped CIL and stripped Magisk's types out — see
+[collect denials](../tasks/selinux-denial-collection.md), and expect root to
+break rather than merely look odd, now that nothing runs permissive.
+
+Denials that matter carry `permissive=0`. Filtering on that separates real
+blocks from the domains qcom declares permissive individually, such as
+`qti-testscripts` on userdebug.
 
 ## Where a label comes from
 
