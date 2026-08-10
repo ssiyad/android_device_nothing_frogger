@@ -95,6 +95,15 @@ Seven values drive all seven at once.
 `frame_brightness` also accepts 36, 20, 11 and 5 values, for the other panels the
 driver serves. On Frogger only the 6 and 7 forms map to LEDs that exist.
 
+The chip carries three pattern engines that breathe on their own once started,
+which is the only way to blink without waking the machine. Neither is reachable
+from userspace here. `vip_notification` runs one canned sequence whose timings
+and channels the driver hardcodes — LEDs 0, 12 and 24, staggered — with no way
+to pass a channel mask, and `genfs_contexts` labels that node plain `sysfs`
+rather than `sysfs_leds`, so no app domain can write it. Driving the pattern
+registers directly needs `reg`, which stays `root:root`. Anything blinking on a
+chosen channel therefore costs a wake-up per transition, or a driver change.
+
 ## Camera sensors
 
 | Slot | CCI | csiphy | Part | Peripherals | Focus | PDAF |

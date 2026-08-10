@@ -7,6 +7,8 @@ package org.lineageos.glyph;
 
 import android.app.AlarmManager;
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.os.Handler;
@@ -35,6 +37,9 @@ public final class NotificationIndicator extends NotificationListenerService {
     private static final String TAG = "Glyph";
 
     private static final int BRIGHTNESS = 120;
+
+    /** Dim enough to sit there for hours without becoming the room's light. */
+    private static final int WAITING_BRIGHTNESS = 30;
 
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private final int[] mLevels = new int[Panel.SEGMENTS];
@@ -84,9 +89,12 @@ public final class NotificationIndicator extends NotificationListenerService {
 
         final StatusBarNotification[] active = getActiveNotifications();
         if (active == null) {
+            Panel.get().releaseRed(Panel.RED_WAITING);
             clear();
             return;
         }
+
+        updateWaiting(active);
 
         StatusBarNotification progress = null;
         for (StatusBarNotification sbn : active) {
@@ -139,6 +147,59 @@ public final class NotificationIndicator extends NotificationListenerService {
         final long step = mTotal * lit / (Panel.SEGMENTS - 1);
         mAlarmManager.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP,
                 reading.base - (mTotal - step), TAG, mTick, mHandler);
+    }
+
+    /**
+     * Glows red while anything worth turning the phone over for is waiting.
+     *
+     * What counts is decided by settings the user already keeps elsewhere: a
+     * conversation marked priority, a channel raised to high importance, and
+     * whatever Do Not Disturb is currently letting through. Nothing here has a
+     * setting of its own.
+     */
+    private void updateWaiting(StatusBarNotification[] active) {
+        final RankingMap rankings = getCurrentRanking();
+        for (StatusBarNotification sbn : active) {
+            if (isImportant(sbn, rankings)) {
+                Panel.get().setRed(Panel.RED_WAITING, WAITING_BRIGHTNESS);
+                return;
+            }
+        }
+        Panel.get().releaseRed(Panel.RED_WAITING);
+    }
+
+    private boolean isImportant(StatusBarNotification sbn, RankingMap rankings) {
+        final Notification notification = sbn.getNotification();
+
+        // Something already on screen is not waiting to be noticed, and a
+        // group summary only repeats what its children say.
+        if ((notification.flags
+                & (Notification.FLAG_ONGOING_EVENT | Notification.FLAG_GROUP_SUMMARY)) != 0) {
+            return false;
+        }
+
+        // A call already missed stands on its own, whatever the filter says.
+        if (Notification.CATEGORY_MISSED_CALL.equals(notification.category)) {
+            return true;
+        }
+
+        final Ranking ranking = new Ranking();
+        if (rankings == null || !rankings.getRanking(sbn.getKey(), ranking)) {
+            return false;
+        }
+
+        if (getCurrentInterruptionFilter() != INTERRUPTION_FILTER_ALL
+                && !ranking.matchesInterruptionFilter()) {
+            return false;
+        }
+
+        final NotificationChannel channel = ranking.getChannel();
+        if (channel != null && (channel.isImportantConversation()
+                || channel.getImportance() >= NotificationManager.IMPORTANCE_HIGH)) {
+            return true;
+        }
+
+        return Notification.CATEGORY_MESSAGE.equals(notification.category);
     }
 
     /** Returns -1 unless the notification carries determinate progress. */

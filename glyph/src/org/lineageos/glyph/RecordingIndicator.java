@@ -29,7 +29,7 @@ final class RecordingIndicator extends AudioManager.AudioRecordingCallback {
         @Override
         public void run() {
             mLit = !mLit;
-            Panel.get().setRed(mLit ? BRIGHTNESS : 0);
+            Panel.get().setRed(Panel.RED_RECORDING, mLit ? BRIGHTNESS : 0);
             mHandler.postDelayed(this, BLINK_MS);
         }
     };
@@ -58,7 +58,7 @@ final class RecordingIndicator extends AudioManager.AudioRecordingCallback {
             mHandler.post(mBlink);
         } else {
             mHandler.removeCallbacks(mBlink);
-            Panel.get().setRed(0);
+            Panel.get().releaseRed(Panel.RED_RECORDING);
         }
     }
 }

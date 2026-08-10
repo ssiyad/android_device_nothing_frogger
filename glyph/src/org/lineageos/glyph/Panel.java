@@ -40,12 +40,22 @@ final class Panel {
     static final int OWNER_STATUS = 2;
     private static final int OWNERS = 3;
 
+    /**
+     * Red carries two meanings, told apart by rhythm: a steady glow for
+     * something waiting, a blink for a camera that is running. The blink wins
+     * while it lasts, because two things blinking red could not be read.
+     */
+    static final int RED_WAITING = 0;
+    static final int RED_RECORDING = 1;
+    private static final int RED_OWNERS = 2;
+
     private static final Panel sInstance = new Panel();
 
     private final int[][] mLevels = new int[OWNERS][SEGMENTS];
     private final boolean[] mHeld = new boolean[OWNERS];
+    private final int[] mReds = new int[RED_OWNERS];
+    private final boolean[] mRedHeld = new boolean[RED_OWNERS];
 
-    private int mRed;
     private int mMode = -1;
 
     private Panel() {}
@@ -66,8 +76,20 @@ final class Panel {
         apply();
     }
 
-    synchronized void setRed(int level) {
-        mRed = level;
+    /**
+     * Holds red for this owner. A blink writes zero for its dark half, which
+     * has to stay dark rather than falling through to a glow underneath, so an
+     * owner keeps red until it releases.
+     */
+    synchronized void setRed(int owner, int level) {
+        mReds[owner] = level;
+        mRedHeld[owner] = true;
+        apply();
+    }
+
+    synchronized void releaseRed(int owner) {
+        mReds[owner] = 0;
+        mRedHeld[owner] = false;
         apply();
     }
 
@@ -79,7 +101,15 @@ final class Panel {
             }
         }
 
-        boolean lit = mRed > 0;
+        int red = 0;
+        for (int owner = RED_OWNERS - 1; owner >= 0; owner--) {
+            if (mRedHeld[owner]) {
+                red = mReds[owner];
+                break;
+            }
+        }
+
+        boolean lit = red > 0;
         final StringBuilder frame = new StringBuilder();
         for (int segment = 0; segment < SEGMENTS; segment++) {
             final int level = white == null ? 0 : white[segment];
@@ -93,7 +123,7 @@ final class Panel {
         }
 
         write("frame_brightness", frame.toString().trim());
-        write("single_brightness", RED_REGISTER + " " + mRed);
+        write("single_brightness", RED_REGISTER + " " + red);
 
         if (!lit) {
             setMode(MODE_STANDBY);
