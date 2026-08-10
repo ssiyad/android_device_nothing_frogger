@@ -10,7 +10,6 @@ three signals. None of it has run on the device yet.
 | Timer | The white segments fill from the bottom as a clock-app timer runs out, and freeze while it is paused. |
 | Progress | A download or other determinate progress notification fills the segments, and yields to a timer. |
 | Music | The column rises and falls with how loud the output mix is, and reads at a glance. |
-| Sound flash | The whole strip blinks once on a touch or notification sound, and what was underneath comes back. |
 
 Recording is confirmed: the red LED blinks while the camera app records with
 audio. So are the timer bar, the release back to stand-by, and the `glyph_app`
@@ -39,6 +38,13 @@ costs.
   paused at once carries a different label and is read as running.
 
 ## Rejected
+
+**Blinking the whole strip for short sounds.** Touch feedback, the lock and
+unlock sounds and the charging chime all carry
+`USAGE_ASSISTANCE_SONIFICATION`, and notification tones carry
+`USAGE_NOTIFICATION`; nothing in the attributes separates a deliberate tap from
+unlocking the phone. Flashing on either is unwanted, and flashing during use is
+wasted anyway, since the strip faces away from whoever is holding it.
 
 **A declared notification listener approved by `config_defaultListenerAccessPackages`.**
 That configuration seeds the approved list only when a profile is created, so a

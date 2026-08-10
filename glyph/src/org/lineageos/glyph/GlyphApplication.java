@@ -14,7 +14,6 @@ import android.os.Looper;
 public final class GlyphApplication extends Application {
     private RecordingIndicator mRecordingIndicator;
     private MusicVisualizer mMusicVisualizer;
-    private SoundFlash mSoundFlash;
     private NotificationIndicator mNotificationIndicator;
 
     @Override
@@ -29,9 +28,6 @@ public final class GlyphApplication extends Application {
 
         mMusicVisualizer = new MusicVisualizer();
         audioManager.registerAudioPlaybackCallback(mMusicVisualizer, handler);
-
-        mSoundFlash = new SoundFlash(handler);
-        audioManager.registerAudioPlaybackCallback(mSoundFlash, handler);
 
         mNotificationIndicator = new NotificationIndicator(this);
         mNotificationIndicator.register();

@@ -37,8 +37,7 @@ final class Panel {
     /** Contenders for the six white segments, highest wins. Red has no owner. */
     static final int OWNER_MUSIC = 0;
     static final int OWNER_NOTIFICATION = 1;
-    static final int OWNER_FLASH = 2;
-    private static final int OWNERS = 3;
+    private static final int OWNERS = 2;
 
     private static final Panel sInstance = new Panel();
 
