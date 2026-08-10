@@ -19,8 +19,7 @@ Status and blockers live here; task files describe only the work.
 
 | Task | Status | Blocked by |
 |---|---|---|
-| [Capture runs ~25 dB below other handsets](tasks/capture-gain-deficit.md) | open | — |
-| [Make LVACFS follow the recording source](tasks/lvacfs-source-tracking.md) | open | — |
+| [Capture runs ~25 dB below other handsets](tasks/capture-gain-deficit.md) | parked | no stock reference |
 
 ### Build and packaging
 

@@ -10,6 +10,7 @@
 | Speaker backend | `MI2S-LPAIF-RX-PRIMARY` (PCM `00-21`) |
 | VI feedback backend | `MI2S-LPAIF-TX-PRIMARY` (PCM `00-22`), configured but unused |
 | PAL | built from source, `hardware/qcom-caf/sm8650/audio/pal` |
+| AHAL | built from source, `hardware/qcom-caf/sm8650/audio/primary-hal` |
 
 There is no WSA883x. Only the WCD9378 is on SoundWire:
 
@@ -21,22 +22,86 @@ The `vi-feedback` mixer path drives `WSA_AIF_VI Mixer WSA_SPKR_VI_2` and
 `WSA_RX1 Digital Volume`, controls for an amp this device does not have. Stock
 has the same apparent mismatch.
 
+### The source build is the same code as stock's blobs
+
+Stock ships `vendor/lib64/libar-pal.so` and
+`vendor/lib64/hw/audio.primary.volcano.so` prebuilt; both are built from source
+here, and neither is in `proprietary-files.txt`. They are not meaningfully
+different code, so swapping either for the stock blob is not a lead worth
+chasing.
+
+Comparing demangled function symbols against the LineageOS sources:
+
+| Blob | Stock-only functions |
+|---|---|
+| `libar-pal.so` | `ResourceManager::isModeInCall` |
+| `audio.primary.volcano.so` | `StreamInPrimary::LvacfsSimpleUpdateProfileID` |
+
+One each, across the whole of both libraries. The differences otherwise run the
+other way — LineageOS carries `isLvacfsEnabled`, `setLvacfsEnableParam`, the
+soc-peripheral callbacks and the secure-zone code that stock's older CAF drop
+does not.
+
+The limit of this method is worth stating: it compares which functions exist, not
+what they do. A changed constant inside a function body is invisible to it.
+
 ## LVACFS mic processing
 
 LVACFS is Nothing's Goodix mic-processing library. It selects a tuning profile by
-`DeviceId`, and those IDs are AOSP `audio_source_t` values.
+`DeviceId`, and those IDs are AOSP `audio_source_t` values. The libraries
+(`lib_lvacfs.so`, `liblvacfs_wrapper.so`) and all three `lvacfs_params` sets are
+shipped here.
 
-**The AP-side path is off, as on stock.** `record_use_ap_lvacfs` is the only key
-that sets `ResourceManager::isLvacfsEnabled`, which gates `Lvacfs::init()` and
-every per-stream call. Stock's `resourcemanager_volcano_qrd.xml` does not carry
-it; it arrived here from the Asteroids port and was removed to match stock. The
-profile the HAL picks comes from a stale `source_` on a reused stream object, so
-the profile is not the one the app asked for — see
-[tasks/lvacfs-source-tracking.md](../tasks/lvacfs-source-tracking.md). This is
-*not* why capture is quiet; that is
+**The AP-side path is off here, and stock almost certainly runs it.**
+`record_use_ap_lvacfs` is the only key that sets
+`ResourceManager::isLvacfsEnabled`, which gates `Lvacfs::init()` and every
+per-stream call. It arrived from the Asteroids port and was removed.
+
+That key is a LineageOS construction, not a stock one, so stock's
+`resourcemanager_volcano_qrd.xml` not carrying it says nothing about what stock
+does. Stock's `libar-pal.so` holds no LVACFS symbol or string whatsoever — no
+`PAL_PARAM_ID_LVACFS`, no `isLvacfsEnabled` — so its PAL could not read the key
+if it were there. Stock reaches LVACFS from the AHAL instead: `lib_lvacfs.so` and
+`liblvacfs_wrapper.so` are `NEEDED` entries of `audio.primary.volcano.so` rather
+than `dlopen`ed, and it implements more of the path than the LineageOS source
+does — `LvacfsSimpleUpdateProfileID`, `lvacfs_need_restart`,
+`lvacfs_wrapper_SetProfile`, `LvacfsAudioZoom`. The only disable path visible in
+its strings is a per-stream audio-format mismatch, and no property gates it
+(`vendor.audio.feature.audiozoom.enable=false` is in stock's `build.prop`, but
+that string does not appear in the AHAL binary).
+
+This is the one known capture-path difference from stock that has not been
+measured. What it might be worth against the capture level is weighed in
 [tasks/capture-gain-deficit.md](../tasks/capture-gain-deficit.md).
-The paragraphs below describe the config as stock ships it, and apply if that
-path is ever turned back on.
+
+### Turning the AP path back on needs a HAL fix first
+
+The LineageOS HAL picks the profile from `StreamInPrimary::source_`, which is
+assigned once in the constructor and never updated. The framework does report the
+real source on every recording start, but `in_update_sink_metadata_v7` files it
+under `btSinkMetadata`, for Bluetooth, and `SetAggregateSinkMetadata` forwards
+only that to `PAL_PARAM_ID_SET_SINK_METADATA`.
+
+That would be harmless if the stream object were rebuilt per recording. It is
+not: `adev_open_input_stream` calls `InGetStream(handle)` first and constructs
+only when the lookup misses, so a `StreamInPrimary` is reused across apps for as
+long as AudioFlinger keeps the input handle alive. Whatever source created the
+object is the profile every later app gets. Observed on one io handle across
+three consecutive recordings by two apps: every one reported source 1
+(`AUDIO_SOURCE_MIC`) and every one was handed profile 5 (`AUDIO_SOURCE_CAMCORDER`).
+The same stale value also puts PAL on the `camcorder_landscape` custom key, which
+is not in the resourcemanager and falls back to the no-custom-config entry.
+
+The cost is character, not level: `LVIMFS_Parameter_xxxx_ID5_MIC_Normal.txt` from
+the 2mic set is the camcorder tuning, meant for a device held at arm's length.
+
+Stock's `LvacfsSimpleUpdateProfileID` is exactly this fix, and is the only
+Nothing-specific function in either audio blob. Landing an equivalent means
+forking `LineageOS/android_hardware_qcom_audio-ar`, and needs the LVACFS instance
+recreated when the source changes, since the profile is bound at
+`create_instance` time.
+
+### Profile mapping
 
 Stock ships **no** `DeviceId 1` entry in the 1-mic or 2-mic configs, so a plain
 `AUDIO_SOURCE_MIC` recording matches no profile and LVACFS leaves it alone. The
@@ -48,6 +113,11 @@ intended for another source and garbles capture. Recordings from
 `AUDIO_SOURCE_MIC` are meant to get no LVACFS processing.
 `VOICE_COMMUNICATION` (7), `VOICE_RECOGNITION` (6) and `UNPROCESSED` (9) match
 genuine stock profiles.
+
+Removing the `DeviceId 1` mapping is not a way around the stale `source_` above.
+It makes `AUDIO_SOURCE_MIC` match no profile, but `source_` never arrives as 1 —
+it arrives as whatever stale value the reused stream carries, and 5 matches a
+genuine stock profile.
 
 ## Speaker protection
 

@@ -40,10 +40,10 @@ simply never receives the gain stock applies somewhere.
 
 ## Ruled out
 
-- **LVACFS.** Level is unchanged-to-lower with the AP path off. See
-  [lvacfs-source-tracking.md](lvacfs-source-tracking.md). Note that
-  `1a828a3`'s commit message claims the camcorder profile cost ~30 dB; that
-  claim is wrong and this file supersedes it.
+- **LVACFS as the attenuator.** It does not attenuate: level is
+  unchanged-to-lower with the AP path off. `1a828a3`'s commit message claims the
+  camcorder profile cost ~30 dB; that claim is wrong and this file supersedes it.
+  LVACFS is not thereby eliminated as a source of the *missing* gain — see below.
 - **Config drift.** `mixer_paths`, `audio_policy_*`, `default_volume_tables`,
   `audio_effects` and `usecaseKvManager` are byte-identical to stock;
   `resourcemanager` differs only by the two deliberate changes.
@@ -59,8 +59,13 @@ simply never receives the gain stock applies somewhere.
   `VoiceActivation_Mic … DevicePP_Tx_RAW_NLPI` hotword graph and are *more*
   frequent in playback-only windows than during capture.
 - **Missing libraries.** Only legacy HIDL audio interfaces and `libagmmixer`.
+- **Source-built PAL and AHAL.** Stock ships `libar-pal.so` and
+  `audio.primary.volcano.so` as blobs and we build both; the two are the same
+  code, one stock-only function apiece. See
+  [audio.md](../reference/audio.md). Swapping in either blob is not a route to
+  the missing gain, and the AHAL blob would want stock's PAL with it.
 
-## The open lead: single-mic topology on a two-mic capture
+## Single-mic topology on a two-mic capture
 
 PAL builds the record graph as `PCM_RECORD` + `HANDSETMIC` +
 `DEVICEPP_TX_AUDIO_FLUENCE_SMECNS` (`0xAD000002`) — **single**-mic ECNS. The
@@ -176,21 +181,34 @@ some other way if repeating this.
 
 ## What is left
 
-Nothing cheap. Every device-specific candidate reachable without a stock
-reference has been eliminated: config, ACDB contents, properties, topology
-selection, mic routing, and the codec gain chain. What remains is the gain inside
-the ACDB topology, and discriminating that means running the same instrumentation
-on a stock boot — `tinymix` idle and during capture, plus the `GKV Alias` and
-`CKV count` lines — so the two can be compared directly. Flashing stock is ruled
-out, so this is parked rather than blocked on a next step.
+Two candidates, neither cheap.
 
-Method notes for whoever picks it up: `tinymix` is not in the image, build it with
-`mka tinymix`; raise the log buffer with `logcat -G 8M` or the graph lines roll
-out inside 100 seconds; the Lineage Recorder names files by **start** time; and
-`ffmpeg -af volumedetect` over a whole clip hides everything — window it, and
+**AP-side LVACFS.** It is off here and stock almost certainly runs it — the gate
+that turns it off is a LineageOS invention stock's PAL cannot even read, so its
+absence from stock's config was misread as stock agreeing. This is the only known
+difference in the capture path that has not been measured, and the direction is
+right: turning our own LVACFS on is worth about +9 dB (−47.6 vs −56.8 dB mean),
+and ours runs the wrong profile. Stock's, on the correct profile, is untested.
+
+The price is what keeps it here rather than in progress: enabling it usefully
+needs a HAL fix, and that means forking
+`LineageOS/android_hardware_qcom_audio-ar` and carrying it. Turning the gate back
+on without the fix buys the +9 dB at the wrong tuning.
+[audio.md](../reference/audio.md) carries the mechanism, the evidence and what a
+fix would need.
+
+**The gain inside the ACDB topology.** Every other device-specific candidate
+reachable without a stock reference is eliminated: config, ACDB contents,
+properties, topology selection, mic routing, the codec gain chain, and the
+source-built PAL and AHAL. Discriminating the topology gain means running the
+same instrumentation on a stock boot — `tinymix` idle and during capture, plus
+the `GKV Alias` and `CKV count` lines — so the two can be compared directly.
+Flashing stock is ruled out, so this is parked rather than blocked on a next step.
+
+Method notes for whoever picks it up. `tinymix` is not in the image and is the
+single most useful instrument found in this investigation: build it with
+`mka tinymix` and push it to `/data/local/tmp`. Raise the log buffer first
+(`logcat -G 8M`) — the default ~256 KiB rolls the graph-open lines within about
+100 seconds. The Lineage Recorder names files by **start** time. And
+`ffmpeg -af volumedetect` over a whole clip hides everything: window it, and
 confirm speech is actually present before comparing two clips.
-
-`tinymix` is not in the image. Build it with `mka tinymix` and push it to
-`/data/local/tmp`; it is the single most useful instrument found in this
-investigation. Raise the log buffer first (`logcat -G 8M`) — the default ~256 KiB
-rolls the graph-open lines within about 100 seconds.
