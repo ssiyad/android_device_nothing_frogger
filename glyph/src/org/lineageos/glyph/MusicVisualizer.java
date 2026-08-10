@@ -68,6 +68,8 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
 
     private Visualizer mVisualizer;
     private boolean mSettling;
+    private boolean mMedia;
+    private boolean mRinging;
     private double mHeight;
     private int mOwner = Panel.OWNER_MUSIC;
 
@@ -115,22 +117,42 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
     public void onPlaybackConfigChanged(List<AudioPlaybackConfiguration> configs) {
         // Unprivileged callers are only handed configurations that are active,
         // so presence is the whole of the test.
-        boolean media = false;
-        boolean ringing = false;
+        mMedia = false;
+        mRinging = false;
         for (AudioPlaybackConfiguration config : configs) {
             final int usage = config.getAudioAttributes().getUsage();
             if (usage == AudioAttributes.USAGE_MEDIA) {
-                media = true;
+                mMedia = true;
             } else if (usage == AudioAttributes.USAGE_NOTIFICATION_RINGTONE) {
-                ringing = true;
+                mRinging = true;
             }
         }
+        update();
+    }
+
+    /** Called when the phone is turned over, since that decides whether to run. */
+    void onFaceDownChanged() {
+        update();
+    }
+
+    private void update() {
+        final boolean media = mMedia;
+        final boolean ringing = mRinging;
 
         final int owner = ringing ? Panel.OWNER_RINGING : Panel.OWNER_MUSIC;
         if (owner != mOwner) {
             Panel.get().releaseWhite(mOwner);
             mOwner = owner;
             mHeight = 0;
+        }
+
+        // Nothing on the strip is visible face-up, and an attached effect chain
+        // costs whether or not anyone is looking.
+        if (!Panel.get().isFaceDown()) {
+            mSettling = false;
+            mHandler.removeCallbacks(mAttach);
+            detach();
+            return;
         }
 
         if (ringing) {

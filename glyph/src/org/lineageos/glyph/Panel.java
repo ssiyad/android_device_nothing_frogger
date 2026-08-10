@@ -58,8 +58,27 @@ final class Panel {
     private final boolean[] mRedHeld = new boolean[RED_OWNERS];
 
     private int mMode = -1;
+    private boolean mFaceDown;
 
     private Panel() {}
+
+    /**
+     * The strip faces away from whoever is holding the phone, so everything on
+     * it is wasted until the phone is set down on its face. Recording is the
+     * exception: that light is for the person being filmed, and it has to hold
+     * whichever way the phone is pointing.
+     */
+    synchronized void setFaceDown(boolean faceDown) {
+        if (faceDown == mFaceDown) {
+            return;
+        }
+        mFaceDown = faceDown;
+        apply();
+    }
+
+    synchronized boolean isFaceDown() {
+        return mFaceDown;
+    }
 
     static Panel get() {
         return sInstance;
@@ -96,7 +115,7 @@ final class Panel {
 
     private void apply() {
         int[] white = null;
-        for (int owner = OWNERS - 1; owner >= 0 && white == null; owner--) {
+        for (int owner = OWNERS - 1; owner >= 0 && white == null && mFaceDown; owner--) {
             if (mHeld[owner]) {
                 white = mLevels[owner];
             }
@@ -104,7 +123,7 @@ final class Panel {
 
         int red = 0;
         for (int owner = RED_OWNERS - 1; owner >= 0; owner--) {
-            if (mRedHeld[owner]) {
+            if (mRedHeld[owner] && (mFaceDown || owner == RED_RECORDING)) {
                 red = mReds[owner];
                 break;
             }

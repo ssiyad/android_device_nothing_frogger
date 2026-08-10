@@ -3,6 +3,12 @@
 `glyph/` builds a persistent, headless system app that drives the strip from
 three signals. None of it has run on the device yet.
 
+Everything but the recording light is gated on the phone lying face-down, since
+the strip points away from whoever is holding it and anything drawn there
+otherwise is spent on nobody. Recording is exempt because that light is for the
+person being filmed. The visualiser stops running rather than merely stops
+drawing, so a face-up phone carries no effect chain at all.
+
 ## What to check
 
 | Indicator | Expected |

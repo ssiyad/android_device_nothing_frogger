@@ -42,6 +42,7 @@ final class FaceDownStatus implements SensorEventListener {
     private static final float FACE_DOWN = -7f;
 
     private final Handler mHandler;
+    private final Runnable mOnChanged;
     private final SensorManager mSensorManager;
     private final BatteryManager mBatteryManager;
     private final PowerManager.WakeLock mWakeLock;
@@ -63,8 +64,9 @@ final class FaceDownStatus implements SensorEventListener {
         }
     };
 
-    FaceDownStatus(Context context, Handler handler) {
+    FaceDownStatus(Context context, Handler handler, Runnable onChanged) {
         mHandler = handler;
+        mOnChanged = onChanged;
         mSensorManager = context.getSystemService(SensorManager.class);
         mBatteryManager = context.getSystemService(BatteryManager.class);
         mWakeLock = context.getSystemService(PowerManager.class)
@@ -83,7 +85,12 @@ final class FaceDownStatus implements SensorEventListener {
 
     void register() {
         if (mScreenUpward == null || mAccelerometer == null) {
-            Log.w(TAG, "No screen_upward sensor, the face-down status is inert");
+            // Without a way to tell, leave the strip permanently enabled. The
+            // gate exists to save what nobody can see, and failing the other
+            // way would put every indicator out for good.
+            Log.w(TAG, "No screen_upward sensor, the face-down gate is off");
+            Panel.get().setFaceDown(true);
+            mOnChanged.run();
             return;
         }
         mSensorManager.registerListener(this, mScreenUpward, SensorManager.SENSOR_DELAY_NORMAL);
@@ -121,6 +128,9 @@ final class FaceDownStatus implements SensorEventListener {
         final boolean faceDown = event.values[2] < FACE_DOWN;
         if (faceDown != mFaceDown) {
             mFaceDown = faceDown;
+            // The panel has to know before anything is drawn on it.
+            Panel.get().setFaceDown(faceDown);
+            mOnChanged.run();
             if (faceDown && mKnown) {
                 show();
             }
