@@ -11,9 +11,8 @@ Status and blockers live here; task files describe only the work.
 | Task | Status | Blocked by |
 |---|---|---|
 | [Collect denials](tasks/selinux-denial-collection.md) | open | — |
-| [Label sysfs nodes](tasks/selinux-sysfs-labels.md) | open | collect denials |
-| [Write missing allow rules](tasks/selinux-allow-rules.md) | open | collect denials |
-| [Switch to enforcing](tasks/selinux-enforcing.md) | blocked | label sysfs nodes, write allow rules |
+| [Write missing allow rules](tasks/selinux-allow-rules.md) | parked | nothing publishes the services involved |
+| [Switch to enforcing](tasks/selinux-enforcing.md) | open | — |
 
 ### Audio
 
@@ -48,6 +47,7 @@ Status and blockers live here; task files describe only the work.
 | Document | Contents |
 |---|---|
 | [hardware.md](reference/hardware.md) | Device-specific values: identity, display, sensors, SKUs |
+| [selinux.md](reference/selinux.md) | Where a label comes from, and which denials stay denied |
 | [audio.md](reference/audio.md) | Card layout, LVACFS, volume configuration |
 | [thermal.md](reference/thermal.md) | HAL provenance, zone lookup, what mitigates |
 | [display.md](reference/display.md) | Colour pipeline, DFPS constraints, panel feature attributes |

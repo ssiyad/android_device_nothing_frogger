@@ -1,47 +1,30 @@
 # Write missing allow rules
 
 Denials whose target type is already correct need a rule in
-`sepolicy/vendor/<domain>.te`.
+`sepolicy/vendor/<domain>.te`. Which denials qualify, and which are meant to
+stay denied, is in [selinux.md](../reference/selinux.md).
 
 ## Outstanding
 
-| Domain | Target | Access |
+| Domain | Target | Question |
 |---|---|---|
-| `vendor_qccvendor` | `vendor_sysfs_soc_sensitive` | `/sys/devices/soc0/serial_number` |
-| `hal_fingerprint_default` | `default_prop`, `overlay_prop` | `persist.vendor.overlay.fp_serial` |
-| `mediametrics` | `same_process_hal_file` | `/vendor/lib64/libutils.so` |
-| `vendor_qtelephony` | `default_android_service` | `nothing.radio.ntphone` |
+| `mediametrics` | `same_process_hal_file` | is it real? |
+| `vendor_qtelephony` | `default_android_service` | nothing publishes the service |
 
-## Denials that must stay denied
+**`mediametrics`** reads, maps and executes `/vendor/lib64/libutils.so` and
+`libbase.so`. `adbroot` did the same thing in the same second, which is what an
+`adb root` session plus a `dumpsys` looks like, and a coredomain loading the
+vendor copy of libutils is a loader bug rather than a policy gap — it would give
+the process two libutils. AOSP gates this deliberately:
+`system/sepolicy/private/domain.te` grants `same_process_hal_file:file` to every
+domain **except** coredomain, "access is explicitly granted to individual
+coredomains". Re-observe it on a build with no adb attached before writing
+anything, and note that the rule would belong in `sepolicy/private/`, not
+`sepolicy/vendor/`.
 
-`system/sepolicy/private/domain.te` carries, for every domain with no exception:
-
-```
-neverallow domain sysfs_type:dir
-    { add_name create link remove_name rename reparent rmdir write };
-```
-
-Three denials match that shape and are benign probing rather than missing
-permission:
-
-| Domain | Node |
-|---|---|
-| `hal_thermal_default` | `trip_point_1_temp`, `trip_point_1_hyst` |
-| `vendor_nicmd` | `rps_cpus` |
-| `vendor_qti_init_shell` | `defrag` |
-
-`create` on an existing file is the **`O_CREAT` signature**: `fopen(path, "w")`
-and a shell `> file` redirect both pass `O_CREAT|O_TRUNC`, so the kernel runs the
-`create` and `add_name` checks even though nothing is created. The device has 72
-thermal zones and only 54 expose `trip_point_1_temp`; the HAL walks all of them.
-
-Nothing breaks by leaving these denied — the nodes that exist are written
-normally, and only `create` is ever refused, never `file write`. The three `.te`
-files are kept containing this explanation so the rules are not re-added.
-
-## Upstream, not device policy
-
-Leave alone: `cgroup_v2` creates by `init`/`system_server`/`zygote`,
-`{ noatsecure }`, `netd` on `proc_net`, `dex2oat` searching app data, `kernel`
-capabilities, and app-level noise from `untrusted_app`, `isolated_app` and
-`gmscore_app`.
+**`vendor_qtelephony`** looks up `nothing.radio.ntphone` and lands on
+`default_android_service` because no `service_contexts` entry names it. Stock
+has no entry either, and `service list` on the device does not show it: the
+Nothing telephony app that would publish it does not ship here. A label for a
+service that never appears buys nothing, so this waits for something to
+register.

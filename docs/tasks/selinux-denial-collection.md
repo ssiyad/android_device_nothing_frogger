@@ -1,8 +1,10 @@
 # Collect SELinux denials
 
-Denials feed every other SELinux task. `dontaudit` rules suppress logging even in
-permissive mode, so any collection taken against the shipped policy understates
-the set by an unknown margin.
+Denials feed every other SELinux task. `dontaudit` rules suppress logging even
+in permissive mode, so any collection taken against the shipped policy
+understates the set by an unknown margin.
+
+How a denial is then classified is in [selinux.md](../reference/selinux.md).
 
 ## Strip `dontaudit`
 
@@ -41,9 +43,10 @@ minutes and one-shot captures miss whatever was not running at the time.
 
 | Path | Contents |
 |---|---|
-| `/data/adb/avc/collect.sh` | the collector |
+| `/data/adb/avc/collect.sh` | the collector, started from `/data/adb/service.d` |
 | `/data/adb/avc/denials.log` | unique full lines |
 | `/data/adb/avc/seen.keys` | normalised keys; dedup survives reboots |
+| `/data/adb/avc/archive/` | logs from earlier builds |
 
 It normalises two things before deduplicating, without which the log fills with
 one entry per app and per process:
@@ -52,39 +55,25 @@ one entry per app and per process:
 - **PIDs in paths** — `/proc/8905/net/raw` and `/proc/9170/net/tcp` are one
   labelling problem
 
+Property-file denials are counted and dropped. They are recognised by the
+context file the line names, not by the type name — QTI ships property types
+that do not end in `_prop` (`vendor_confqmaa`, `vendor_wifi_version`), and a
+suffix test lets those through into the log looking like real findings.
+
+## Resetting between builds
+
+Dedup makes the log cumulative across builds, so a denial fixed three builds ago
+still sits in it and a fresh reading has no way to tell. Copy `denials.log` and
+`seen.keys` into `archive/` under the build they came from, truncate both, and
+restart the collector whenever a policy change ships. Re-observing a denial
+against the current build is the only evidence that it is still outstanding.
+
 ## Coverage
 
-- Collection must span a boot. The property enumeration below happens during
-  boot, and a collection starting afterwards misses most of the set.
+- Collection must span a boot. Property enumeration and every init-time labelling
+  gap happen during boot, and a collection starting afterwards misses them.
 - Exercise every subsystem before trusting a count. Permissive only logs code
   paths that execute.
-
-## Excluded from the log
-
-**Property enumeration.** `getattr`/`map`/`open`/`read` on
-`/dev/__properties__/u:object_r:*_prop:s0` accounts for the large majority of any
-collection and must not be given an allow rule. bionic opens property context
-files by two paths and they differ deliberately
-(`bionic/libc/system_properties/`): `foreach()` probes with `access(R_OK)` and is
-covered by `dontaudit`, while `GetPropAreaForName()` opens directly and is
-documented as intending to generate an audit per non-permitted access. The denial
-is the designed behaviour; the read returns nothing and the process continues.
-
-`get_prop(domain, property_type)` from `system/sepolicy/public/te_macros` expands
-to `allow $1 $2:file { getattr open read map }`, granting a domain read on every
-property on the device. Filtering, not policy, is the answer, and the collector
-already does it.
-
-**Root artefacts.** Denials naming `trawcon="u:r:magisk:s0"` or
-`/debug_ramdisk/.magisk/` paths come from root and must not be written into
-policy.
-
-**Investigation artefacts.** `scontext=u:r:shell:s0` denials come from adb, not
-from the device doing anything.
-
-## Reading a surprising `scontext`
-
-A process appearing in an unexpected domain is more often a domain-transition bug
-than tooling interference. `seinfo` comes from certificate matching in
-`plat_mac_permissions.xml`; a certificate mismatch leaves a whole subsystem in
-the launching domain and its denials attributed there.
+- Keep `adb` use in mind while reading the result. A shell session listing
+  `/vendor` or running `dumpsys` writes a hundred denials that describe the
+  investigation and nothing else.
