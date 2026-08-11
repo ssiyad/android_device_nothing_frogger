@@ -1,57 +1,51 @@
 # Verify the Glyph indicators
 
-`glyph/` builds a persistent, headless system app that drives the strip from
-three signals. None of it has run on the device yet.
+`glyph/` builds a persistent, headless system app that drives the strip. Most of
+it is confirmed on the device; what is left is below.
 
-## What to check
+## Confirmed
 
-| Indicator | Expected |
+The countdown and its blocks, the progress bar, the charge column on setting the
+phone down, the beat meter and its face-down gate, the recording blink, the
+release back to stand-by, and the `glyph_app` domain running with no denials.
+
+## Still open
+
+| Indicator | State |
 |---|---|
-| Timer | The white segments fill from the bottom as a clock-app timer runs out, and freeze while it is paused. |
-| Progress | A download or other determinate progress notification fills the segments, and yields to a timer. |
-| Music | The column rises and falls with how loud the output mix is, and reads at a glance. |
-| Face-down | Setting the phone down on its face shows the charge level for three seconds, over anything else, and hands the strip back after. |
-| Waiting | A missed call, a priority conversation, or a channel the user themselves set to alert leaves red glowing dim until it is dealt with. |
-| Ringing | An incoming call drives the meter from the ringtone itself, over everything except the face-down status. |
-| Capture | A shutter click or a video starting or stopping flashes red once, over the recording blink. |
+| Missed-call alert | Does not light. Deferred. |
+| Capture flash | Never yet seen working. A white flash from the meter masked it every time, so a photo taken face-up with the meter detached is the first clean look. |
+| Waiting glow | Has been seen staying lit after notifications were cleared, with nothing among them that should match. It now logs `waiting on <package> <key>`, which names the cause the next time it happens. |
+| Bluetooth | Untried. `selectOutputForMusicEffects()` picks the output from wherever `USAGE_MEDIA` routes, so the meter should follow an A2DP route, but it prefers a compressed-offload output and an effect forces such a stream back to PCM. Watch what it costs. |
+| `pocket_mode` | Reports two fields and its meaning is unread. Logged at every change, so one trip in a pocket settles it. |
 
-Recording is confirmed: the red LED blinks while the camera app records with
-audio. So are the timer bar, the release back to stand-by, and the `glyph_app`
-domain running clean with no denials.
-
-A spectrum across the six segments was tried first and read as undifferentiated:
-six brightnesses cannot be ranked by eye, and music's energy sits so low that
-the bass segments pinned while the rest stayed dark. Loudness as the height of
-the column replaces it, scaled against a decaying peak so quiet material still
-uses the whole strip, with the topmost lit segment carrying the fraction.
-
-Bluetooth is worth a pass of its own. `selectOutputForMusicEffects()` picks the
-output from wherever `USAGE_MEDIA` currently routes, so the visualiser should
-follow an A2DP route, but it prefers a compressed-offload output and the effect
-forces such a stream back to PCM. Check that it still reacts, and watch what it
-costs.
-
-## What the logs should settle
-
-`screen_upward` and `pocket_mode` are Nothing sensors with no source in the
-tree, and which value each reports for which state is undocumented. Both are
-logged at every change under the `Glyph` tag. Flip the phone and pocket it once
-with `logcat -s Glyph` running, and both polarities are settled.
-
-The accelerometer sample exists to avoid needing the first of those. Once the
-pocket polarity is known, the gate can be tightened without guessing.
+A `default_prop` read is denied to `glyph_app` and nothing observed has broken
+because of it, but something the app asks for is being refused silently.
 
 ## Known gaps
 
 - Video recorded with audio muted raises no camcorder record client, so the red
   LED stays dark.
 - The clock app publishes no total duration, only a deadline. The largest
-  remaining time seen is taken as full scale, so a timer that was already
-  running when the process started drains from a full bar.
+  remaining time seen is taken as full scale, so a timer already running when
+  the process started begins from an empty bar and fills over what is left of
+  it, rather than from where it had actually reached.
 - Pause is detected by matching the clock app's own paused label. Several timers
   paused at once carries a different label and is read as running.
+- The meter captures the whole output mix, so while it is attached every sound
+  the phone makes drives it. It lets go after four seconds of quiet, which
+  bounds how long that window stays open rather than closing it.
 
 ## Rejected
+
+**A spectrum across the six segments, and then loudness as the height.** The
+spectrum read as undifferentiated: six brightnesses cannot be ranked by eye, and
+music's energy sits so low that the bass segments pinned while the rest stayed
+dark. Loudness replaced it and was no better, for a reason no retuning reaches —
+music is mastered to a near-constant level, so a mean over a short window does
+not move while a track plays, and the bar parks at whatever that master's
+loudness happens to be. Bass energy with a fast attack and a slow release is
+what moves with the music, because the beat is the part that varies.
 
 **Channel importance on its own as a measure of importance.** It reads as the
 obvious app-independent floor and is worthless: 172 of the 519 channels on this
