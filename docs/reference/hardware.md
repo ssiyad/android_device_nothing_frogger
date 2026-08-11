@@ -98,9 +98,22 @@ vendor service is involved. `init.frogger.rc` chowns the nodes to `system` and
 | `frame_brightness` | six values, `0`–`255` | the white segments, index 0 at the top |
 | `single_brightness` | `26 <0-255>` | the red indicator |
 
-Brightness writes only reach the chip in `operating_mode 1`. A pattern survives
-suspend, so an indicator needs no wakelock to stay lit, and 20 of 255 is a
+Brightness writes only reach the chip in `operating_mode 1`, and 20 of 255 is a
 usable dim level.
+
+**A pattern does not survive suspend, and the mode cannot be remembered across
+one.** The driver powers the chip off on suspend and resumes it into stand-by,
+clearing every brightness register on the way, so anything that caches the last
+mode it wrote will skip the write it needs and put its frames into a chip that
+is off. The symptom is an indicator that works until the phone first sleeps and
+then never again, while anything that blinks or animates appears fine, because
+its constant lit-to-dark cycling re-issues the mode for it.
+
+`always_on` is the way out: the driver skips the power-off entirely while it is
+set, so a long-lived indicator keeps its pattern. It is worth setting only while
+something is showing, since it holds the chip up. Neither `init.frogger.rc` nor
+`genfs_contexts` covered that node originally — it is `root:root` and plain
+`sysfs` on a stock build.
 
 **The red indicator is a seventh channel, not one of the six.** A six-value
 `frame_brightness` write leaves it alone, because the driver latches the last

@@ -65,6 +65,8 @@ on boot
     chown system system /sys/class/leds/aw20036_led/factory_test
     chmod 664 /sys/class/leds/aw20036_led/factory_test
     chown system system /sys/class/leds/aw20036_led/single_brightness
+    chown system system /sys/class/leds/aw20036_led/always_on
+    chmod 664 /sys/class/leds/aw20036_led/always_on
     chown system system /sys/class/leds/aw20036_led/vip_notification
     chown system system /sys/class/leds/aw20036_led/dev_color
     chown system system /mnt/vendor/persist/color

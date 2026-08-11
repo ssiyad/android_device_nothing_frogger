@@ -58,7 +58,6 @@ final class Panel {
     private final int[] mReds = new int[RED_OWNERS];
     private final boolean[] mRedHeld = new boolean[RED_OWNERS];
 
-    private int mMode = -1;
 
     private Panel() {}
 
@@ -119,25 +118,23 @@ final class Panel {
             frame.append(level).append(' ');
         }
 
-        // Brightness writes only reach the chip while it is out of standby.
+        // Suspend powers the chip down and clears every brightness register,
+        // and resume brings it back in stand-by, so what mode it was left in
+        // cannot be remembered across a write. The driver ignores a mode it is
+        // already in, which makes asking every time close to free.
         if (lit) {
-            setMode(MODE_ACTIVE);
+            write("always_on", "1");
+            write("operating_mode", Integer.toString(MODE_ACTIVE));
         }
 
         write("frame_brightness", frame.toString().trim());
         write("single_brightness", RED_REGISTER + " " + red);
 
         if (!lit) {
-            setMode(MODE_STANDBY);
+            write("operating_mode", Integer.toString(MODE_STANDBY));
+            // Only worth keeping powered while it is showing something.
+            write("always_on", "0");
         }
-    }
-
-    private void setMode(int mode) {
-        if (mode == mMode) {
-            return;
-        }
-        write("operating_mode", Integer.toString(mode));
-        mMode = mode;
     }
 
     private void write(String node, String value) {
