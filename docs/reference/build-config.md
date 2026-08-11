@@ -62,3 +62,20 @@ else works, because board config is evaluated after product config.
 
 Do **not** set `ro.adb.secure=0` directly — `vendor/lineage/config/common.mk`
 already assigns it and Soong fails on duplicate sysprop assignments.
+
+## Out-of-tree patches
+
+`patches/` holds changes this device needs in projects it does not own, with
+`patches/apply.sh` to put them back. Currently one, against `frameworks/av`.
+
+**`apply.sh` must run after every `repo sync` and before every build.** `repo
+sync` runs with the force flag and resets those projects, so the patches come off
+each time; the script re-applies them, treats an already-patched project as
+success, and exits non-zero the moment anything fails. Nothing may build past a
+non-zero exit — an unpatched tree produces an image that looks correct and
+quietly lacks the change.
+
+A patch is preferred to forking the project when the change is small. A fork of a
+repository that moves every month costs a rebase in perpetuity, and the change
+stops being reviewable in this tree. The trade is that upstream movement turns
+into a failed apply and a stopped build, which is the right way round.

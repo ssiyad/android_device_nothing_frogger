@@ -24,31 +24,36 @@ configurations and then publishes a filtered subset to Android. See
 `reference/camera-image-quality.md` for the measurement. Settings are ruled out,
 so two routes remain, in the order they are worth trying.
 
-**1. Complete the maximum-resolution characteristics in the framework.** The HAL
-already publishes the full-size minimum frame durations, stall durations and
-input/output formats map, and names
-`availableStreamConfigurationsMaximumResolution` in its characteristics keys
-without ever filling it. Everything needed is present except that one list, and
-the entries for it are available in `nothing.scaler.availableStreamConfigurations`
-as the configurations absent from the `android.` map.
+**1. Complete the maximum-resolution characteristics in the framework.** Written,
+as `patches/frameworks_av/0001-camera-Restore-the-hidden-maximum-resolution-modes.patch`.
+It adds `addNothingUltraHighResolutionTags()` beside the `deriveHeicTags` /
+`deriveJpegRTags` family, fills `d0014` with the configurations the vendor tag
+has and the `android.` map does not, and advertises
+`ULTRA_HIGH_RESOLUTION_SENSOR`. Gated on the maximum-resolution companions being
+present, which holds only for the three quad-bayer sensors and for no other
+device, so the logical camera and the ultrawide are untouched.
 
-So the patch, in `frameworks/av` where `CameraProviderManager` builds
-`CameraCharacteristics`, is to populate `d0014` from those entries and add
-`ULTRA_HIGH_RESOLUTION_SENSOR` to `android.request.availableCapabilities`. That
-turns on the standard Android 12 `SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION` path,
-with durations the HAL itself computed.
-
-Prefer this over merging into the ordinary
+It is deliberately not merged into the ordinary
 `android.scaler.availableStreamConfigurations`. Full-size modes belong behind the
-maximum-resolution pixel mode; folding them into the default list would tell the
-framework they are available in the default pixel mode, which is a different and
-probably untrue claim.
+maximum-resolution pixel mode; folding them into the default list would claim
+they work in the default pixel mode, which is a different and probably untrue
+thing to say, and would likely fail at `configure_streams`.
 
-The open question is **whether the HAL accepts a full-size configuration once the
-framework stops rejecting it**. It is a configuration the HAL computed and
-described, and NTCamera drives exactly these sizes through the same provider, so
-the usecase exists. If `configure_streams` still refuses, this route is dead and
-nothing is lost but the build.
+**What remains is a build.** The unproven step is whether the HAL accepts a
+full-size configuration once the framework stops rejecting it. It is a
+configuration the HAL computed and described, and NTCamera drives exactly these
+sizes through the same provider, so the usecase exists. If `configure_streams`
+still refuses, this route is dead and nothing is lost but the build.
+
+Checks after flashing, cheapest first:
+
+```sh
+adb shell 'dumpsys media.camera' | grep -c "d0014"            # expect 3
+adb shell 'dumpsys media.camera' | grep ULTRA_HIGH_RESOLUTION # expect 3 cameras
+```
+
+Then whether Aperture offers the larger size, and whether a capture at it
+succeeds or the session dies.
 
 This is the route that best matches "not vendor locked": no Nothing app, no
 Nothing service, and the capability reaches every app through the standard API.
