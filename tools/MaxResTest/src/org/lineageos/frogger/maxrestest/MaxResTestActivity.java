@@ -59,6 +59,7 @@ public class MaxResTestActivity extends Activity {
     private CameraDevice mCamera;
     private ImageReader mReader;
     private boolean mFinished;
+    private boolean mRemosaic;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +73,9 @@ public class MaxResTestActivity extends Activity {
         final String cameraId = intent.getStringExtra("camera") != null
                 ? intent.getStringExtra("camera") : "4";
         final boolean raw = "raw".equalsIgnoreCase(intent.getStringExtra("format"));
+        final String remosaic = intent.getStringExtra("remosaic");
+        mRemosaic = remosaic == null || !("0".equals(remosaic) || "false".equalsIgnoreCase(remosaic));
+        Log.i(TAG, "remosaic vendor tag " + (mRemosaic ? "enabled" : "disabled"));
         final int format = raw ? ImageFormat.RAW_SENSOR : ImageFormat.JPEG;
 
         mHandler.postDelayed(() -> fail("timed out after " + TIMEOUT_MS + " ms"), TIMEOUT_MS);
@@ -166,11 +170,29 @@ public class MaxResTestActivity extends Activity {
         }, mHandler);
     }
 
+    /**
+     * CamX rejects a full-size stream in CheckValidStreamConfig against a limit of the binned
+     * size, ignoring SENSOR_PIXEL_MODE -- it does not implement the Android maximum resolution
+     * pixel mode. Nothing has its own switch for this, a vendor tag read by the CHI feature2
+     * layer, and configure_streams is handed the session parameters, so setting it there is the
+     * plausible way to raise that limit.
+     */
+    private static final CaptureRequest.Key<Integer> REMOSAIC_ENABLE =
+            new CaptureRequest.Key<>("com.nothing.camera.remosaic.enable", Integer.class);
+
     private void configure(CameraDevice device) throws CameraAccessException {
         final CaptureRequest.Builder params = device.createCaptureRequest(
                 CameraDevice.TEMPLATE_STILL_CAPTURE);
         params.set(CaptureRequest.SENSOR_PIXEL_MODE,
                 CameraMetadata.SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION);
+        if (mRemosaic) {
+            try {
+                params.set(REMOSAIC_ENABLE, 1);
+                Log.i(TAG, "set com.nothing.camera.remosaic.enable=1 in session parameters");
+            } catch (IllegalArgumentException e) {
+                Log.w(TAG, "vendor tag com.nothing.camera.remosaic.enable not settable: " + e);
+            }
+        }
 
         final List<OutputConfiguration> outputs =
                 Collections.singletonList(new OutputConfiguration(mReader.getSurface()));
@@ -202,6 +224,13 @@ public class MaxResTestActivity extends Activity {
                 CameraDevice.TEMPLATE_STILL_CAPTURE);
         request.set(CaptureRequest.SENSOR_PIXEL_MODE,
                 CameraMetadata.SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION);
+        if (mRemosaic) {
+            try {
+                request.set(REMOSAIC_ENABLE, 1);
+            } catch (IllegalArgumentException e) {
+                Log.w(TAG, "vendor tag not settable on request: " + e);
+            }
+        }
         request.addTarget(mReader.getSurface());
 
         session.capture(request.build(), new CameraCaptureSession.CaptureCallback() {
