@@ -24,6 +24,32 @@ The vendor half of Nothing's stack ships complete and is *not* the problem: all
 twenty `com.nothing.node.*` CHI nodes, every `libntcam*` library, and
 `libntofflinepostproc.so` are present.
 
+## The CHI nodes cannot be switched on from an application
+
+Twenty-four `com.nothing.node.*` CHI nodes ship in this ROM, and the HAL
+registers a vendor tag for most of them that looks like the switch:
+`com.nothing.camera.rawhdr.enable`, `.night.mode`, `.portrait.enable`,
+`.ldc.enable`, `.frt.enable`. All are settable by an ordinary third-party
+application -- none throws, on session parameters or on the request -- so the
+mechanism is open.
+
+It changes nothing. `tools/MaxResTest` captures with all five set and again with
+none, on the same camera at the same size, and the two sessions are
+indistinguishable:
+
+| | feature graph | `com.nothing.node.*` instantiated |
+|---|---|---|
+| all five tags set | `RTMFNRJPEG` | 0 |
+| control, no tags | `RTMFNRJPEG` | 0 |
+
+Read with `chiLogInfoMask` raised, so node instantiation would have been visible.
+CHI selects its usecase graph without consulting these tags, and no graph it
+selects for an ordinary session contains a Nothing node. The tags are accepted
+and inert, exactly as `com.nothing.camera.remosaic.enable` was.
+
+That closes the last route that would have exposed the OEM processing to other
+camera apps without shipping OEM application code.
+
 ## Nothing's own service is unreachable from any normal app
 
 `vendor.noth.hardware.camera-service` is absent — the binary, its

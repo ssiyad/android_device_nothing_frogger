@@ -122,6 +122,12 @@ Recorded so they are not re-tried:
   confirmed accepted in CamX's own override dump, and changed nothing about the
   advertised configurations on any camera. The filter is not in
   `camxoverridesettings.txt`.
+- **Switching on the Nothing CHI nodes with their vendor tags.** All of
+  `rawhdr`, `night`, `portrait`, `ldc` and `frt` are settable by a third-party
+  app and accepted on both session parameters and request. A capture with all
+  five set and a control with none produce the same feature graph, `RTMFNRJPEG`,
+  and no `com.nothing.node.*` in either. CHI does not consult them when choosing
+  a graph.
 - **Re-adding the `frameworks/av` maximum-resolution patch on its own.** The
   metadata it wrote was correct and the HAL still refuses the configuration, so
   it only makes the device claim something it cannot do. It is worth restoring
