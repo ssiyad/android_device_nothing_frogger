@@ -377,6 +377,77 @@ Restarting `vendor.camera-provider` is the mild kind of service restart. It is a
 lazy vendor HAL, `cameraserver` re-enumerates cleanly afterwards, and the same
 remove/re-add cycle already happens whenever a session dies.
 
+## Comparing camera apps
+
+The comparison is only worth as much as its controls. What each of these guards
+against has already gone wrong once.
+
+**Fix the phone in place.** An early comparison drifted in framing between shots
+and could not be read. Prop it, and drive everything over adb without touching
+it.
+
+**Record exposure with every frame** (`exiftool -ISO -ExposureTime`) and quote it
+alongside any judgement. Indoor light drifts enough over minutes to swamp what is
+being measured, and the apps meter differently -- GCam will happily choose a
+slower shutter *and* a higher ISO than Aperture for the same scene, so the frames
+are not equal-exposure even when the scene is identical.
+
+**Normalise orientation exactly once.** Aperture writes no orientation tag; AGC
+writes `Rotate 180`. Run `magick ... -auto-orient` on both and nothing else --
+adding a `-rotate 180` on top of `-auto-orient` puts it back where it started.
+
+**Judge at 100%, on texture.** Fine fabric weave, wire grilles and small print
+show the difference; a downscaled frame hides it entirely.
+
+### Finding what an app wrote
+
+Each app saves somewhere different, and "no new file in `DCIM/Camera`" usually
+means the wrong directory rather than a failed capture. Ask MediaStore:
+
+```sh
+adb shell 'content query --uri content://media/external/images/media \
+    --projection _data:date_added --sort "date_added DESC"'
+```
+
+`LIMIT` is rejected by the provider, so take the head of the output instead.
+Aperture writes `DCIM/Camera`; AGC writes `DCIM/AGC`, and writes a DNG beside
+every JPEG.
+
+### Driving GCam
+
+`com.agc.gcam` (BigKaka's AGC) has a launcher activity and can be started from
+adb, unlike `com.google.android.apps.googlecamera.fishfood`, which is not GCam at
+all but LineageOS's `ApertureLensLauncher` stub claiming that package name.
+
+```sh
+adb shell 'am start -n com.agc.gcam/.app.CameraActivity'
+adb shell 'uiautomator dump /sdcard/g.xml'    # com.agc.gcam:id/shutter_button
+```
+
+HDR+ takes ten to thirty seconds to write its result, so poll for the file rather
+than sleeping. The provider logs the burst as it happens, which is the quickest
+confirmation that a tap registered at all:
+
+```
+chxextensionmodule.cpp:8611 OverrideProcessRequest() HALOP:RAW SNAPSHOT START ... num_output_buffers 3
+```
+
+Its configuration lives in `/sdcard/Android/data/com.agc.gcam/files/`, which
+holds `configs`, `luts` and `tuning`.
+
+### What the comparison shows
+
+In low light GCam is clearly ahead, and on a worse exposure. On one indoor scene
+at night, Aperture at ISO 1590 1/33 against AGC at ISO 2384 1/25: wire grille
+separated rather than smeared, small print legible, fabric weave retained instead
+of waxy, and less shadow noise despite the higher ISO. Less noise at higher ISO
+is the signature of burst stacking.
+
+That is the expected shape of the result rather than a surprise -- HDR+ works
+from RAW bursts and never touches the noise reduction that costs the CamX JPEG
+its detail. It also means effort spent on GCam has a better return than effort
+spent on the CamX path, which cannot be tuned from outside.
+
 ## Testing captures over adb
 
 The device must be awake before `am start`, or the intent is accepted and the HAL

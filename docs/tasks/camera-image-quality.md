@@ -133,11 +133,29 @@ Recorded so they are not re-tried:
   it only makes the device claim something it cannot do. It is worth restoring
   only alongside a way past `CheckValidStreamConfig`.
 
-## GCam
+## Tune GCam
 
-It opens physical camera IDs directly and bypasses MCX, SAT, every Nothing node
-and the extensions path, so none of the above reaches it. It was equally poor on
-stock firmware, which makes it a config-tuning exercise against these sensors
-rather than a bring-up gap. Keep it a separate track; the device-tree lever worth
-confirming is that RAW10/`RAW_SENSOR` ZSL streams are advertised on the physical
-IDs.
+This is the open track with the best return, because it is the one pipeline on
+the device that does not use the CamX JPEG path. GCam works from RAW bursts, and
+`RAW_SENSOR` and `RAW10` are advertised at full binned size on every camera --
+4080x3072 on 0, 3 and 4, 3280x2464 on 1 and 2 -- so the input it needs is there.
+
+Untuned it already beats Aperture in low light; see
+`reference/camera-image-quality.md` for the measurement and the procedure.
+
+Open questions, in order:
+
+- A daylight baseline on the same fixed scene. Low light is where burst stacking
+  flatters itself most, and the detail question behaves differently in good
+  light.
+- Whether a different port suits these sensors better. `com.agc.gcam` 1.6.0 is
+  BigKaka's AGC and is current; BSG's MGC 9.6/9.7 and Hasli's LMC 9.6 are the
+  other maintained engines.
+- Config. Nothing Phone (3a) configs are the closest published starting point --
+  same Snapdragon 7s Gen 3, similar Samsung sensors -- but black levels, colour
+  matrices and lens shading are sensor-specific, so treat one as a base to
+  adjust rather than an answer. Watch for the green low-light cast these ports
+  often show on Samsung sensors, which is an AWB gains adjustment.
+
+Colour and white balance are subjective and want a human eye on full frames, not
+a crop and an opinion.
