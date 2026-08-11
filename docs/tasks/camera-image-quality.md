@@ -43,20 +43,24 @@ thing to say, and would likely fail at `configure_streams`.
 `ULTRA_HIGH_RESOLUTION_SENSOR` advertised on cameras 1, 3 and 4, with full-size
 JPEG and RAW both offered. See `reference/camera-image-quality.md` for the sizes.
 
-**What remains is a Camera2 client.** CameraX refuses to select maximum
-resolution sizes by design, so Aperture cannot exercise this and no installed app
-currently does. Two things are still unproven, and the first blocks the second:
+**And the HAL then refuses it.** `tools/MaxResTest` asks directly and CamX
+rejects the configuration against a ceiling of the binned size, ignoring
+`SENSOR_PIXEL_MODE` and unmoved by Nothing's own `com.nothing.camera.remosaic.enable`
+in the session parameters. See `reference/camera-image-quality.md`.
 
-1. Whether the HAL accepts a full-size configuration at `configure_streams`. The
-   configuration is one it computed and described, and NTCamera drives these
-   sizes through the same provider, so the usecase exists -- but nothing has
-   asked for it through the framework yet.
-2. What a 50 MP frame actually looks like against the binned 12.5 MP one.
+**So this patch currently advertises a capability that does not work**, which is
+worse than not advertising it: an app that believes `ULTRA_HIGH_RESOLUTION_SENSOR`
+will fail at `configure_streams` rather than fall back. Decide between:
 
-The cheap test is GCam, which talks Camera2 directly and whose ports often expose
-a full-resolution mode on ultra-high-resolution sensors; it needs a human because
-the fishfood build has no launcher activity. Failing that, a minimal Camera2 test
-app built in-tree would settle it and stay useful.
+- Reverting it, leaving the device honest about what it can do.
+- Keeping it only if a way past `CheckValidStreamConfig` is found, since the
+  advertisement is correct in every respect except that the HAL will not honour
+  it.
+
+Nothing in `camxoverridesettings.txt` moves that ceiling, and the check lives in
+`camera.qcom.so` ahead of any CHI involvement, so the remaining ways past it are
+a binary patch of a blob that is re-extracted from the OTA, or the vendor NDK
+path below.
 
 This is the route that best matches "not vendor locked": no Nothing app, no
 Nothing service, and the capability reaches every app through the standard API.

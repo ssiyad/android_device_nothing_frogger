@@ -160,6 +160,42 @@ So the modes are reachable only by a Camera2 client that sets
 changing its `ResolutionSelector` will not help, and CameraX's surface
 combination logic would reject the size even through Camera2 interop.
 
+Note also that full-size configurations run below 20 fps -- the HAL's own
+`d0015` says 66225165 ns, about 15 fps -- and `StreamConfigurationMap` files
+anything that slow under `getHighResolutionOutputSizes()` rather than
+`getOutputSizes()`. A client looking only at the latter finds nothing and
+concludes the map is empty.
+
+### The HAL refuses the configuration anyway
+
+`tools/MaxResTest` asks for it directly, and CamX declines in its own words:
+
+```
+camxhaldevice.cpp:1781 CheckValidStreamConfig() format:33 max Res(4080 x 3072) requested Res(8160 x 6144)
+camxhaldevice.cpp:2044 CheckValidStreamConfig() Invalid streamStype: 0, format: 33 (8160 x 6144)
+```
+
+Three things follow, and together they close the standard route:
+
+- **CamX validates against the same filtered limit it publishes.** The filter is
+  not only a publication filter; it is the HAL's real ceiling on the camera3
+  path.
+- **`SENSOR_PIXEL_MODE` is ignored.** CamX does not implement the Android
+  maximum resolution pixel mode at all, which is consistent with its never
+  populating `d0014` itself.
+- **Nothing's own switch does not move it.** `com.nothing.camera.remosaic.enable`
+  (`0x81090001`) is settable and was accepted into the session parameters;
+  `CheckValidStreamConfig` rejected with the identical message. That tag is read
+  by `libchifeature2.so` and `com.qti.chi.override.so`, and CamX core validates
+  before CHI is consulted.
+
+The capability is present deeper in the stack -- the CHI override carries a whole
+XCFA usecase, with `QCFA sensor full size output: %dx%d` and
+`[XCFA] XCFA usecase selected` -- but nothing reachable from an application gets
+past `CheckValidStreamConfig` to it. Stock's own app avoids the problem by not
+using this path at all: it goes through `libntcamera2ndk_vendor_v2.so` to the
+provider directly.
+
 NTCamera reaches it through `libntcamera2ndk_vendor_v2.so`, a vendor camera2 NDK
 that talks to the provider directly and bypasses that validation. That is a
 vendor-domain client path, which is why the stock app has 50 MP and no ordinary
