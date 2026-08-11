@@ -95,9 +95,12 @@ final class Panel {
     }
 
     private void apply() {
+        // An owner holding a blank frame is showing nothing, and letting it win
+        // hides whatever is underneath until it happens to release. Silence on
+        // the meter would otherwise blank a running countdown.
         int[] white = null;
         for (int owner = OWNERS - 1; owner >= 0 && white == null; owner--) {
-            if (mHeld[owner]) {
+            if (mHeld[owner] && !isBlank(mLevels[owner])) {
                 white = mLevels[owner];
             }
         }
@@ -135,6 +138,15 @@ final class Panel {
             // Only worth keeping powered while it is showing something.
             write("always_on", "0");
         }
+    }
+
+    private static boolean isBlank(int[] levels) {
+        for (int level : levels) {
+            if (level > 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void write(String node, String value) {

@@ -69,6 +69,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
 
     private final int[] mLevels = new int[Panel.SEGMENTS];
     private final Handler mHandler;
+    private final AudioManager mAudioManager;
 
     private Visualizer mVisualizer;
     private boolean mSettling;
@@ -87,13 +88,14 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
         @Override
         public void run() {
             mSettling = false;
-            if (mMedia || mRinging) {
+            if (allowed()) {
                 attach();
             }
         }
     };
 
-    MusicVisualizer(Handler handler) {
+    MusicVisualizer(AudioManager audioManager, Handler handler) {
+        mAudioManager = audioManager;
         mHandler = handler;
     }
 
@@ -148,7 +150,10 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
             final int usage = config.getAudioAttributes().getUsage();
             if (usage == AudioAttributes.USAGE_MEDIA) {
                 mMedia = true;
-            } else if (usage == AudioAttributes.USAGE_NOTIFICATION_RINGTONE) {
+            } else if (usage == AudioAttributes.USAGE_NOTIFICATION_RINGTONE
+                    && mAudioManager.getMode() == AudioManager.MODE_RINGTONE) {
+                // Ringtone usage alone is not a call: plenty of ordinary sounds
+                // carry it. Only the audio mode says the phone is ringing.
                 mRinging = true;
             }
         }
@@ -179,7 +184,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
 
         // The meter is decoration, and decoration on a face the holder cannot
         // see costs an effect chain for nothing.
-        if (mMedia && mFaceDown) {
+        if (allowed()) {
             if (!mSettling) {
                 mSettling = true;
                 mHandler.postDelayed(mAttach, SETTLE_MS);
@@ -189,6 +194,11 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
             mHandler.removeCallbacks(mAttach);
             detach();
         }
+    }
+
+    /** Whether anything should be driving the meter at all. */
+    private boolean allowed() {
+        return mRinging || (mMedia && mFaceDown);
     }
 
     private synchronized void attach() {

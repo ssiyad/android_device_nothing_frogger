@@ -191,6 +191,7 @@ public final class NotificationIndicator extends NotificationListenerService {
         final RankingMap rankings = getCurrentRanking();
         for (StatusBarNotification sbn : active) {
             if (isImportant(sbn, rankings)) {
+                Log.i(TAG, "waiting on " + sbn.getPackageName() + " " + sbn.getKey());
                 Panel.get().setRed(Panel.RED_WAITING, WAITING_BRIGHTNESS);
                 return;
             }

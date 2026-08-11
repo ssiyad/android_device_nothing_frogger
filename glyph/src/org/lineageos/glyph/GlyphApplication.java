@@ -28,7 +28,7 @@ public final class GlyphApplication extends Application {
         mRecordingIndicator = new RecordingIndicator(handler);
         audioManager.registerAudioRecordingCallback(mRecordingIndicator, handler);
 
-        mMusicVisualizer = new MusicVisualizer(handler);
+        mMusicVisualizer = new MusicVisualizer(audioManager, handler);
         audioManager.registerAudioPlaybackCallback(mMusicVisualizer, handler);
 
         mCaptureIndicator = new CaptureIndicator(handler);
