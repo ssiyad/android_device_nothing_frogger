@@ -19,6 +19,12 @@ Status and blockers live here; task files describe only the work.
 |---|---|---|
 | [Capture runs ~25 dB below other handsets](tasks/capture-gain-deficit.md) | parked | no stock reference |
 
+### Camera
+
+| Task | Status | Blocked by |
+|---|---|---|
+| [Get the best achievable stills](tasks/camera-image-quality.md) | open | — |
+
 ### Build and packaging
 
 | Task | Status | Blocked by |
@@ -52,6 +58,7 @@ Status and blockers live here; task files describe only the work.
 | [display.md](reference/display.md) | Colour pipeline, DFPS constraints, panel feature attributes |
 | [devicetree.md](reference/devicetree.md) | Overlay model, board-id matching, verification |
 | [camera-diagnostics.md](reference/camera-diagnostics.md) | Reading camera failures by layer, and the errors a healthy session logs |
+| [camera-image-quality.md](reference/camera-image-quality.md) | Where the picture quality lives, which levers exist, and which are dead ends |
 | [vendor-blobs.md](reference/vendor-blobs.md) | Blob list method, fixup scoping, inventory |
 | [build-config.md](reference/build-config.md) | API levels, SELinux mode, switches that must not be tidied away |
 | [repositories.md](reference/repositories.md) | Forks, branches, signing keys |

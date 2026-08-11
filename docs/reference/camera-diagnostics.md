@@ -50,19 +50,30 @@ failed to apply.
 `camxoverridesettings.txt` raises CamX logging via `chiLogInfoMask`, commented
 out in stock.
 
-## Blob-absence theories are exhausted
+## Blob-absence theories, and where they still apply
 
-Every camera blob this device ships is byte-identical to stock — 85 libraries in
-`vendor/lib64`, 161 in `vendor/lib64/camera/`, and the whole of
+Within `vendor/lib64/camera/` and the CamX/CHI core the blob set is complete and
+byte-identical to stock — 161 libraries there, plus the whole of
 `vendor/etc/camera/` including `camxoverridesettings.txt`,
 `ntcamoverridesettings.txt`, `nothing_pipeline.bin`, `nothing_node.bin` and
-`decision.json`. The only camera files stock has and we do not are
-`vendor/lib64/camera/node/com.nothing.node.filtereditor.so` and three colour-LUT
+`decision.json`. The only file missing from that set is
+`vendor/lib64/camera/node/com.nothing.node.filtereditor.so`, with three colour-LUT
 directories under `vendor/etc/camera/filter/`, all belonging to the Nothing
 camera app's filter editor and unreachable from Aperture or GCam.
 
-So "a blob is missing" is no longer a live hypothesis for a camera fault. Reach
-for the disassembly instead.
+**That completeness does not extend past those directories**, and two real gaps
+were found outside them. Scope any "the blobs are fine" claim to the directories
+actually checked:
+
+- `com.qualcomm.mcx.*` are in `vendor/lib64`, not `vendor/lib64/camera/`, and
+  they `dlopen` their own dependencies. See `camera-image-quality.md`.
+- `system_ext/` carries camera code too — the CameraX extender jar and its JNI
+  libraries.
+
+The cheap check is a reference sweep rather than a `DT_NEEDED` walk: take the
+basename of every file in `data/vendor-missing.txt` and grep for it across every
+shipped binary. Anything that hits is a file some shipped blob names, which is
+what `dlopen` needs.
 
 CHI nodes `dlopen` their libraries, so absence from `DT_NEEDED` proves nothing
 about whether a node requires one. The converse check is cheap and comes back
