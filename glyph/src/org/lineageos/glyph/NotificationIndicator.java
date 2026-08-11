@@ -41,6 +41,16 @@ public final class NotificationIndicator extends NotificationListenerService {
     /** Dim enough to sit there for hours without becoming the room's light. */
     private static final int WAITING_BRIGHTNESS = 20;
 
+    /**
+     * The leading segment breathes while a progress bar is filling, so work
+     * that is moving reads differently from work that has stalled at the same
+     * fraction. Steps are posted rather than scheduled, so a sleeping phone
+     * simply holds the last frame instead of being woken to animate.
+     */
+    private static final long PULSE_STEP_MS = 90;
+    private static final int PULSE_STEPS = 16;
+    private static final double PULSE_FLOOR = 0.35;
+
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private final int[] mLevels = new int[Panel.SEGMENTS];
 
@@ -52,6 +62,17 @@ public final class NotificationIndicator extends NotificationListenerService {
 
     private String mKey;
     private long mTotal;
+    private double mFraction;
+    private int mPulse;
+
+    private final Runnable mPulseStep = new Runnable() {
+        @Override
+        public void run() {
+            mPulse = (mPulse + 1) % PULSE_STEPS;
+            draw(mFraction, leadingBrightness());
+            mHandler.postDelayed(this, PULSE_STEP_MS);
+        }
+    };
 
     NotificationIndicator(Context context) {
         mContext = context;
@@ -114,7 +135,7 @@ public final class NotificationIndicator extends NotificationListenerService {
         if (progress != null) {
             final Notification notification = progress.getNotification();
             final int max = notification.extras.getInt(Notification.EXTRA_PROGRESS_MAX);
-            fill((double) Math.min(progressOf(notification), max) / max);
+            pulse((double) Math.min(progressOf(notification), max) / max);
             return;
         }
 
@@ -215,14 +236,35 @@ public final class NotificationIndicator extends NotificationListenerService {
         return max > 0 ? notification.extras.getInt(Notification.EXTRA_PROGRESS) : -1;
     }
 
+    /** Draws a static bar, stopping any breath left running. */
+    private int fill(double fraction) {
+        mHandler.removeCallbacks(mPulseStep);
+        return draw(fraction, BRIGHTNESS);
+    }
+
+    /** Draws a bar whose leading segment breathes. */
+    private int pulse(double fraction) {
+        mFraction = fraction;
+        mHandler.removeCallbacks(mPulseStep);
+        mHandler.postDelayed(mPulseStep, PULSE_STEP_MS);
+        return draw(fraction, leadingBrightness());
+    }
+
+    private int leadingBrightness() {
+        final double phase = 2 * Math.PI * mPulse / PULSE_STEPS;
+        final double swing = PULSE_FLOOR + (1 - PULSE_FLOOR) * (1 + Math.cos(phase)) / 2;
+        return (int) (BRIGHTNESS * swing);
+    }
+
     /**
      * Lights the bottom segments for a fraction of the way through. The bottom
      * one stands for "under way", so nothing in progress ever reads as absent.
      */
-    private int fill(double fraction) {
+    private int draw(double fraction, int leading) {
         final int lit = 1 + (int) ((Panel.SEGMENTS - 1) * Math.min(Math.max(fraction, 0), 1));
         for (int i = 0; i < Panel.SEGMENTS; i++) {
-            mLevels[i] = i >= Panel.SEGMENTS - lit ? BRIGHTNESS : 0;
+            mLevels[i] = i == Panel.SEGMENTS - lit ? leading
+                    : i > Panel.SEGMENTS - lit ? BRIGHTNESS : 0;
         }
         Panel.get().setWhite(Panel.OWNER_NOTIFICATION, mLevels);
         return lit;
@@ -231,6 +273,7 @@ public final class NotificationIndicator extends NotificationListenerService {
     private void clear() {
         mKey = null;
         mTotal = 0;
+        mHandler.removeCallbacks(mPulseStep);
         Panel.get().releaseWhite(Panel.OWNER_NOTIFICATION);
     }
 }
