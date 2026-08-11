@@ -7,15 +7,31 @@ normal app is CamX with noise-reduction tuning that erases fine texture.
 
 ## Ship the zoom translator
 
-`com.qualcomm.mcx.linearmapper.so` is shipped and sits in Aperture's rear path
-(`MCXSuperFG`). It `dlopen`s `/vendor/lib64/libarcsoft_triple_zoomtranslator.so`,
-gated on `vendor.camera.nothing.zoomtranslator.arcsoft`, and logs
-`ZoomTranslatorProxy::Init failed` without it. Source is
-`chi-cdk/oem/qcom/multicamera/chimcxlinearmapper/chimcxzoomtranslator.cpp`.
+`com.qualcomm.mcx.linearmapper.so` is shipped, is loaded in the provider during
+an Aperture session, and `dlopen`s
+`/vendor/lib64/libarcsoft_triple_zoomtranslator.so`, which is not on the device.
+The library is ArcSoft's triple-camera optical zoom control (`ARC_TCOZCTRL_*`):
+it maps a requested zoom ratio onto the crop and field of view of whichever
+sensor is streaming, keeps preview and snapshot framing in agreement through
+separate handles, and reserves the FOV margin the alignment transform needs.
 
-The blob list now names it. It needs a re-extraction on the builder to land, and
-then a check of whether the `Init failed` line is gone and whether lens
-transitions and framing across zoom improve.
+The stack does want it. With `chiLogInfoMask` raised, opening the camera logs
+
+```
+[ INFO][MCXCore] chimcxzoomtranslator.cpp:54 Create() Nothing ZoomTranslator, need = 1
+```
+
+**No failure is logged, and no symptom has been observed.** Nothing follows that
+line -- no `dlopen` failure, no `cannot found dlsym`, no
+`ZoomTranslatorProxy::Init failed` -- across lens transitions in both directions,
+and the gate property `vendor.camera.nothing.zoomtranslator.arcsoft` is unset
+here and in every stock `build.prop`. So the case for shipping it is that code we
+ship asks for a library by name that is absent, not that anything measurably
+misbehaves.
+
+The blob list names it; it needs a re-extraction to land. Judge it afterwards on
+framing continuity across a lens switch and on preview matching the captured
+frame, since that is what the library governs.
 
 ## Reach 50 MP without depending on NTCamera
 
