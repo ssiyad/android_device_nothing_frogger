@@ -47,6 +47,8 @@ public final class NotificationIndicator extends NotificationListenerService {
      * fraction. Steps are posted rather than scheduled, so a sleeping phone
      * simply holds the last frame instead of being woken to animate.
      */
+    private static final long REGISTER_RETRY_MS = 2000;
+
     private static final long PULSE_STEP_MS = 90;
     private static final int PULSE_STEPS = 16;
     private static final double PULSE_FLOOR = 0.35;
@@ -80,13 +82,20 @@ public final class NotificationIndicator extends NotificationListenerService {
         mClockTimer = new ClockTimer(context);
     }
 
+    /**
+     * The notification service is looked up by name with no null check on the
+     * way in, so registering before system_server has published it throws
+     * rather than failing. This process is persistent and starts early enough
+     * for that to be a race it loses on some boots, so it keeps asking.
+     */
     void register() {
         try {
             registerAsSystemService(mContext,
                     new ComponentName(mContext.getPackageName(), getClass().getCanonicalName()),
                     UserHandle.USER_ALL);
-        } catch (RemoteException e) {
-            Log.e(TAG, "Failed to register the notification listener", e);
+        } catch (RemoteException | RuntimeException e) {
+            Log.w(TAG, "Notification service not up yet, retrying", e);
+            mHandler.postDelayed(this::register, REGISTER_RETRY_MS);
         }
     }
 
