@@ -60,6 +60,16 @@ public class MaxResTestActivity extends Activity {
     private ImageReader mReader;
     private boolean mFinished;
     private boolean mRemosaic;
+    private boolean mMaxRes;
+    private String[] mNtFeatures = new String[0];
+
+    /**
+     * Nothing's processing lives in CHI nodes that ship in this ROM -- rawhdr, tfesupernight,
+     * darkvision, portrait, ldc, frt and the rest -- and each has a vendor tag that looks like its
+     * switch. The tags are settable by any application; whether setting one makes CHI select a
+     * graph that contains the node is the open question.
+     */
+    private static final String NT_PREFIX = "com.nothing.camera.";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,6 +86,16 @@ public class MaxResTestActivity extends Activity {
         final String remosaic = intent.getStringExtra("remosaic");
         mRemosaic = remosaic == null || !("0".equals(remosaic) || "false".equalsIgnoreCase(remosaic));
         Log.i(TAG, "remosaic vendor tag " + (mRemosaic ? "enabled" : "disabled"));
+
+        // "size": max (default) uses the maximum resolution map; normal uses the ordinary one, so
+        // the Nothing feature tags can be tested without the full-size rejection getting in first.
+        mMaxRes = !"normal".equalsIgnoreCase(intent.getStringExtra("size"));
+        final String nt = intent.getStringExtra("nt");
+        if (nt != null && !nt.isEmpty()) {
+            mNtFeatures = nt.split(",");
+        }
+        Log.i(TAG, "size=" + (mMaxRes ? "maximum" : "normal")
+                + " ntFeatures=" + java.util.Arrays.toString(mNtFeatures));
         final int format = raw ? ImageFormat.RAW_SENSOR : ImageFormat.JPEG;
 
         mHandler.postDelayed(() -> fail("timed out after " + TIMEOUT_MS + " ms"), TIMEOUT_MS);
@@ -103,15 +123,16 @@ public class MaxResTestActivity extends Activity {
             }
         }
         Log.i(TAG, "camera " + cameraId + " ULTRA_HIGH_RESOLUTION_SENSOR=" + ultraHigh);
-        if (!ultraHigh) {
+        if (mMaxRes && !ultraHigh) {
             fail("camera " + cameraId + " does not advertise ULTRA_HIGH_RESOLUTION_SENSOR");
             return;
         }
 
-        final StreamConfigurationMap map = chars.get(
-                CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP_MAXIMUM_RESOLUTION);
+        final StreamConfigurationMap map = chars.get(mMaxRes
+                ? CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP_MAXIMUM_RESOLUTION
+                : CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
         if (map == null) {
-            fail("no SCALER_STREAM_CONFIGURATION_MAP_MAXIMUM_RESOLUTION");
+            fail("no stream configuration map");
             return;
         }
 
@@ -180,12 +201,30 @@ public class MaxResTestActivity extends Activity {
     private static final CaptureRequest.Key<Integer> REMOSAIC_ENABLE =
             new CaptureRequest.Key<>("com.nothing.camera.remosaic.enable", Integer.class);
 
+    /** Sets each requested Nothing feature tag, reporting which the framework accepted. */
+    private void applyNtFeatures(CaptureRequest.Builder b, String where) {
+        for (String feature : mNtFeatures) {
+            final String name = feature.trim();
+            if (name.isEmpty()) {
+                continue;
+            }
+            // "night" is a mode, the rest are enables; both are int32.
+            final String tag = NT_PREFIX + name + ("night".equals(name) ? ".mode" : ".enable");
+            try {
+                b.set(new CaptureRequest.Key<>(tag, Integer.class), 1);
+                Log.i(TAG, "set " + tag + "=1 (" + where + ")");
+            } catch (IllegalArgumentException e) {
+                Log.w(TAG, "tag not settable: " + tag + " -- " + e);
+            }
+        }
+    }
+
     private void configure(CameraDevice device) throws CameraAccessException {
         final CaptureRequest.Builder params = device.createCaptureRequest(
                 CameraDevice.TEMPLATE_STILL_CAPTURE);
         params.set(CaptureRequest.SENSOR_PIXEL_MODE,
                 CameraMetadata.SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION);
-        if (mRemosaic) {
+        if (mRemosaic && mMaxRes) {
             try {
                 params.set(REMOSAIC_ENABLE, 1);
                 Log.i(TAG, "set com.nothing.camera.remosaic.enable=1 in session parameters");
@@ -193,6 +232,7 @@ public class MaxResTestActivity extends Activity {
                 Log.w(TAG, "vendor tag com.nothing.camera.remosaic.enable not settable: " + e);
             }
         }
+        applyNtFeatures(params, "session parameters");
 
         final List<OutputConfiguration> outputs =
                 Collections.singletonList(new OutputConfiguration(mReader.getSurface()));
@@ -224,13 +264,14 @@ public class MaxResTestActivity extends Activity {
                 CameraDevice.TEMPLATE_STILL_CAPTURE);
         request.set(CaptureRequest.SENSOR_PIXEL_MODE,
                 CameraMetadata.SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION);
-        if (mRemosaic) {
+        if (mRemosaic && mMaxRes) {
             try {
                 request.set(REMOSAIC_ENABLE, 1);
             } catch (IllegalArgumentException e) {
                 Log.w(TAG, "vendor tag not settable on request: " + e);
             }
         }
+        applyNtFeatures(request, "request");
         request.addTarget(mReader.getSurface());
 
         session.capture(request.build(), new CameraCaptureSession.CaptureCallback() {
