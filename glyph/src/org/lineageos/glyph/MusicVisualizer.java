@@ -15,65 +15,72 @@ import android.util.Log;
 import java.util.List;
 
 /**
- * Drives the white segments as a level meter while media plays: loudness is the
- * height of the column, not the brightness of six bands. Height is the one
- * channel this strip reads well, because the eye ranks position but cannot rank
- * brightness against a shifting ambient level.
+ * Drives the white segments from the beat rather than the volume.
  *
- * The topmost lit segment carries the fraction, which gives the column a
- * smoothness six steps cannot.
+ * Loudness does not work as the height of the column. Music is mastered to sit
+ * at a near-constant level, so a mean over any short window barely moves, and
+ * the bar parks at whatever that track's loudness happens to be. What reads as
+ * music is the bass hitting: the column takes the energy of the low bands, rises
+ * with it at once and falls back slowly, so each beat lands.
  *
- * A ringtone drives the same meter, so an incoming call arrives as the shape of
- * whatever is ringing rather than as a generic blink, and it outranks music.
+ * The scale is a peak that decays over seconds, which lets a quiet track and a
+ * loud one both use the whole strip without a level being fixed anywhere. It
+ * starts high and settles downwards, because a scale that starts at the first
+ * sample it sees makes the opening frame full.
  *
- * The effect is attached only while something is actually playing, because an
- * attached effect chain costs whether or not the capture callback finds
- * anything.
+ * A ringtone drives the same meter and is not held back by any of the gating,
+ * since a call is worth showing whichever way the phone is lying.
  */
 final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
     private static final String TAG = "Glyph";
 
-    private static final int CAPTURE_SIZE = 128;
-
     private static final int BRIGHTNESS = 110;
 
-    /**
-     * Loudness maps to height on a fixed decibel scale rather than against a
-     * running peak. A peak that adapts has to start somewhere, and starting at
-     * the first sample it sees makes the opening frame full scale — which turns
-     * every short sound into a flash of the whole strip.
-     */
-    private static final double FLOOR_DB = -28;
+    /** Bass, in hertz. Kick and bassline live here; voices and cymbals do not. */
+    private static final double BASS_LOW_HZ = 40;
+    private static final double BASS_HIGH_HZ = 260;
 
-    /** Loud enough to fill the column. Ordinary music sits well below it. */
-    private static final double CEILING_DB = -4;
+    /** Fraction of the envelope kept per frame as it falls back between beats. */
+    private static final double RELEASE = 0.8;
 
-    /** Root-mean-square below this is silence rather than quiet. */
-    private static final double SILENCE = 0.005;
+    /** Fraction of the scale kept per frame, so it drifts over seconds. */
+    private static final double REFERENCE_DECAY = 0.995;
 
-    /**
-     * How long a player has to stay active before the strip reacts. UI clicks
-     * go out as media on this device — Spotify sonifies through a SoundPool
-     * tagged USAGE_MEDIA — and the player type that would tell them apart is
-     * anonymised away, so duration is what separates a tap from a track.
-     */
+    /** Where the scale starts, high enough that the first frames read low. */
+    private static final double INITIAL_REFERENCE = 600;
+
+    /** Band energy below this is silence rather than a quiet passage. */
+    private static final double SILENCE = 20;
+
+    /** Above one, this keeps the column near the floor except on a beat. */
+    private static final double CONTRAST = 2.0;
+
     private static final long SETTLE_MS = 600;
 
-    /** Fraction of the old height retained as the meter falls. */
-    private static final double RELEASE = 0.85;
-
     private final int[] mLevels = new int[Panel.SEGMENTS];
-
     private final Handler mHandler;
 
     private Visualizer mVisualizer;
     private boolean mSettling;
     private boolean mMedia;
     private boolean mRinging;
+    private boolean mFaceDown;
+    private int mBassFrom;
+    private int mBassTo;
+    private double mEnvelope;
+    private double mReference = INITIAL_REFERENCE;
     private double mHeight;
     private int mOwner = Panel.OWNER_MUSIC;
 
-    private final Runnable mAttach = this::attach;
+    private final Runnable mAttach = new Runnable() {
+        @Override
+        public void run() {
+            mSettling = false;
+            if (mMedia || mRinging) {
+                attach();
+            }
+        }
+    };
 
     MusicVisualizer(Handler handler) {
         mHandler = handler;
@@ -83,21 +90,23 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
             new Visualizer.OnDataCaptureListener() {
         @Override
         public void onWaveFormDataCapture(Visualizer visualizer, byte[] waveform, int rate) {
-            double sum = 0;
-            for (byte sample : waveform) {
-                // Unsigned 8-bit PCM, silence at 128.
-                final double centred = ((sample & 0xFF) - 128) / 128.0;
-                sum += centred * centred;
+        }
+
+        @Override
+        public void onFftDataCapture(Visualizer visualizer, byte[] fft, int rate) {
+            double energy = 0;
+            for (int bin = mBassFrom; bin < mBassTo && bin * 2 + 1 < fft.length; bin++) {
+                energy += Math.hypot(fft[bin * 2], fft[bin * 2 + 1]);
             }
-            final double rms = Math.sqrt(sum / waveform.length);
 
-            final double decibels = 20 * Math.log10(rms);
-            final double scaled = (decibels - FLOOR_DB) / (CEILING_DB - FLOOR_DB);
-            final double height = rms < SILENCE ? 0
-                    : Panel.SEGMENTS * Math.min(1, Math.max(0, scaled));
+            // Rise with the beat, fall back between them.
+            mEnvelope = energy > mEnvelope ? energy
+                    : mEnvelope * RELEASE + energy * (1 - RELEASE);
+            mReference = Math.max(mEnvelope, mReference * REFERENCE_DECAY);
 
-            // Rise with the music, fall behind it.
-            mHeight = height > mHeight ? height : mHeight * RELEASE + height * (1 - RELEASE);
+            final double share = mReference <= 0 ? 0 : mEnvelope / mReference;
+            mHeight = energy < SILENCE ? 0
+                    : Panel.SEGMENTS * Math.pow(Math.min(1, share), CONTRAST);
 
             for (int i = 0; i < Panel.SEGMENTS; i++) {
                 final double fill = mHeight - (Panel.SEGMENTS - 1 - i);
@@ -106,10 +115,6 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
             }
 
             Panel.get().setWhite(mOwner, mLevels);
-        }
-
-        @Override
-        public void onFftDataCapture(Visualizer visualizer, byte[] fft, int rate) {
         }
     };
 
@@ -130,24 +135,31 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
         update();
     }
 
-    private void update() {
-        final boolean media = mMedia;
-        final boolean ringing = mRinging;
+    void onFaceDownChanged(boolean faceDown) {
+        mFaceDown = faceDown;
+        update();
+    }
 
-        final int owner = ringing ? Panel.OWNER_RINGING : Panel.OWNER_MUSIC;
+    private void update() {
+        final int owner = mRinging ? Panel.OWNER_RINGING : Panel.OWNER_MUSIC;
         if (owner != mOwner) {
             Panel.get().releaseWhite(mOwner);
             mOwner = owner;
-            mHeight = 0;
+            reset();
         }
 
-        if (ringing) {
+        if (mRinging) {
             // A ring is worth showing at once, and nothing sonifies a ringtone
-            // by accident, so it does not wait to settle.
+            // by accident, so it neither waits to settle nor waits to be seen.
             mSettling = false;
             mHandler.removeCallbacks(mAttach);
             attach();
-        } else if (media) {
+            return;
+        }
+
+        // The meter is decoration, and decoration on a face the holder cannot
+        // see costs an effect chain for nothing.
+        if (mMedia && mFaceDown) {
             if (!mSettling) {
                 mSettling = true;
                 mHandler.postDelayed(mAttach, SETTLE_MS);
@@ -166,9 +178,17 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
 
         try {
             mVisualizer = new Visualizer(0);
-            mVisualizer.setCaptureSize(CAPTURE_SIZE);
+            final int size = Math.min(1024, Visualizer.getCaptureSizeRange()[1]);
+            mVisualizer.setCaptureSize(size);
+
+            // Bin width follows the capture rate, so the band is asked for in
+            // hertz rather than assumed.
+            final double binHz = (mVisualizer.getSamplingRate() / 1000.0) / size;
+            mBassFrom = Math.max(1, (int) (BASS_LOW_HZ / binHz));
+            mBassTo = Math.max(mBassFrom + 1, (int) (BASS_HIGH_HZ / binHz));
+
             mVisualizer.setDataCaptureListener(mCaptureListener,
-                    Visualizer.getMaxCaptureRate(), true /* waveform */, false /* fft */);
+                    Visualizer.getMaxCaptureRate(), false /* waveform */, true /* fft */);
             mVisualizer.setEnabled(true);
         } catch (RuntimeException e) {
             Log.e(TAG, "Failed to attach the visualizer", e);
@@ -191,6 +211,12 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
         mVisualizer.setEnabled(false);
         mVisualizer.release();
         mVisualizer = null;
+        reset();
+    }
+
+    private void reset() {
+        mEnvelope = 0;
+        mReference = INITIAL_REFERENCE;
         mHeight = 0;
     }
 }

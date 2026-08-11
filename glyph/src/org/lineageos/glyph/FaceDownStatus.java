@@ -41,7 +41,20 @@ final class FaceDownStatus implements SensorEventListener {
     /** Gravity along z, in m/s². Near -9.8 is flat on its face. */
     private static final float FACE_DOWN = -7f;
 
+    /**
+     * Readings to take before deciding. A phone is still being put down when
+     * the flip is reported, so the first sample catches it mid-air and reads as
+     * whatever it happened to be passing through.
+     */
+    private static final int SETTLE_SAMPLES = 8;
+
+    /** Told whenever the phone settles the other way up. */
+    interface Listener {
+        void onFaceDown(boolean faceDown);
+    }
+
     private final Handler mHandler;
+    private final Listener mListener;
     private final SensorManager mSensorManager;
     private final BatteryManager mBatteryManager;
     private final PowerManager.WakeLock mWakeLock;
@@ -52,6 +65,7 @@ final class FaceDownStatus implements SensorEventListener {
     private Sensor mAccelerometer;
     private boolean mFaceDown;
     private boolean mKnown;
+    private int mSamples;
 
     private final Runnable mHide = new Runnable() {
         @Override
@@ -63,8 +77,9 @@ final class FaceDownStatus implements SensorEventListener {
         }
     };
 
-    FaceDownStatus(Context context, Handler handler) {
+    FaceDownStatus(Context context, Handler handler, Listener listener) {
         mHandler = handler;
+        mListener = listener;
         mSensorManager = context.getSystemService(SensorManager.class);
         mBatteryManager = context.getSystemService(BatteryManager.class);
         mWakeLock = context.getSystemService(PowerManager.class)
@@ -83,7 +98,10 @@ final class FaceDownStatus implements SensorEventListener {
 
     void register() {
         if (mScreenUpward == null || mAccelerometer == null) {
+            // Nothing left to gate with, so let whatever waits on this run
+            // rather than leaving it switched off for good.
             Log.w(TAG, "No screen_upward sensor, the face-down status is inert");
+            mListener.onFaceDown(true);
             return;
         }
         mSensorManager.registerListener(this, mScreenUpward, SensorManager.SENSOR_DELAY_NORMAL);
@@ -108,6 +126,7 @@ final class FaceDownStatus implements SensorEventListener {
             // An on-change sensor also reports its current value on
             // registration, so the first reading settles the state below
             // rather than counting as a flip.
+            mSamples = 0;
             mSensorManager.registerListener(this, mAccelerometer,
                     SensorManager.SENSOR_DELAY_UI);
             return;
@@ -116,11 +135,15 @@ final class FaceDownStatus implements SensorEventListener {
         if (event.sensor != mAccelerometer) {
             return;
         }
+        if (++mSamples < SETTLE_SAMPLES) {
+            return;
+        }
         mSensorManager.unregisterListener(this, mAccelerometer);
 
         final boolean faceDown = event.values[2] < FACE_DOWN;
         if (faceDown != mFaceDown) {
             mFaceDown = faceDown;
+            mListener.onFaceDown(faceDown);
             if (faceDown && mKnown) {
                 show();
             }
