@@ -10,6 +10,7 @@ import android.media.AudioManager;
 import android.media.AudioPlaybackConfiguration;
 import android.media.audiofx.Visualizer;
 import android.os.Handler;
+import android.os.SystemClock;
 import android.util.Log;
 
 import java.util.List;
@@ -57,6 +58,15 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
 
     private static final long SETTLE_MS = 600;
 
+    /**
+     * The capture is of the whole output mix, so once attached the meter reacts
+     * to every sound the phone makes — an unlock chime and a shutter click look
+     * exactly like a kick drum. Staying attached through silence is what turns
+     * those into blinks, so quiet for this long lets go until music starts
+     * again.
+     */
+    private static final long QUIET_MS = 4000;
+
     private final int[] mLevels = new int[Panel.SEGMENTS];
     private final Handler mHandler;
 
@@ -67,6 +77,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
     private boolean mFaceDown;
     private int mBassFrom;
     private int mBassTo;
+    private long mQuietSince;
     private double mEnvelope;
     private double mReference = INITIAL_REFERENCE;
     private double mHeight;
@@ -103,6 +114,15 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
             mEnvelope = energy > mEnvelope ? energy
                     : mEnvelope * RELEASE + energy * (1 - RELEASE);
             mReference = Math.max(mEnvelope, mReference * REFERENCE_DECAY);
+
+            if (energy >= SILENCE) {
+                mQuietSince = 0;
+            } else if (mQuietSince == 0) {
+                mQuietSince = SystemClock.uptimeMillis();
+            } else if (SystemClock.uptimeMillis() - mQuietSince > QUIET_MS) {
+                detach();
+                return;
+            }
 
             final double share = mReference <= 0 ? 0 : mEnvelope / mReference;
             mHeight = energy < SILENCE ? 0
@@ -190,6 +210,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
             mVisualizer.setDataCaptureListener(mCaptureListener,
                     Visualizer.getMaxCaptureRate(), false /* waveform */, true /* fft */);
             mVisualizer.setEnabled(true);
+            Log.i(TAG, "visualizer attached, faceDown=" + mFaceDown);
         } catch (RuntimeException e) {
             Log.e(TAG, "Failed to attach the visualizer", e);
             release();
@@ -201,6 +222,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
             return;
         }
         release();
+        Log.i(TAG, "visualizer detached");
         Panel.get().releaseWhite(mOwner);
     }
 
@@ -218,5 +240,6 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
         mEnvelope = 0;
         mReference = INITIAL_REFERENCE;
         mHeight = 0;
+        mQuietSince = 0;
     }
 }

@@ -36,16 +36,29 @@ final class ClockTimer {
 
     ClockTimer(Context context) {
         mContext = context;
-        try {
-            mResources = context.getPackageManager().getResourcesForApplication(PACKAGE);
-        } catch (PackageManager.NameNotFoundException e) {
-            Log.w(TAG, "No clock app, the timer indicator is inert");
+    }
+
+    /**
+     * The clock app is not direct-boot aware, so it cannot be resolved while
+     * the user is still locked — which is exactly when a persistent process
+     * starts. Asking once at construction therefore fails on every boot and
+     * leaves this inert for the life of the process, so it is asked for until
+     * it answers.
+     */
+    private Resources resources() {
+        if (mResources == null) {
+            try {
+                mResources = mContext.getPackageManager().getResourcesForApplication(PACKAGE);
+            } catch (PackageManager.NameNotFoundException e) {
+                Log.w(TAG, "Clock app not resolvable yet");
+            }
         }
+        return mResources;
     }
 
     /** Returns null when the notification carries no countdown. */
     Reading read(Notification notification) {
-        if (mResources == null) {
+        if (resources() == null) {
             return null;
         }
 
@@ -68,14 +81,15 @@ final class ClockTimer {
     }
 
     private boolean isPaused(View content) {
-        final int stateId = mResources.getIdentifier("state", "id", PACKAGE);
-        final int pausedId = mResources.getIdentifier("timer_paused", "string", PACKAGE);
+        final Resources resources = resources();
+        final int stateId = resources.getIdentifier("state", "id", PACKAGE);
+        final int pausedId = resources.getIdentifier("timer_paused", "string", PACKAGE);
         if (stateId == 0 || pausedId == 0) {
             return false;
         }
         final View state = content.findViewById(stateId);
         return state instanceof TextView
-                && mResources.getString(pausedId).contentEquals(((TextView) state).getText());
+                && resources.getString(pausedId).contentEquals(((TextView) state).getText());
     }
 
     private static Chronometer findChronometer(View view) {
