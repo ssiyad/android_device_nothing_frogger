@@ -141,7 +141,7 @@ public class MaxResTestActivity extends Activity {
         // sizes we are after are in that second list, not the first.
         final Size[] normal = map.getOutputSizes(format);
         final Size[] slow = map.getHighResolutionOutputSizes(format);
-        Log.i(TAG, "maximum resolution map: getOutputSizes=" + (normal == null ? 0 : normal.length)
+        Log.i(TAG, (mMaxRes ? "maximum resolution" : "default") + " map: getOutputSizes=" + (normal == null ? 0 : normal.length)
                 + " getHighResolutionOutputSizes=" + (slow == null ? 0 : slow.length));
 
         Size best = null;
@@ -222,8 +222,12 @@ public class MaxResTestActivity extends Activity {
     private void configure(CameraDevice device) throws CameraAccessException {
         final CaptureRequest.Builder params = device.createCaptureRequest(
                 CameraDevice.TEMPLATE_STILL_CAPTURE);
-        params.set(CaptureRequest.SENSOR_PIXEL_MODE,
-                CameraMetadata.SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION);
+        if (mMaxRes) {
+            // Only valid alongside a maximum-resolution stream; the framework rejects the
+            // request outright if it disagrees with how the streams were configured.
+            params.set(CaptureRequest.SENSOR_PIXEL_MODE,
+                    CameraMetadata.SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION);
+        }
         if (mRemosaic && mMaxRes) {
             try {
                 params.set(REMOSAIC_ENABLE, 1);
@@ -242,7 +246,7 @@ public class MaxResTestActivity extends Activity {
                 new CameraCaptureSession.StateCallback() {
                     @Override
                     public void onConfigured(CameraCaptureSession session) {
-                        Log.i(TAG, "session configured -- HAL ACCEPTED the full-size stream");
+                        Log.i(TAG, "session configured -- HAL ACCEPTED the stream");
                         try {
                             capture(session);
                         } catch (Throwable t) {
@@ -252,7 +256,7 @@ public class MaxResTestActivity extends Activity {
 
                     @Override
                     public void onConfigureFailed(CameraCaptureSession session) {
-                        fail("HAL REJECTED the full-size stream at configure_streams");
+                        fail("HAL REJECTED the stream at configure_streams");
                     }
                 });
         config.setSessionParameters(params.build());
@@ -262,8 +266,10 @@ public class MaxResTestActivity extends Activity {
     private void capture(CameraCaptureSession session) throws CameraAccessException {
         final CaptureRequest.Builder request = mCamera.createCaptureRequest(
                 CameraDevice.TEMPLATE_STILL_CAPTURE);
-        request.set(CaptureRequest.SENSOR_PIXEL_MODE,
-                CameraMetadata.SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION);
+        if (mMaxRes) {
+            request.set(CaptureRequest.SENSOR_PIXEL_MODE,
+                    CameraMetadata.SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION);
+        }
         if (mRemosaic && mMaxRes) {
             try {
                 request.set(REMOSAIC_ENABLE, 1);
