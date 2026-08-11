@@ -22,6 +22,8 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 rc=0
 
 for dir in "$here"/*/; do
+    # No patch directories at all: the glob stays literal and there is nothing to do.
+    [ -d "$dir" ] || continue
     project="$(basename "$dir")"
     project="${project//_//}"
     if [ ! -d "$top/$project" ]; then

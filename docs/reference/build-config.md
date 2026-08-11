@@ -66,7 +66,8 @@ already assigns it and Soong fails on duplicate sysprop assignments.
 ## Out-of-tree patches
 
 `patches/` holds changes this device needs in projects it does not own, with
-`patches/apply.sh` to put them back. Currently one, against `frameworks/av`.
+`patches/apply.sh` to put them back. It currently holds none; the machinery is
+kept because the next one is easier than rebuilding it.
 
 **`apply.sh` must run after every `repo sync` and before every build.** `repo
 sync` runs with the force flag and resets those projects, so the patches come off

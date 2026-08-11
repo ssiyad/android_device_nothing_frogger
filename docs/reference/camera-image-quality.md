@@ -196,6 +196,43 @@ past `CheckValidStreamConfig` to it. Stock's own app avoids the problem by not
 using this path at all: it goes through `libntcamera2ndk_vendor_v2.so` to the
 provider directly.
 
+### How much 50 MP would be worth, if it worked
+
+Enough to want on the wide in good light, and very little anywhere else. The
+optics decide this, and the numbers come from the HAL's own `physicalSize`
+divided by `pixelArraySizeMaximumResolution`, against the Airy disk at 550 nm
+(`2.44 x lambda x f-number`):
+
+| | wide, GN9 | tele, JN5 |
+|---|---|---|
+| Aperture | f/1.88 | f/2.85 |
+| Pixel pitch, full-res | 1.00 um | 0.64 um |
+| Pixel pitch, binned | 2.00 um | 1.28 um |
+| Airy disk | 2.52 um | 3.82 um |
+| Pixels across Airy, binned | **1.26** | 2.99 |
+| Pixels across Airy, full-res | **2.52** | 5.98 |
+
+About two pixels across the Airy disk is where a sensor captures what its lens
+delivers. The wide's binned output sits at 1.26, so it is under-sampling and real
+detail is being discarded; full resolution at 2.52 is properly sampled. The
+tele's binned output is already at 2.99, so full resolution there is close to
+empty magnification -- four times the file for very little more information.
+
+Three things cut against it even on the wide:
+
+- **Quad-bayer interpolation.** At full size the filter is 2x2 same-colour
+  clusters, so remosaic reconstructs a Bayer pattern rather than measuring one.
+  The gain is real but well short of 4x.
+- **Low light inverts the comparison.** Binning gathers four photodiodes into
+  one pixel, roughly doubling SNR, and full size is capped near 15 fps and
+  unlikely to keep the multi-frame path that runs today.
+- **Resolution is not the current limit.** At ISO 900 the detail is destroyed by
+  noise reduction, not missing for want of pixels. Full size would produce four
+  times as many smeared pixels.
+
+RAW at the binned size recovers more real detail than full size would, needs no
+patches, and works now.
+
 NTCamera reaches it through `libntcamera2ndk_vendor_v2.so`, a vendor camera2 NDK
 that talks to the provider directly and bypasses that validation. That is a
 vendor-domain client path, which is why the stock app has 50 MP and no ordinary

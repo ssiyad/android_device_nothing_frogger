@@ -19,60 +19,34 @@ transitions and framing across zoom improve.
 
 ## Reach 50 MP without depending on NTCamera
 
-The hardware supports 50 MP JPEG and 50 MP RAW; the HAL computes the
-configurations and then publishes a filtered subset to Android. See
-`reference/camera-image-quality.md` for the measurement. Settings are ruled out,
-so two routes remain, in the order they are worth trying.
+Parked, and the standard route is closed. The hardware supports 50 MP JPEG and
+RAW, the HAL computes those configurations, and it then refuses to accept them
+from any camera3 client -- `CheckValidStreamConfig` validates against the binned
+ceiling, ignores `SENSOR_PIXEL_MODE`, and is unmoved by Nothing's own
+`com.nothing.camera.remosaic.enable`. `reference/camera-image-quality.md` has the
+evidence and `tools/MaxResTest` reproduces it in one command.
 
-**1. Complete the maximum-resolution characteristics in the framework.** Written,
-as `patches/frameworks_av/0001-camera-Restore-the-hidden-maximum-resolution-modes.patch`.
-It adds `addNothingUltraHighResolutionTags()` beside the `deriveHeicTags` /
-`deriveJpegRTags` family, fills `d0014` with the configurations the vendor tag
-has and the `android.` map does not, and advertises
-`ULTRA_HIGH_RESOLUTION_SENSOR`. Gated on the maximum-resolution companions being
-present, which holds only for the three quad-bayer sensors and for no other
-device, so the logical camera and the ultrawide are untouched.
+Completing the maximum resolution characteristics in `frameworks/av` worked
+exactly as intended and is still the wrong thing to ship, because it advertises a
+capability the HAL then rejects: an app that believes
+`ULTRA_HIGH_RESOLUTION_SENSOR` fails at `configure_streams` instead of falling
+back. It has been reverted for that reason, not because it was wrong about the
+metadata.
 
-It is deliberately not merged into the ordinary
-`android.scaler.availableStreamConfigurations`. Full-size modes belong behind the
-maximum-resolution pixel mode; folding them into the default list would claim
-they work in the default pixel mode, which is a different and probably untrue
-thing to say, and would likely fail at `configure_streams`.
+Two routes remain, neither cheap, and the optics argue against urgency -- full
+size is worth having on the wide in good light and close to worthless on the
+tele, and it would not touch the noise-reduction smearing that actually limits
+these photographs.
 
-**Built, flashed and confirmed working**: `d0014` is populated and
-`ULTRA_HIGH_RESOLUTION_SENSOR` advertised on cameras 1, 3 and 4, with full-size
-JPEG and RAW both offered. See `reference/camera-image-quality.md` for the sizes.
+**Binary-patch `camera.qcom.so`** to lift the ceiling. It would work for every
+app, but the blob is re-extracted from the OTA on every sync, so it needs a
+patch step wired into extraction, and a camera HAL is an unforgiving thing to
+patch without source.
 
-**And the HAL then refuses it.** `tools/MaxResTest` asks directly and CamX
-rejects the configuration against a ceiling of the binned size, ignoring
-`SENSOR_PIXEL_MODE` and unmoved by Nothing's own `com.nothing.camera.remosaic.enable`
-in the session parameters. See `reference/camera-image-quality.md`.
-
-**So this patch currently advertises a capability that does not work**, which is
-worse than not advertising it: an app that believes `ULTRA_HIGH_RESOLUTION_SENSOR`
-will fail at `configure_streams` rather than fall back. Decide between:
-
-- Reverting it, leaving the device honest about what it can do.
-- Keeping it only if a way past `CheckValidStreamConfig` is found, since the
-  advertisement is correct in every respect except that the HAL will not honour
-  it.
-
-Nothing in `camxoverridesettings.txt` moves that ceiling, and the check lives in
-`camera.qcom.so` ahead of any CHI involvement, so the remaining ways past it are
-a binary patch of a blob that is re-extracted from the OTA, or the vendor NDK
-path below.
-
-This is the route that best matches "not vendor locked": no Nothing app, no
-Nothing service, and the capability reaches every app through the standard API.
-
-**2. A vendor-domain capture helper.** `libcamera2ndk_vendor.so` (AOSP's vendor
-camera2 NDK, currently not shipped) or Nothing's `libntcamera2ndk_vendor_v2.so`
-can talk to the provider directly and bypass `cameraserver` validation entirely —
-this is how NTCamera gets 50 MP. A small service of our own in the vendor domain
-could expose full-size capture on our terms.
-
-It works, but it is a bespoke capture path that no ordinary app can use without
-talking to it, so it trades one lock-in for another. Worth it only if the framework merge fails.
+**A vendor-domain capture helper** built on `libcamera2ndk_vendor.so` or
+Nothing's `libntcamera2ndk_vendor_v2.so`, which is how NTCamera does it. It
+works, but no ordinary app can use it without talking to our service, so it
+trades one lock-in for another and cuts against the reason for doing any of this.
 
 ## Decide what to do about NTCamera
 
@@ -132,6 +106,10 @@ Recorded so they are not re-tried:
   confirmed accepted in CamX's own override dump, and changed nothing about the
   advertised configurations on any camera. The filter is not in
   `camxoverridesettings.txt`.
+- **Re-adding the `frameworks/av` maximum-resolution patch on its own.** The
+  metadata it wrote was correct and the HAL still refuses the configuration, so
+  it only makes the device claim something it cannot do. It is worth restoring
+  only alongside a way past `CheckValidStreamConfig`.
 
 ## GCam
 
