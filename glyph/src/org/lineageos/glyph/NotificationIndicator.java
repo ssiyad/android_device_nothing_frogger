@@ -41,17 +41,24 @@ public final class NotificationIndicator extends NotificationListenerService {
     /** Dim enough to sit there for hours without becoming the room's light. */
     private static final int WAITING_BRIGHTNESS = 20;
 
-    /**
-     * The leading segment breathes while a progress bar is filling, so work
-     * that is moving reads differently from work that has stalled at the same
-     * fraction. Steps are posted rather than scheduled, so a sleeping phone
-     * simply holds the last frame instead of being woken to animate.
-     */
     private static final long REGISTER_RETRY_MS = 2000;
 
-    private static final long PULSE_STEP_MS = 90;
-    private static final int PULSE_STEPS = 16;
-    private static final double PULSE_FLOOR = 0.35;
+    /**
+     * How long a block takes to fall one place. Steps are posted rather than
+     * scheduled, so a sleeping phone holds the frame it had instead of being
+     * woken to finish an animation nobody is watching.
+     */
+    private static final long FALL_STEP_MS = 70;
+
+    /**
+     * A progress bar rests with its leading block dim and brightens it for each
+     * update that moves the count. Downloads report far more often than the six
+     * blocks advance, so the flicker follows the data arriving: work that has
+     * stalled simply stops brightening and sits dim. A countdown keeps its
+     * leading block full, having nothing to stall.
+     */
+    private static final long BLIP_MS = 150;
+    private static final int IDLE_BRIGHTNESS = 25;
 
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private final int[] mLevels = new int[Panel.SEGMENTS];
@@ -64,15 +71,32 @@ public final class NotificationIndicator extends NotificationListenerService {
 
     private String mKey;
     private long mTotal;
-    private double mFraction;
-    private int mPulse;
+    private int mLit;
+    private int mFalling = -1;
+    private int mFallTarget;
+    private int mLeading = BRIGHTNESS;
+    private String mProgressKey;
+    private int mProgressValue = -1;
 
-    private final Runnable mPulseStep = new Runnable() {
+    private final Runnable mBlipEnd = new Runnable() {
         @Override
         public void run() {
-            mPulse = (mPulse + 1) % PULSE_STEPS;
-            draw(mFraction, leadingBrightness());
-            mHandler.postDelayed(this, PULSE_STEP_MS);
+            mLeading = IDLE_BRIGHTNESS;
+            render();
+        }
+    };
+
+    private final Runnable mFallStep = new Runnable() {
+        @Override
+        public void run() {
+            if (mFalling >= mFallTarget) {
+                mLit = Panel.SEGMENTS - mFallTarget;
+                mFalling = -1;
+            } else {
+                mFalling++;
+                mHandler.postDelayed(this, FALL_STEP_MS);
+            }
+            render();
         }
     };
 
@@ -144,7 +168,20 @@ public final class NotificationIndicator extends NotificationListenerService {
         if (progress != null) {
             final Notification notification = progress.getNotification();
             final int max = notification.extras.getInt(Notification.EXTRA_PROGRESS_MAX);
-            pulse((double) Math.min(progressOf(notification), max) / max);
+            final int value = progressOf(notification);
+
+            final boolean moved = !progress.getKey().equals(mProgressKey)
+                    || value != mProgressValue;
+            mProgressKey = progress.getKey();
+            mProgressValue = value;
+
+            mHandler.removeCallbacks(mBlipEnd);
+            mLeading = moved ? BRIGHTNESS : IDLE_BRIGHTNESS;
+            if (moved) {
+                mHandler.postDelayed(mBlipEnd, BLIP_MS);
+            }
+
+            show((double) Math.min(value, max) / max);
             return;
         }
 
@@ -166,17 +203,22 @@ public final class NotificationIndicator extends NotificationListenerService {
             mTotal = Math.max(mTotal, remaining);
         }
 
-        final int lit = fill((double) (mTotal - remaining) / mTotal);
+        // A countdown cannot stall, so its leading block stays full.
+        mHandler.removeCallbacks(mBlipEnd);
+        mLeading = BRIGHTNESS;
+
+        final int lit = show((double) (mTotal - remaining) / mTotal);
 
         if (reading.paused || lit >= Panel.SEGMENTS) {
             return;
         }
 
-        // One wake-up per segment rather than a ticking handler. The next
-        // segment lights once the elapsed share reaches the following step.
-        final long step = mTotal * lit / (Panel.SEGMENTS - 1);
+        // One wake-up per block rather than a ticking handler. Each block owns
+        // an equal share of the countdown, so the next is due once the elapsed
+        // share reaches it.
+        final long elapsedAtNext = mTotal * lit / Panel.SEGMENTS;
         mAlarmManager.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                reading.base - (mTotal - step), TAG, mTick, mHandler);
+                reading.base - (mTotal - elapsedAtNext), TAG, mTick, mHandler);
     }
 
     /**
@@ -247,43 +289,54 @@ public final class NotificationIndicator extends NotificationListenerService {
     }
 
     /** Draws a static bar, stopping any breath left running. */
-    private int fill(double fraction) {
-        mHandler.removeCallbacks(mPulseStep);
-        return draw(fraction, BRIGHTNESS);
-    }
-
-    /** Draws a bar whose leading segment breathes. */
-    private int pulse(double fraction) {
-        mFraction = fraction;
-        mHandler.removeCallbacks(mPulseStep);
-        mHandler.postDelayed(mPulseStep, PULSE_STEP_MS);
-        return draw(fraction, leadingBrightness());
-    }
-
-    private int leadingBrightness() {
-        final double phase = 2 * Math.PI * mPulse / PULSE_STEPS;
-        final double swing = PULSE_FLOOR + (1 - PULSE_FLOOR) * (1 + Math.cos(phase)) / 2;
-        return (int) (BRIGHTNESS * swing);
-    }
-
     /**
-     * Lights the bottom segments for a fraction of the way through. The bottom
-     * one stands for "under way", so nothing in progress ever reads as absent.
+     * Drops a new block from the top of the strip onto the stack each time the
+     * bar advances, so progress arrives as a movement rather than as a segment
+     * that was simply not lit a moment ago.
      */
-    private int draw(double fraction, int leading) {
-        final int lit = 1 + (int) ((Panel.SEGMENTS - 1) * Math.min(Math.max(fraction, 0), 1));
+    private int show(double fraction) {
+        final int lit = Math.min(Panel.SEGMENTS,
+                1 + (int) (Panel.SEGMENTS * Math.min(Math.max(fraction, 0), 1)));
+
+        if (lit > mLit) {
+            mFallTarget = Panel.SEGMENTS - lit;
+            mFalling = 0;
+            mHandler.removeCallbacks(mFallStep);
+            mHandler.postDelayed(mFallStep, FALL_STEP_MS);
+        } else if (lit < mLit) {
+            mHandler.removeCallbacks(mFallStep);
+            mFalling = -1;
+            mLit = lit;
+        }
+
+        render();
+        return lit;
+    }
+
+    /** The resting stack, plus whichever block is still on its way down. */
+    private void render() {
         for (int i = 0; i < Panel.SEGMENTS; i++) {
-            mLevels[i] = i == Panel.SEGMENTS - lit ? leading
-                    : i > Panel.SEGMENTS - lit ? BRIGHTNESS : 0;
+            mLevels[i] = i >= Panel.SEGMENTS - mLit ? BRIGHTNESS : 0;
+        }
+        if (mLit > 0) {
+            mLevels[Panel.SEGMENTS - mLit] = mLeading;
+        }
+        if (mFalling >= 0) {
+            mLevels[mFalling] = BRIGHTNESS;
         }
         Panel.get().setWhite(Panel.OWNER_NOTIFICATION, mLevels);
-        return lit;
     }
 
     private void clear() {
         mKey = null;
         mTotal = 0;
-        mHandler.removeCallbacks(mPulseStep);
+        mLit = 0;
+        mFalling = -1;
+        mLeading = BRIGHTNESS;
+        mProgressKey = null;
+        mProgressValue = -1;
+        mHandler.removeCallbacks(mFallStep);
+        mHandler.removeCallbacks(mBlipEnd);
         Panel.get().releaseWhite(Panel.OWNER_NOTIFICATION);
     }
 }
