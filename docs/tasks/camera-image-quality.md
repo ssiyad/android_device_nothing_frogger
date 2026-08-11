@@ -39,21 +39,24 @@ maximum-resolution pixel mode; folding them into the default list would claim
 they work in the default pixel mode, which is a different and probably untrue
 thing to say, and would likely fail at `configure_streams`.
 
-**What remains is a build.** The unproven step is whether the HAL accepts a
-full-size configuration once the framework stops rejecting it. It is a
-configuration the HAL computed and described, and NTCamera drives exactly these
-sizes through the same provider, so the usecase exists. If `configure_streams`
-still refuses, this route is dead and nothing is lost but the build.
+**Built, flashed and confirmed working**: `d0014` is populated and
+`ULTRA_HIGH_RESOLUTION_SENSOR` advertised on cameras 1, 3 and 4, with full-size
+JPEG and RAW both offered. See `reference/camera-image-quality.md` for the sizes.
 
-Checks after flashing, cheapest first:
+**What remains is a Camera2 client.** CameraX refuses to select maximum
+resolution sizes by design, so Aperture cannot exercise this and no installed app
+currently does. Two things are still unproven, and the first blocks the second:
 
-```sh
-adb shell 'dumpsys media.camera' | grep -c "d0014"            # expect 3
-adb shell 'dumpsys media.camera' | grep ULTRA_HIGH_RESOLUTION # expect 3 cameras
-```
+1. Whether the HAL accepts a full-size configuration at `configure_streams`. The
+   configuration is one it computed and described, and NTCamera drives these
+   sizes through the same provider, so the usecase exists -- but nothing has
+   asked for it through the framework yet.
+2. What a 50 MP frame actually looks like against the binned 12.5 MP one.
 
-Then whether Aperture offers the larger size, and whether a capture at it
-succeeds or the session dies.
+The cheap test is GCam, which talks Camera2 directly and whose ports often expose
+a full-resolution mode on ultra-high-resolution sensors; it needs a human because
+the fishfood build has no launcher activity. Failing that, a minimal Camera2 test
+app built in-tree would settle it and stay useful.
 
 This is the route that best matches "not vendor locked": no Nothing app, no
 Nothing service, and the capability reaches every app through the standard API.
@@ -117,9 +120,10 @@ Recorded so they are not re-tried:
   indistinguishable from default.
 - **`photo_capture_mode` = `maximize_quality`.** The HAL path is byte-for-byte
   the same graph; no measured difference.
-- **The Android 12 maximum-resolution API for 50 MP.** No
-  `ULTRA_HIGH_RESOLUTION_SENSOR` capability, `availableStreamConfigurationsMaximumResolution`
-  never populated, no `sensorPixelMode` request key.
+- **Aperture, or anything else built on CameraX, for 50 MP.** CameraX selects
+  from the default pixel mode only and documents that the maximum resolution
+  sensor pixel mode "does not allow applications to select those ultra high
+  resolutions". Adjusting its `ResolutionSelector` is not a way round that.
 - **CamX overrides for 50 MP.** The whole remosaic knob family was set at once,
   confirmed accepted in CamX's own override dump, and changed nothing about the
   advertised configurations on any camera. The filter is not in

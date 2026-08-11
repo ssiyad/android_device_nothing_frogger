@@ -132,6 +132,34 @@ HAL sees it.
 That shape matters: it means the fix is to supply one omitted tag whose
 neighbours already agree with it, not to invent a capability.
 
+`patches/frameworks_av/` supplies it. With that patch the three quad-bayer
+sensors advertise full resolution through the standard API:
+
+| Camera | Sensor | `d0014` entries | Largest |
+|---|---|---|---|
+| 1 | S5KKD1 front | 55 | 6560x4928, 32.3 MP |
+| 3 | S5KJN5 tele | 39 | 8192x6144, 50.3 MP |
+| 4 | S5KGN9 wide | 47 | 8160x6144, 50.1 MP |
+
+Formats 32 (`RAW_SENSOR`) and 33 (`BLOB`/JPEG) are both offered at the largest
+size, so full-resolution DNG and JPEG are equally available. Cameras 0 and 2 are
+untouched: the logical camera lacks the sensor-info companions, and the ultrawide
+is not quad-bayer.
+
+### CameraX cannot reach these, so neither can Aperture
+
+This is a documented refusal rather than a gap to work around.
+`ResolutionSelector.PREFER_HIGHER_RESOLUTION_OVER_CAPTURE_RATE` selects from the
+default-pixel-mode map only, and its own javadoc says of the maximum resolution
+sensor pixel mode: "This mode does not allow applications to select those ultra
+high resolutions."
+
+So the modes are reachable only by a Camera2 client that sets
+`SENSOR_PIXEL_MODE_MAXIMUM_RESOLUTION` and configures against
+`SCALER_STREAM_CONFIGURATION_MAP_MAXIMUM_RESOLUTION`. Aperture is a CameraX app;
+changing its `ResolutionSelector` will not help, and CameraX's surface
+combination logic would reject the size even through Camera2 interop.
+
 NTCamera reaches it through `libntcamera2ndk_vendor_v2.so`, a vendor camera2 NDK
 that talks to the provider directly and bypasses that validation. That is a
 vendor-domain client path, which is why the stock app has 50 MP and no ordinary
