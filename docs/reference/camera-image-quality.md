@@ -20,9 +20,9 @@ None of that is in `vendor/`. It runs inside the app's own process. **Any app
 that is not NTCamera gets CamX output and nothing else** — which is the whole
 explanation for the quality gap, and why GCam was no better on stock firmware.
 
-The vendor half of Nothing's stack ships complete and is *not* the problem: all
-twenty `com.nothing.node.*` CHI nodes, every `libntcam*` library, and
-`libntofflinepostproc.so` are present.
+The vendor half of Nothing's stack ships complete -- all twenty-four
+`com.nothing.node.*` CHI nodes, every `libntcam*` library, and
+`libntofflinepostproc.so` -- and is unreachable, for the reasons below.
 
 ## The CHI nodes cannot be switched on from an application
 
@@ -158,8 +158,10 @@ HAL sees it.
 That shape matters: it means the fix is to supply one omitted tag whose
 neighbours already agree with it, not to invent a capability.
 
-`patches/frameworks_av/` supplies it. With that patch the three quad-bayer
-sensors advertise full resolution through the standard API:
+Supplying it is what the reverted `frameworks/av` patch did, and it worked: with
+it the three quad-bayer sensors advertised full resolution through the standard
+API, and the HAL then refused the configuration anyway. The sizes, for
+reference:
 
 | Camera | Sensor | `d0014` entries | Largest |
 |---|---|---|---|
