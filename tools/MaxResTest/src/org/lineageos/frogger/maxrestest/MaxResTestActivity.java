@@ -111,20 +111,31 @@ public class MaxResTestActivity extends Activity {
             return;
         }
 
-        final Size[] sizes = map.getOutputSizes(format);
-        if (sizes == null || sizes.length == 0) {
+        // Full-size configurations run below 20 fps, and StreamConfigurationMap classifies
+        // anything that slow as "high resolution" and serves it from a separate accessor. The
+        // sizes we are after are in that second list, not the first.
+        final Size[] normal = map.getOutputSizes(format);
+        final Size[] slow = map.getHighResolutionOutputSizes(format);
+        Log.i(TAG, "maximum resolution map: getOutputSizes=" + (normal == null ? 0 : normal.length)
+                + " getHighResolutionOutputSizes=" + (slow == null ? 0 : slow.length));
+
+        Size best = null;
+        for (Size[] group : new Size[][] {normal, slow}) {
+            if (group == null) {
+                continue;
+            }
+            for (Size s : group) {
+                if (best == null || (long) s.getWidth() * s.getHeight()
+                        > (long) best.getWidth() * best.getHeight()) {
+                    best = s;
+                }
+            }
+        }
+        if (best == null) {
             fail("no maximum resolution sizes for format " + format);
             return;
         }
-
-        Size best = sizes[0];
-        for (Size s : sizes) {
-            if ((long) s.getWidth() * s.getHeight() > (long) best.getWidth() * best.getHeight()) {
-                best = s;
-            }
-        }
-        Log.i(TAG, "maximum resolution sizes=" + sizes.length + " chosen=" + best
-                + " format=" + (raw ? "RAW_SENSOR" : "JPEG"));
+        Log.i(TAG, "chosen=" + best + " format=" + (raw ? "RAW_SENSOR" : "JPEG"));
 
         final Size size = best;
         mReader = ImageReader.newInstance(size.getWidth(), size.getHeight(), format, 2);
