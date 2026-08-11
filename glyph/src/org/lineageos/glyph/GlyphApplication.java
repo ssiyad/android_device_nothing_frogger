@@ -14,6 +14,7 @@ import android.os.Looper;
 public final class GlyphApplication extends Application {
     private RecordingIndicator mRecordingIndicator;
     private MusicVisualizer mMusicVisualizer;
+    private CaptureIndicator mCaptureIndicator;
     private NotificationIndicator mNotificationIndicator;
     private FaceDownStatus mFaceDownStatus;
 
@@ -29,6 +30,9 @@ public final class GlyphApplication extends Application {
 
         mMusicVisualizer = new MusicVisualizer(handler);
         audioManager.registerAudioPlaybackCallback(mMusicVisualizer, handler);
+
+        mCaptureIndicator = new CaptureIndicator(handler);
+        audioManager.registerAudioPlaybackCallback(mCaptureIndicator, handler);
 
         mNotificationIndicator = new NotificationIndicator(this);
         mNotificationIndicator.register();

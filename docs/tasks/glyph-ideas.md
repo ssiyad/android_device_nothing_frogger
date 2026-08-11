@@ -33,6 +33,14 @@ Diluting it costs more than any use of it gains.
 
 ## Ruled out
 
+**A self-timer countdown the subject can see.** The strip faces whoever is being
+photographed, so this is the one idea the hardware is obviously shaped for, and
+nothing publishes it. Aperture's `CountDownView` posts `SET_TIMER_TEXT` to its
+own handler and draws; no sound, no vibration, no broadcast leaves the app, and
+the timer never reaches the camera framework, so no observer outside the app can
+see one running. It would take a patch to a camera app, which would then cover
+only that camera app, in a repository this device tree does not own.
+
 **Tap to peek.** `org.lineageos.sensor.single_tap` is a Focaltech touch-panel
 gesture — `fts_gesture_single_tap_pressed` on the SPI node — not an
 accelerometer heuristic, so it only sees taps on the screen. Face-down, the

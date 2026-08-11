@@ -48,7 +48,8 @@ final class Panel {
      */
     static final int RED_WAITING = 0;
     static final int RED_RECORDING = 1;
-    private static final int RED_OWNERS = 2;
+    static final int RED_CAPTURE = 2;
+    private static final int RED_OWNERS = 3;
 
     private static final Panel sInstance = new Panel();
 

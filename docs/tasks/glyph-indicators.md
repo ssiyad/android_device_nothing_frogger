@@ -13,6 +13,7 @@ three signals. None of it has run on the device yet.
 | Face-down | Setting the phone down on its face shows the charge level for three seconds, over anything else, and hands the strip back after. |
 | Waiting | A missed call, a priority conversation, or a channel the user themselves set to alert leaves red glowing dim until it is dealt with. |
 | Ringing | An incoming call drives the meter from the ringtone itself, over everything except the face-down status. |
+| Capture | A shutter click or a video starting or stopping flashes red once, over the recording blink. |
 
 Recording is confirmed: the red LED blinks while the camera app records with
 audio. So are the timer bar, the release back to stand-by, and the `glyph_app`
