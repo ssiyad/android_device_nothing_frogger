@@ -1,0 +1,19 @@
+//
+// SPDX-FileCopyrightText: 2026 The LineageOS Project
+// SPDX-License-Identifier: Apache-2.0
+//
+// Not in PRODUCT_PACKAGES. Build it on demand and install by hand:
+//
+//     mka MaxResTest
+//     adb install -r $OUT/../../../target/product/frogger/obj/APPS/MaxResTest_intermediates/package.apk
+//
+
+android_app {
+    name: "MaxResTest",
+    srcs: ["src/**/*.java"],
+    manifest: "AndroidManifest.xml",
+    sdk_version: "current",
+    optimize: {
+        enabled: false,
+    },
+}
