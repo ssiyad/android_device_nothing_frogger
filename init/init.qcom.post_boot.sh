@@ -5795,3 +5795,16 @@ esac
 misc_link=$(ls -l /dev/block/bootdevice/by-name/misc)
 real_path=${misc_link##*>}
 setprop persist.vendor.mmi.misc_dev_path $real_path
+
+# The input_boost writes above go to /sys/module/cpu_boost and /sys/devices/
+# system/cpu/cpu_boost, neither of which this kernel exposes. WALT owns input
+# boost here, and its default boosts CPU0 alone and leaves the scheduler out.
+if [ -d /proc/sys/walt/input_boost ]; then
+    echo "1497600 1497600 1497600 1497600 1612800 1612800 1612800 1651200" > /proc/sys/walt/input_boost/input_boost_freq
+    echo 160 > /proc/sys/walt/input_boost/input_boost_ms
+    echo 1 > /proc/sys/walt/input_boost/sched_boost_on_input
+fi
+
+# Wake the GPU at 644 MHz rather than 362, and power-collapse it later.
+echo 6 > /sys/class/kgsl/kgsl-3d0/default_pwrlevel
+echo 200 > /sys/class/kgsl/kgsl-3d0/idle_timer
