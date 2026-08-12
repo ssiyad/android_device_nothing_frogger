@@ -5812,6 +5812,17 @@ if [ -d /proc/sys/walt ]; then
     echo 1 > /proc/sys/walt/sched_asymcap_boost
 fi
 
+# A page fault should not wait behind a writeback batch. Tighten the read
+# deadline, let reads jump writes more often, and complete on the CPU that
+# submitted the request.
+for q in /sys/block/sd*/queue; do
+    echo 2 > $q/rq_affinity
+    if [ -d $q/iosched ]; then
+        echo 100 > $q/iosched/read_expire
+        echo 4 > $q/iosched/writes_starved
+    fi
+done
+
 # Wake the GPU at 644 MHz rather than 362, and power-collapse it later.
 echo 6 > /sys/class/kgsl/kgsl-3d0/default_pwrlevel
 echo 200 > /sys/class/kgsl/kgsl-3d0/idle_timer
