@@ -448,6 +448,99 @@ from RAW bursts and never touches the noise reduction that costs the CamX JPEG
 its detail. It also means effort spent on GCam has a better return than effort
 spent on the CamX path, which cannot be tuned from outside.
 
+## The camera apps, measured
+
+Three engines were compared on fixed scenes, alternating shots so every app saw
+the same light, with exposure recorded per frame.
+
+| | detail | metering | notes |
+|---|---|---|---|
+| LMC 9.6 (`org.codeaurora.snapcam`) | best | consistent | warmest colour |
+| AGC 1.6.0 (`com.agc.gcam`) | good | scatters in low light | slow to shoot |
+| Aperture (CamX JPEG) | softest | consistent | see the smearing above |
+
+LMC leads in both conditions -- by a wide margin at night, narrowly in daylight.
+Its decisive advantage is metering discipline: across three shots it lands within
+6%, where AGC jumps to ISO 6400 at 1/100 on a static scene. AGC's instability is
+low-light-specific; in daylight it holds ISO 410-416.
+
+Aperture's softness persists at **ISO 50 in bright daylight**, which settles that
+the smearing is the pipeline's character rather than a low-light denoise
+decision.
+
+MGC 9.6.080 shares `org.codeaurora.snapcam` with LMC, so the two cannot be
+installed together. SGCam is `com.shamim.cam` and can coexist with anything.
+
+### LMC's camera assignment needs setting by hand
+
+Left on Auto, LMC picks the ultrawide as its 1.0x reference, labels the lenses
+5.2x / 1.5x / 1.0x, and **opens on the tele**. Nine daylight frames were shot on
+the wrong lens before that was noticed. The fix is four preference keys:
+
+```
+pref_manual_camera_id_key_main = 4      (wide, S5KGN9)
+pref_ark_camera_id_key_t       = 3      (tele, S5KJN5)
+pref_ark_camera_id_key_w       = 2
+pref_ark_camera_id_key_uw      = 2
+```
+
+That corrects the reference and the tele label to 3.4x, matching the FOV
+calculation, and makes a fresh launch open on the wide. The ultrawide is still
+not offered -- the third pill duplicates the wide, and none of the `_uw`, `_w` or
+`cameramanual` variants surfaces cam2.
+
+Verify by capture rather than by label: `exiftool -FocalLength` reads 5.6mm for
+the wide and 12.2mm for the tele.
+
+### RAW comes from `raw_key`, not the obvious one
+
+`pref_camera_raw_output_key` is the plausible-looking key and setting it alone
+does nothing. `raw_key` is the one that works; with both set, a capture writes
+`IMG_*.RAW-01.COVER.jpg` and `IMG_*.RAW-02.ORIGINAL.dng`.
+
+### Colour is close to neutral, and best left alone
+
+Measured against two references in one indoor frame -- white fan housing and a
+white bedsheet -- as the ratios a neutral surface should render at 1.00:
+
+| | fan R/G | fan B/G | sheet R/G | sheet B/G |
+|---|---|---|---|---|
+| Aperture | 1.000 | 0.963 | 0.986 | 1.029 |
+| AGC | 0.994 | 0.963 | 0.995 | 1.019 |
+| LMC | 0.972 | 0.921 | 0.978 | 1.022 |
+
+Aperture and AGC agree independently, which makes them a usable consensus. LMC
+runs about 4% green in the midtones and is fine in the highlights.
+
+**Do not correct that with an AWB gain.** The deviation is 4.4% on the fan and
+0.7% on the sheet, so it is midtone-dependent rather than a flat error; a global
+blue gain would fix the one and push the other off. The green-cast advice these
+ports attract does not apply here.
+
+An outdoor frame measured B/G around 0.80 on a wall, which is the scene and the
+light, not the camera. Colour cannot be judged without a known neutral in shot.
+
+### Tuning needs exposure locked first
+
+The denoise multipliers, sharpness and SABRE tuning are all present and all at
+their defaults. Moving luma denoise in either direction measured worse than
+leaving it:
+
+| | detail | noise | ratio |
+|---|---|---|---|
+| 0.6 | 140.2 | 82.5 | 1.70 |
+| 1.0 default | 148.5 | 75.4 | 1.97 |
+| 1.6 | 129.8 | 80.6 | 1.61 |
+
+Treat that as "no evidence of a win" rather than a result. One capture per
+setting is not enough when HDR+ selects a different burst each time, and the 1.6
+run metered at ISO 378 against 545 for the others, so it is not comparable at
+all. The eye is no better: the 0.6 crop looked more textured and measured worse
+on both counts.
+
+Lock ISO and shutter in LMC's Pro mode and take at least three frames per
+setting before believing any difference of a few percent.
+
 ## Testing captures over adb
 
 The device must be awake before `am start`, or the intent is accepted and the HAL

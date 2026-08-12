@@ -133,6 +133,101 @@ Recorded so they are not re-tried:
   it only makes the device claim something it cannot do. It is worth restoring
   only alongside a way past `CheckValidStreamConfig`.
 
+## Tune LMC
+
+**LMC is the camera app this device is tuned around.** It measures best of the
+three tried, in both light levels, and its metering is the only one steady enough
+to tune against -- see `reference/camera-image-quality.md`. AGC is slow to shoot
+and scatters its exposure in low light; Aperture is soft at every ISO because it
+goes through the CamX JPEG path, which cannot be reached from outside.
+
+Already done: camera IDs assigned by hand, so 1.0x is the wide and a fresh launch
+no longer opens on the tele; RAW enabled via `raw_key`.
+
+What remains:
+
+- **Lock exposure before tuning anything.** Pro mode fixes ISO and shutter, which
+  removes the metering variance that makes single-shot comparisons meaningless.
+  Three frames per setting, one variable at a time.
+- **Then the detail levers**, in order: SABRE sharpening and detail recovery,
+  sharpness multiplier, chroma denoise. Luma denoise has been tried and shows no
+  win in either direction.
+- **The ultrawide.** LMC does not offer cam2 at all; the third lens button
+  duplicates the wide. Not reachable from the preference keys tried, so it needs
+  the settings UI, which blocks `uiautomator` and has to be driven by
+  screenshot and coordinate.
+- **A daylight detail ceiling.** Whether RAW plus external processing beats the
+  LMC JPEG by enough to be worth the workflow.
+
+## Decide what to do about NTCamera
+
+This is the only route to stock-quality output, and it is a real port, not a
+drop-in. Installed as a plain user app it crashes twice:
+
+- `NothingExperience.logEvent` — the analytics SDK.
+- `UFSManager.connectNtCameraServiceLocked` — an NPE on a reflected method that
+  resolves to null, reaching for Nothing's framework additions and
+  `vendor.noth.hardware.camera`.
+
+So it needs priv-app placement with a permission allowlist (`SYSTEM_CAMERA`,
+`FOREGROUND_SERVICE_CAMERA`, `com.nothing.ketchum.permission.ENABLE`), the five
+`vendor.noth.hardware.camera-service` files plus a sepolicy domain, and shims for
+whatever framework surface it reflects into. `nothing-fwk/` already exists as a
+place for the last of those.
+
+It also registers itself as the default `STILL_IMAGE_CAMERA` handler, so it
+cannot be installed speculatively on a daily driver without hijacking the camera
+button.
+
+Worth settling explicitly whether the goal is "Aperture as the UI" — in which
+case this does not serve it, because the processing is inside NTCamera's own
+process and reachable only by its own UI — or "stock-quality photographs on this
+phone", which this does serve.
+
+## Make RAW a practical default
+
+RAW is the one lever that demonstrably recovers the detail CamX discards, and it
+works today: `enable_raw_image_capture` writes a DNG beside every JPEG.
+
+Open questions before recommending it as a shipped default rather than a setting
+a user turns on:
+
+- Storage. 25 MB per shot.
+- Whether the shipped Gallery renders DNG acceptably.
+- Whether a Lineage-side default is appropriate at all, given the JPEG is what
+  most captures want.
+
+## Do not chase these
+
+Recorded so they are not re-tried:
+
+- **CameraX extensions.** `libcamxextension_night.so` is in no partition of the
+  stock OTA. Not fixable by extracting more blobs.
+- **`noiseReduction.mode` = `OFF` or `MINIMAL`.** Advertised as available; kills
+  the camera device.
+- **`noiseReduction.mode` / `edge.mode` = `HIGH_QUALITY`.** Output is
+  indistinguishable from default.
+- **`photo_capture_mode` = `maximize_quality`.** The HAL path is byte-for-byte
+  the same graph; no measured difference.
+- **Aperture, or anything else built on CameraX, for 50 MP.** CameraX selects
+  from the default pixel mode only and documents that the maximum resolution
+  sensor pixel mode "does not allow applications to select those ultra high
+  resolutions". Adjusting its `ResolutionSelector` is not a way round that.
+- **CamX overrides for 50 MP.** The whole remosaic knob family was set at once,
+  confirmed accepted in CamX's own override dump, and changed nothing about the
+  advertised configurations on any camera. The filter is not in
+  `camxoverridesettings.txt`.
+- **Switching on the Nothing CHI nodes with their vendor tags.** All of
+  `rawhdr`, `night`, `portrait`, `ldc` and `frt` are settable by a third-party
+  app and accepted on both session parameters and request. A capture with all
+  five set and a control with none produce the same feature graph, `RTMFNRJPEG`,
+  and no `com.nothing.node.*` in either. CHI does not consult them when choosing
+  a graph.
+- **Re-adding the `frameworks/av` maximum-resolution patch on its own.** The
+  metadata it wrote was correct and the HAL still refuses the configuration, so
+  it only makes the device claim something it cannot do. It is worth restoring
+  only alongside a way past `CheckValidStreamConfig`.
+
 ## Tune GCam
 
 This is the open track with the best return, because it is the one pipeline on
