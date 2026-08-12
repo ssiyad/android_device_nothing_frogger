@@ -79,6 +79,8 @@ on boot
     chown system system /proc/touchpanel/TP_charger_flags
 
 on property:sys.boot_completed=1
+    # comp_algorithm is read-only once disksize is set, so it must precede swapon
+    write /sys/block/zram0/comp_algorithm zstd
     swapon_all /odm/etc/fstab.zram
 
     write /dev/cpuset/background/cpus 0-2
