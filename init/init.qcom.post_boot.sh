@@ -5796,32 +5796,10 @@ misc_link=$(ls -l /dev/block/bootdevice/by-name/misc)
 real_path=${misc_link##*>}
 setprop persist.vendor.mmi.misc_dev_path $real_path
 
-# The input_boost writes above go to /sys/module/cpu_boost and /sys/devices/
-# system/cpu/cpu_boost, neither of which this kernel exposes. WALT owns input
-# boost here, and its default boosts CPU0 alone and leaves the scheduler out.
-if [ -d /proc/sys/walt/input_boost ]; then
-    echo "1497600 1497600 1497600 1497600 1612800 1612800 1612800 1651200" > /proc/sys/walt/input_boost/input_boost_freq
-    echo 160 > /proc/sys/walt/input_boost/input_boost_ms
-    echo 1 > /proc/sys/walt/input_boost/sched_boost_on_input
-fi
-
-# Predict load without the conservative discount, and let uclamp-boosted tasks
-# reach one cluster further up than the placement order would otherwise allow.
-if [ -d /proc/sys/walt ]; then
-    echo 0 > /proc/sys/walt/sched_conservative_pl
-    echo 1 > /proc/sys/walt/sched_asymcap_boost
-fi
-
-# A page fault should not wait behind a writeback batch. Tighten the read
-# deadline, let reads jump writes more often, and complete on the CPU that
-# submitted the request.
-for q in /sys/block/sd*/queue; do
-    echo 2 > $q/rq_affinity
-    if [ -d $q/iosched ]; then
-        echo 100 > $q/iosched/read_expire
-        echo 4 > $q/iosched/writes_starved
-    fi
-done
+# WALT scheduler tuning moved to init.frogger.post_boot.sh, and the block queue
+# tuning to init.frogger.rc. Neither survived here -- kernel-post-boot rewrites
+# the WALT nodes after this script exits, and vendor_qti_init_shell has no write
+# on sysfs, so the queue writes were denied outright.
 
 # Wake the GPU at 644 MHz rather than 362, and power-collapse it later.
 echo 6 > /sys/class/kgsl/kgsl-3d0/default_pwrlevel

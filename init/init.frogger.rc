@@ -90,6 +90,30 @@ on property:sys.boot_completed=1
     # ramping into it. Also marks them uclamp-boosted for cluster selection.
     write /dev/cpuctl/top-app/cpu.uclamp.min 30
 
+    # A page fault should not wait behind a writeback batch. vendor_init holds
+    # sysfs_type where vendor_qti_init_shell does not, so these cannot live in
+    # post_boot.sh, and init has no glob -- hence one line per LUN.
+    write /sys/block/sda/queue/rq_affinity 2
+    write /sys/block/sdb/queue/rq_affinity 2
+    write /sys/block/sdc/queue/rq_affinity 2
+    write /sys/block/sdd/queue/rq_affinity 2
+    write /sys/block/sde/queue/rq_affinity 2
+    write /sys/block/sdf/queue/rq_affinity 2
+    write /sys/block/sda/queue/iosched/read_expire 100
+    write /sys/block/sdb/queue/iosched/read_expire 100
+    write /sys/block/sdc/queue/iosched/read_expire 100
+    write /sys/block/sdd/queue/iosched/read_expire 100
+    write /sys/block/sde/queue/iosched/read_expire 100
+    write /sys/block/sdf/queue/iosched/read_expire 100
+    write /sys/block/sda/queue/iosched/writes_starved 4
+    write /sys/block/sdb/queue/iosched/writes_starved 4
+    write /sys/block/sdc/queue/iosched/writes_starved 4
+    write /sys/block/sdd/queue/iosched/writes_starved 4
+    write /sys/block/sde/queue/iosched/writes_starved 4
+    write /sys/block/sdf/queue/iosched/writes_starved 4
+
+    start frogger-post-boot
+
     chown system system /proc/charger/nt_otg_enable
     chmod 0664 /proc/charger/nt_otg_enable
 
@@ -110,6 +134,13 @@ on property:sys.boot_completed=1 && property:persist.sys.sltntc.enable=0
 on property:sys.boot_completed=1 && property:persist.sys.sltntc.enable=1
 	start sltntc
     
+service frogger-post-boot /vendor/bin/init.frogger.post_boot.sh
+    class late_start
+    user root
+    group root system
+    disabled
+    oneshot
+
 service sltntc /system_ext/bin/sltntc
     class hal
     user system

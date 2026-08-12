@@ -258,6 +258,7 @@ PRODUCT_PACKAGES += \
     fstab.default.vendor_ramdisk \
     fstab.zram \
     init.frogger.hw.rc \
+    init.frogger.post_boot.sh \
     init.frogger.rc \
     init.class_main.sh \
     init.qcom.early_boot.sh \

@@ -21,6 +21,12 @@
 # Partitions
 /dev/block/platform/soc/1d84000\.ufshc/by-name/vbmeta_vendor_[ab]    u:object_r:vendor_custom_ab_block_device:s0
 
+# Scheduler tuning
+#
+# vendor_qti_init_shell is the only domain holding rw_file_perms on
+# proc_sched_walt, and init_daemon_domain gives the transition from this label.
+/vendor/bin/init\.frogger\.post_boot\.sh                            u:object_r:vendor_qti_init_shell_exec:s0
+
 # Secure Element
 /dev/st54spi                                                        u:object_r:secure_element_device:s0
 /vendor/bin/hw/android\.hardware\.secure_element-service\.thales    u:object_r:hal_secure_element_default_exec:s0
