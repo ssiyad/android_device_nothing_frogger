@@ -79,7 +79,7 @@ on boot
     chown system system /proc/touchpanel/TP_charger_flags
 
 on property:sys.boot_completed=1
-    swapon_all /odm/etc/fstab.zram.2g
+    swapon_all /odm/etc/fstab.zram
 
     write /dev/cpuset/background/cpus 0-2
     write /dev/cpuset/system-background/cpus 0-5

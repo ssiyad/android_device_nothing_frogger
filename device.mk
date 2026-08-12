@@ -256,7 +256,7 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     fstab.default \
     fstab.default.vendor_ramdisk \
-    fstab.zram.2g \
+    fstab.zram \
     init.frogger.hw.rc \
     init.frogger.rc \
     init.class_main.sh \
