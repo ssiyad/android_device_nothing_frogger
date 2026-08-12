@@ -5801,6 +5801,9 @@ setprop persist.vendor.mmi.misc_dev_path $real_path
 # the WALT nodes after this script exits, and vendor_qti_init_shell has no write
 # on sysfs, so the queue writes were denied outright.
 
-# Wake the GPU at 644 MHz rather than 362, and power-collapse it later.
-echo 6 > /sys/class/kgsl/kgsl-3d0/default_pwrlevel
+# Floor the GPU at 960 MHz whenever it is powered, and collapse it later.
+# msm-adreno-tz does not raise frequency for SurfaceFlinger's blur pass -- the
+# GPU sits at whatever the floor is -- so the floor is what sets frame timing.
+echo 2 > /sys/class/kgsl/kgsl-3d0/min_pwrlevel
+echo 2 > /sys/class/kgsl/kgsl-3d0/default_pwrlevel
 echo 200 > /sys/class/kgsl/kgsl-3d0/idle_timer
