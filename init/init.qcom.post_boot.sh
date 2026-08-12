@@ -5805,6 +5805,13 @@ if [ -d /proc/sys/walt/input_boost ]; then
     echo 1 > /proc/sys/walt/input_boost/sched_boost_on_input
 fi
 
+# Predict load without the conservative discount, and let uclamp-boosted tasks
+# reach one cluster further up than the placement order would otherwise allow.
+if [ -d /proc/sys/walt ]; then
+    echo 0 > /proc/sys/walt/sched_conservative_pl
+    echo 1 > /proc/sys/walt/sched_asymcap_boost
+fi
+
 # Wake the GPU at 644 MHz rather than 362, and power-collapse it later.
 echo 6 > /sys/class/kgsl/kgsl-3d0/default_pwrlevel
 echo 200 > /sys/class/kgsl/kgsl-3d0/idle_timer
