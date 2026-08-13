@@ -205,21 +205,6 @@ PRODUCT_PACKAGES += \
     vendor.qti.hardware.display.demura-service
 
 
-# eUICC
-# Only sku_JPN carries the euicc permission on stock.
-PRODUCT_COPY_FILES += \
-    frameworks/native/data/etc/android.hardware.telephony.euicc.xml:$(TARGET_COPY_OUT_ODM)/etc/permissions/sku_JPN/android.hardware.telephony.euicc.xml
-
-PRODUCT_PACKAGES += \
-    EuiccPolicy \
-    NothingEsimSwitcher \
-    default-permissions-com.google.android.euicc.xml \
-    privapp-permissions-com.google.android.euicc.xml
-
-# FeliCa
-PRODUCT_PACKAGES += \
-    NothingFelicaDisabler
-
 # FWK Detect
 PRODUCT_PACKAGES += \
     libvndfwk_detect_jni.qti_vendor
@@ -339,7 +324,6 @@ PRODUCT_ENFORCE_RRO_TARGETS := *
 PRODUCT_PACKAGES += \
     FroggerApertureDevOverlay \
     FroggerApertureOverlay \
-    FroggerEuiccOverlay \
     FroggerFrameworksOverlay \
     FroggerMainlineWifiOverlay \
     FroggerSettingsOverlay \

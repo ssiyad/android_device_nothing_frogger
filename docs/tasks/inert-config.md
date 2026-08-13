@@ -19,8 +19,3 @@ than an oversight. If first-stage mount fails, comment it out to match stock.
 `nothing-fwk`'s `NtFeaturesUtils` reads
 `ro.vendor.nothing.feature.diff.plus.<device>` and `ro.boot.pbid`. Frogger has
 neither, so the path is inert.
-
-## `FroggerEuiccOverlay`
-
-Lists `Frogger` with `esim-slot-ids:[1]`. The eUICC permission ships only on JPN,
-so the overlay is inert on every other SKU.
