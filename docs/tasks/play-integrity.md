@@ -27,6 +27,34 @@ Only the kernel row is a build change. The modules and the keybox rotate
 constantly, so they are flashed on the device, not baked into the ROM — the same
 reasoning that keeps runtime tweaks out of the tree.
 
+## Device-side install
+
+Modules install through the KernelSU-Next manager, not recovery, and the manager
+holds the root-grant allowlist. The kernel only trusts the manager whose APK
+signature matches `KSU_NEXT_MANAGER_HASH`, left at the upstream default, so the
+official KernelSU-Next manager is the only one it accepts — match it to the
+kernel at v3.3.0. `ksud` can install a module from a root shell, so the manager
+is not strictly required, but every supported path for this stack goes through
+it.
+
+Install in order, rebooting after the provider: manager APK, then ReZygisk (the
+FOSS Zygisk provider; Zygisk Next went closed), then PlayIntegrityFix (a Zygisk
+module, so ReZygisk must be present first; its config moved from `pif.json` to
+`pif.prop`), then TrickyStore. Third-party module names rotate; the roles are
+what is durable.
+
+TrickyStore decides DEVICE. Its config in `/data/adb/tricky_store/` is read live:
+`keybox.xml` is the attestation key, `target.txt` lists the apps (bare package
+auto-detects, `?` forces leaf-hack, `!` forces generate), and `security_patch.txt`
+optionally reports a patch level. Leaf-hack edits the certificate the TEE returns
+and is the mode for a working TEE like Frogger's; generate fabricates the chain
+only when the TEE is broken, so it is no substitute for a real keybox here. DEVICE
+means a valid, unrevoked keybox in leaf-hack mode.
+
+Root now rides in the boot image, so a ROM flash keeps it and the Magisk
+boot-patch step is gone. The modules and keybox live on `/data/adb`, surviving a
+dirty flash and lost only to a userdata wipe.
+
 ## In-tree work: KernelSU-Next into the 6.6 GKI kernel
 
 `kernel/nothing/sm7635` is 6.6.114 GKI, our fork. `gki_defconfig` already sets
