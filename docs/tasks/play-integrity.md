@@ -37,12 +37,17 @@ reason to start on kprobe hooks: no patched syscalls, no rebase burden.
 - KernelSU-Next is carried as a git submodule at `kernel/nothing/sm7635/
   KernelSU-Next`, pinned to the `v3.3.0` commit on upstream
   `KernelSU-Next/KernelSU-Next`. `setup.sh` symlinks `drivers/kernelsu` into it
-  and wires `drivers/Kconfig` and `drivers/Makefile`. The kernel project in the
-  local manifest carries `sync-s="true"` so the server fetches the submodule.
-  Pinning to the SHA removes the force-sync drift risk that the fork-everything
-  rule exists for, so upstream is pointed at directly. Fork under `ssiyad/` only
-  when SUSFS lands: its manual syscall hooks patch KSU source, which needs a
-  repo we can push to.
+  and wires `drivers/Kconfig` and `drivers/Makefile`. Pinning to the SHA removes
+  the force-sync drift risk that the fork-everything rule exists for, so upstream
+  is pointed at directly. Fork under `ssiyad/` only when SUSFS lands: its manual
+  syscall hooks patch KSU source, which needs a repo we can push to.
+- `repo` does not populate the submodule. `sync-s="true"` on the kernel project
+  and `repo sync --recurse-submodules` both no-op it, leaving the gitlink empty.
+  `patches/apply.sh` runs `git submodule update --init KernelSU-Next`, which is
+  idempotent and touches no network once the content is present; the content then
+  survives the pre-build `repo sync --force-sync`. If it is ever missing the
+  build fails at config time — the sourced `drivers/kernelsu/Kconfig` is gone —
+  rather than shipping without root.
 - The submodule must stay its own git repo, not vendored files: `Kbuild`
   derives `KSU_VERSION = 30000 + git rev-list --count` only when KernelSU-Next
   is a separate git root from the kernel. At `v3.3.0` that is `33214`, which the
