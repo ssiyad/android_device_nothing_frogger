@@ -39,6 +39,7 @@ Status and blockers live here; task files describe only the work.
 | [Remove the `ui_status` writes](tasks/fingerprint-ui-status.md) | open | — |
 | [Add the Goodix touch panel driver](tasks/touchscreen-goodix.md) | blocked | no Goodix-panel unit |
 | [Drop inert configuration](tasks/inert-config.md) | open | — |
+| [The `navigationBars` inset is empty](tasks/navigation-bar-inset.md) | parked | upstream; no device-tree lever |
 
 ## Reference
 
