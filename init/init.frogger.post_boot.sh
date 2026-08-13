@@ -8,6 +8,17 @@
 
 IB=/proc/sys/walt/input_boost
 
+# Running on sys.boot_completed is not late enough on its own. kernel-post-boot
+# starts before boot_completed fires and outlives it -- measured at 28.719 to
+# 29.321 against boot_completed at 29.09 -- so waiting for it to exit is what
+# actually decides who writes last.
+i=0
+while [ "$(getprop init.svc.kernel-post-boot)" = "running" ] && [ $i -lt 15 ]; do
+    sleep 1
+    i=$((i + 1))
+done
+sleep 1
+
 if [ -d $IB ]; then
     echo "1497600 1497600 1497600 1497600 1612800 1612800 1612800 1651200" > $IB/input_boost_freq
     echo 160 > $IB/input_boost_ms
