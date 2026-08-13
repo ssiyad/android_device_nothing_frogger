@@ -6,8 +6,14 @@
     default that should be overridden by device-specific overlays. -->
     <dimen name="physical_power_button_center_screen_location_y">1030px</dimen>
 
-    <!-- The padding on the top of the statusbar (usually 0). -->
-    <dimen name="status_bar_padding_top">20px</dimen>
+    <!-- The padding on the top of the statusbar (usually 0).
+
+         0 rather than a nudge: with status_bar_height telling the truth about the
+         162px the punch hole imposes, centring puts the content at y=81, which is
+         the hole's own centre (its path spans 47.6..115.5). Any padding here pushes
+         the real status bar down without moving the shade header, which is what
+         made the two disagree. -->
+    <dimen name="status_bar_padding_top">0px</dimen>
 
     <!-- The padding on the start of the status bar. -->
     <dimen name="status_bar_padding_start">48px</dimen>
