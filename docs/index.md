@@ -40,6 +40,7 @@ Status and blockers live here; task files describe only the work.
 | [Add the Goodix touch panel driver](tasks/touchscreen-goodix.md) | blocked | no Goodix-panel unit |
 | [Drop inert configuration](tasks/inert-config.md) | open | — |
 | [The `navigationBars` inset is empty](tasks/navigation-bar-inset.md) | parked | upstream; no device-tree lever |
+| [The lock screen clock falls back to Roboto](tasks/lockscreen-clock-font.md) | parked | needs a Lineage-side file; no cheap mechanism |
 
 ## Reference
 
