@@ -25,6 +25,7 @@ Status and blockers live here; task files describe only the work.
 | [Version the extracted vendor blob tree](tasks/vendor-blob-tree.md) | open | — |
 | [Sign vbmeta and decide on re-locking](tasks/avb-verified-boot.md) | open | — |
 | [Make GApps survive a ROM flash](tasks/gapps-persistence.md) | open | — |
+| [Pass Play Integrity DEVICE, and retire Magisk](tasks/play-integrity.md) | open | driver-vendoring fetch |
 
 ### Features and cleanup
 
