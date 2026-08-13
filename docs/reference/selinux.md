@@ -15,7 +15,7 @@ Every process should sit in its own domain. A subsystem left in `zygote` points
 at certificate matching in `plat_mac_permissions.xml` rather than a missing
 `allow`. Any `unlabeled` process means something reloaded a policy recompiled
 from the shipped CIL and stripped Magisk's types out — see
-[collect denials](../tasks/selinux-denial-collection.md), and expect root to
+[selinux-collection.md](selinux-collection.md), and expect root to
 break rather than merely look odd, now that nothing runs permissive.
 
 Denials that matter carry `permissive=0`. Filtering on that separates real
@@ -58,8 +58,9 @@ resolves the denial and no `.te` change is needed.
 
 ## Denials that are meant to stay denied
 
-Each of these has a `.te` file in `sepolicy/vendor/` holding nothing but the
-explanation, so the rule is not added by the next person to read the log.
+The first three have a `.te` file in `sepolicy/vendor/` holding nothing but the
+explanation, so the rule is not added by the next person to read the log. The
+rest name no domain of ours and have nowhere to put such a file.
 
 **The `O_CREAT` signature.** `system/sepolicy/private/domain.te` carries, for
 every domain with no exception:
@@ -84,6 +85,20 @@ never reaches the type.
 **Priority requests.** `vendor_modprobe` asks for `sys_nice` and `setsched`.
 Stock grants modprobe `sys_module` and nothing else while running enforcing, so
 the failure costs boot time and nothing else.
+
+**A vendor library reached from a coredomain.** `mediametrics` and `adbroot`
+read, map and execute `/vendor/lib64/libutils.so` and `libbase.so`, landing on
+`same_process_hal_file`. `system/sepolicy/private/domain.te` grants that type to
+every domain **except** coredomain, "access is explicitly granted to individual
+coredomains", because a coredomain loading the vendor copy of libutils would
+hold two of them. The denial is a loader bug wherever it appears, not a policy
+gap, and both sightings here accompany an `adb root` session running `dumpsys`.
+
+**A service nothing registers.** `vendor_qtelephony` looks up
+`nothing.radio.ntphone` and lands on `default_android_service` because no
+`service_contexts` entry names it. Stock has no entry either, and `service list`
+does not show it: the Nothing telephony app that would publish it does not ship
+here. A label for a service that never appears buys nothing.
 
 **Upstream `dontaudit` is an answer.** QTI ships `dontaudit` rules for
 `vendor_hal_qspmhal_service` finds from `surfaceflinger`, `bootanim`,

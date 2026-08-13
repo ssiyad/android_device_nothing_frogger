@@ -1,12 +1,14 @@
-# Collect SELinux denials
+# Collecting SELinux denials
 
-Denials feed every other SELinux task. `dontaudit` rules suppress logging even
-in permissive mode, so any collection taken against the shipped policy
-understates the set by an unknown margin.
+Every policy decision rests on a denial log, and a log taken carelessly
+understates the set. How a denial is then classified is in
+[selinux.md](selinux.md).
 
-How a denial is then classified is in [selinux.md](../reference/selinux.md).
+`dontaudit` rules suppress logging even in permissive mode, so a collection
+taken against the shipped policy misses an unknown share of what the device
+does. Stripping them is a separate step from choosing the mode.
 
-## Strip `dontaudit`
+## Stripping `dontaudit`
 
 The CIL sources ship on the device, so policy can be recompiled and reloaded
 without a build. The build system has no hook for this.
@@ -91,10 +93,14 @@ suffix test lets those through into the log looking like real findings.
 ## Resetting between builds
 
 Dedup makes the log cumulative across builds, so a denial fixed three builds ago
-still sits in it and a fresh reading has no way to tell. Copy `denials.log` and
-`seen.keys` into `archive/` under the build they came from, truncate both, and
-restart the collector whenever a policy change ships. Re-observing a denial
-against the current build is the only evidence that it is still outstanding.
+still sits in it and a fresh reading has no way to tell. Worse, the reverse also
+holds: a denial first seen on an older build is never logged again, so a log
+that spans two builds cannot say whether anything in it is still outstanding.
+
+Copy `denials.log` and `seen.keys` into `archive/` under the build they came
+from, truncate both, and restart the collector whenever a policy change ships.
+Re-observing a denial against the current build is the only evidence that it is
+still outstanding.
 
 ## Coverage
 

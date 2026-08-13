@@ -23,6 +23,7 @@ allow glyph_app {
   vibrator_manager_service
   voiceinteraction_service
   virtual_device_service
+  virtual_device_native_service
 }:service_manager find;
 
 allow glyph_app system_app_data_file:dir create_dir_perms;
