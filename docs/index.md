@@ -40,6 +40,7 @@ Status and blockers live here; task files describe only the work.
 | [Add the Goodix touch panel driver](tasks/touchscreen-goodix.md) | blocked | no Goodix-panel unit |
 | [Drop inert configuration](tasks/inert-config.md) | open | — |
 | [The lock screen clock falls back to Roboto](tasks/lockscreen-clock-font.md) | parked | needs a Lineage-side file; no cheap mechanism |
+| [The biometric prompt's indicator runs off the bottom](tasks/biometric-prompt-indicator.md) | parked | needs a SystemUI layout copy; not worth the drift |
 
 ## Reference
 
