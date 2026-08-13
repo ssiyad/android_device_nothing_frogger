@@ -69,10 +69,6 @@ blob_fixups: blob_fixups_user_type = {
         .add_needed('libbinder_shim.so'),
     'vendor/etc/media_codecs_volcano_v0.xml': blob_fixup()
         .regex_replace(r'(?s)(<MediaCodecs.*?>)',r'\1\n    <Include href="media_codecs_dolby_audio.xml" />'),
-    'vendor/lib64/libarcsoft_dark_vision_raw.so': blob_fixup()
-        .clear_symbol_version('remote_register_buf')
-        .clear_symbol_version('rpcmem_alloc')
-        .clear_symbol_version('rpcmem_free'),
     'vendor/lib64/libcne.so': blob_fixup()
         .add_needed('libbinder_shim.so'),
     # libmorpho_video_stabilizer pulls libui, and Soong then sees two versions of
@@ -120,10 +116,6 @@ blob_fixups: blob_fixups_user_type = {
         .clear_symbol_version('AHardwareBuffer_lockPlanes')
         .clear_symbol_version('AHardwareBuffer_release')
         .clear_symbol_version('AHardwareBuffer_unlock'),
-    'vendor/lib64/libntcamallocator.so': blob_fixup()
-        .add_needed('libui_shim.so'),
-    'vendor/lib64/libntcamskia.so': blob_fixup()
-        .add_needed('libnativewindow.so'),
     'vendor/lib64/vendor.libdpmframework.so': blob_fixup()
         .add_needed('libbinder_shim.so')
         .add_needed('libhidlbase_shim.so'),
