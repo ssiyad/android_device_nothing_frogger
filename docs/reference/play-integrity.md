@@ -12,8 +12,10 @@ not built.
   `Build` fields — Google moved it there in 2024-2025. Forging that chain needs a
   kernel-level keystore hook, which needs root, so props alone cannot reach it and
   a fully rootless device cannot either.
-- **STRONG** additionally needs a hardware-TEE keybox and a recent patch level.
-  It is out of reach here and out of scope.
+- **STRONG** additionally needs a hardware-grade keybox and a recent patch level
+  reported through TrickyStore. It is reachable by the same keybox path when the
+  keybox is hardware-backed, not by anything in the build, and it leans hardest on
+  keybox freshness. It was not the goal here — DEVICE is enough for banking.
 
 ## Root: KernelSU-Next built into the kernel
 
