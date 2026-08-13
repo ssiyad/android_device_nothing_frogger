@@ -86,6 +86,17 @@ never reaches the type.
 Stock grants modprobe `sys_module` and nothing else while running enforcing, so
 the failure costs boot time and nothing else.
 
+**Writes where stock grants only reads.** `netutils_wrapper` writes
+`/proc/sys/net/ipv4/ip_local_reserved_ports` through its `ip6tables` entry
+point. Stock's plat policy carries
+`allow netutils_wrapper proc_net_type:file { read getattr open }` and no write,
+so the same call is denied there.
+
+**Kernel thread capabilities.** `krfcommd` asks for `net_bind_service` in the
+`kernel` domain during early boot. Stock grants `kernel` only `sys_nice` and
+`sys_resource`, so this is denied on stock as well and Bluetooth works either
+way.
+
 **A vendor library reached from a coredomain.** `mediametrics` and `adbroot`
 read, map and execute `/vendor/lib64/libutils.so` and `libbase.so`, landing on
 `same_process_hal_file`. `system/sepolicy/private/domain.te` grants that type to

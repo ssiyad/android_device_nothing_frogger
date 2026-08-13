@@ -33,17 +33,17 @@ dd if=pol.nodontaudit of=/sys/fs/selinux/load bs=$SZ count=1
   chunks it and fails with `EINVAL`.
 - The reload is not persistent.
 
-`tools/00-avc-policy.sh` automates this from Magisk `post-fs-data`. Install it
-for a collection run and remove it afterwards: the recompiled policy carries no
-Magisk types, so leaving it in place wipes the domain Magisk patches in at boot
-and leaves `magiskd` and `su` as `u:object_r:unlabeled:s0`.
+Run it from Magisk `post-fs-data`, and remove it once the collection is done:
+the recompiled policy carries no Magisk types, so leaving it in place wipes the
+domain Magisk patches in at boot and leaves `magiskd` and `su` as
+`u:object_r:unlabeled:s0`.
 
 Three things follow from that, and each one costs a boot to rediscover:
 
 - **`service.d` scripts do not run.** init refuses to start a service whose
   `seclabel` no longer resolves, so Magisk's `late_start` service mode never
-  happens. `tools/01-avc-collect.sh` starts the collector from `post-fs-data.d`
-  instead, ordered after the policy script.
+  happens. Start the collector from `post-fs-data.d` instead, ordered after
+  the policy script.
 - **Every second boot is a safe-mode boot.** `late_start` is also where Magisk
   reaches boot-complete, so its bootloop protection never clears and the next
   boot comes up with no modules, no `post-fs-data.d` and no policy strip.
@@ -51,9 +51,9 @@ Three things follow from that, and each one costs a boot to rediscover:
   `Safe mode triggered` before trusting an empty log.
 - **`su` leaves `PATH` on those boots.** `/debug_ramdisk/su` still works.
 
-The script also grows the log buffers to 16 MiB before loading the policy,
-because the stripped policy is what produces the flood: the default 256 KiB
-wraps within seconds, and the collector cannot start until `sys.boot_completed`.
+Grow the log buffers to 16 MiB before loading the policy, because the stripped
+policy is what produces the flood: the default 256 KiB wraps within seconds, and
+the collector cannot start until `sys.boot_completed`.
 `persist.logd.size` cannot do this — logd sizes its buffers long before `/data`
 is mounted. Confirm a collection actually reached the start of the boot rather
 than assuming it:
@@ -68,18 +68,14 @@ wrapped and the early-boot window is gone.
 
 ## Collector
 
-`tools/avc-collect.sh` gathers denials continuously, because logcat rotates in
-minutes and one-shot captures miss whatever was not running at the time.
+Collection has to be continuous, because logcat rotates in minutes and one-shot
+captures miss whatever was not running at the time. A collector is a shell loop
+around `logcat -b all` that appends each distinct denial to a log and keeps the
+normalised key in a second file so dedup survives reboots. Keep both under
+`/data/adb`, which survives app data wipes and is root-only.
 
-| Path | Contents |
-|---|---|
-| `/data/adb/avc/collect.sh` | the collector |
-| `/data/adb/avc/denials.log` | unique full lines |
-| `/data/adb/avc/seen.keys` | normalised keys; dedup survives reboots |
-| `/data/adb/avc/archive/` | logs from earlier builds |
-
-It normalises two things before deduplicating, without which the log fills with
-one entry per app and per process:
+It must normalise two things before deduplicating, without which the log fills
+with one entry per app and per process:
 
 - **MLS categories** — `s0:c186,c256` and `s0:c220,c256` are one rule
 - **PIDs in paths** — `/proc/8905/net/raw` and `/proc/9170/net/tcp` are one
