@@ -25,7 +25,7 @@ Status and blockers live here; task files describe only the work.
 | [Version the extracted vendor blob tree](tasks/vendor-blob-tree.md) | open | — |
 | [Sign vbmeta and decide on re-locking](tasks/avb-verified-boot.md) | open | — |
 | [Make GApps survive a ROM flash](tasks/gapps-persistence.md) | open | — |
-| [Pass Play Integrity DEVICE, and retire Magisk](tasks/play-integrity.md) | open | driver-vendoring fetch |
+| [Pass Play Integrity DEVICE](tasks/play-integrity.md) | open | valid keybox |
 
 ### Features and cleanup
 
@@ -59,6 +59,7 @@ Status and blockers live here; task files describe only the work.
 | [camera-image-quality.md](reference/camera-image-quality.md) | Where the picture quality lives, which levers exist, and which are dead ends |
 | [vendor-blobs.md](reference/vendor-blobs.md) | Blob list method, fixup scoping, inventory |
 | [build-config.md](reference/build-config.md) | API levels, SELinux mode, switches that must not be tidied away |
+| [play-integrity.md](reference/play-integrity.md) | Root via KernelSU-Next, the attestation stack, and the keybox reality |
 | [repositories.md](reference/repositories.md) | Forks, branches, signing keys |
 
 ## Data
