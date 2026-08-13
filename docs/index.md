@@ -39,7 +39,6 @@ Status and blockers live here; task files describe only the work.
 | [Remove the `ui_status` writes](tasks/fingerprint-ui-status.md) | open | — |
 | [Add the Goodix touch panel driver](tasks/touchscreen-goodix.md) | blocked | no Goodix-panel unit |
 | [Drop inert configuration](tasks/inert-config.md) | open | — |
-| [The `navigationBars` inset is empty](tasks/navigation-bar-inset.md) | parked | upstream; no device-tree lever |
 | [The lock screen clock falls back to Roboto](tasks/lockscreen-clock-font.md) | parked | needs a Lineage-side file; no cheap mechanism |
 
 ## Reference
@@ -49,6 +48,7 @@ Status and blockers live here; task files describe only the work.
 | [hardware.md](reference/hardware.md) | Device-specific values: identity, display, sensors, SKUs |
 | [selinux.md](reference/selinux.md) | Where a label comes from, and which denials stay denied |
 | [selinux-collection.md](reference/selinux-collection.md) | Stripping `dontaudit`, the collector, and reading a log honestly |
+| [system-bars.md](reference/system-bars.md) | Status bar height, shade header alignment, and what drives the bottom inset |
 | [audio.md](reference/audio.md) | Card layout, LVACFS, volume configuration |
 | [thermal.md](reference/thermal.md) | HAL provenance, zone lookup, what mitigates |
 | [display.md](reference/display.md) | Colour pipeline, DFPS constraints, panel feature attributes |

@@ -110,12 +110,6 @@ blob_fixups: blob_fixups_user_type = {
         .fix_soname(),
     'vendor/lib64/libmorpho_video_stabilizer.so': blob_fixup()
         .remove_needed('libui.so'),
-    'vendor/lib64/libmorpho_RapidEffect.so': blob_fixup()
-        .clear_symbol_version('AHardwareBuffer_allocate')
-        .clear_symbol_version('AHardwareBuffer_describe')
-        .clear_symbol_version('AHardwareBuffer_lockPlanes')
-        .clear_symbol_version('AHardwareBuffer_release')
-        .clear_symbol_version('AHardwareBuffer_unlock'),
     'vendor/lib64/vendor.libdpmframework.so': blob_fixup()
         .add_needed('libbinder_shim.so')
         .add_needed('libhidlbase_shim.so'),

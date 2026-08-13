@@ -722,7 +722,6 @@ vendor/lib64/libmmcamera_lscv35.so
 vendor/lib64/libmmcamera_mfnr.so
 vendor/lib64/libmmcamera_mfnr_t4.so
 vendor/lib64/libmmcamera_pdpc.so
-vendor/lib64/libmorpho_RapidEffect.so
 vendor/lib64/libmorpho_ubwc.so
 vendor/lib64/libmorpho_video_stabilizer.so
 vendor/lib64/libmpbase.so
@@ -731,7 +730,6 @@ vendor/lib64/libopencv3a.so
 vendor/lib64/libopestriping.so
 vendor/lib64/libos.so
 vendor/lib64/libpnc_cl_program.bin
-vendor/lib64/libportrait_repair_qnn.so
 vendor/lib64/libqll.so
 vendor/lib64/libqll10.so
 vendor/lib64/libqllengine.so

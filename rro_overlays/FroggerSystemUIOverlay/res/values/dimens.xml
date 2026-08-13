@@ -18,6 +18,17 @@
     <!-- The padding on the start of the status bar. -->
     <dimen name="status_bar_padding_start">48px</dimen>
 
+    <!-- Horizontal padding of the shade header, which AOSP defaults to 16dp.
+         Raised so the header's clock and icons sit close to where the real
+         status bar puts them: at 16dp the header ran 12px wider on the left and
+         24px on the right, because its clock and status icons are drawn larger
+         than the status bar's. Padding cannot close both gaps at once, so this
+         splits them and leaves each side within 6px.
+
+         Only ShadeHeaderController and combined_qs_header read this. QS tile
+         margins come from elsewhere and do not move with it. -->
+    <dimen name="qs_panel_padding">66px</dimen>
+
     <!-- Microns/ums (1000 um = 1mm) per pixel for the given device. If unspecified, UI that
          relies on this value will not be sized correctly. -->
     <item name="pixel_pitch" format="float" type="dimen">50.0</item>
