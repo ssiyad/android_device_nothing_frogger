@@ -167,8 +167,7 @@ shape brighter rather than a shape of its own.
 ## Registering early
 
 **The app is persistent, so it starts before system_server has published its
-services, and it loses that race as a matter of course.** `telephony.registry`
-has been seen to take over a minute after this process starts.
+services.**
 
 **A manager built too early is broken for the life of the process, and
 retrying cannot fix it.** `TelephonyRegistryManager` caches the registry in a
@@ -187,6 +186,15 @@ building the manager that would cache the answer — and only then registers.
 `RingIndicator` and `MusicSessions` both go through it, and `MusicSessions`
 defers `getSystemService` itself for the reason above.
 
+**A denied lookup is indistinguishable from a late one, and far more likely.**
+`getService` returns null either way. The telephony registration failed for
+nearly a day against this, through a crash and then a permanent retry, and the
+cause was neither a race nor the caching: `glyph_app` was simply not allowed to
+`find` `registry_service`. The tell is that `service check telephony.registry`
+answers "found" from the shell while the app still fails, because the shell is
+allowed to look — so that check proves nothing about this process. Read the
+`avc: denied` lines before believing anything about timing.
+
 **An exception let out of `Application.onCreate` is fatal here.** A persistent
 process that throws is restarted, throws again, and after a dozen attempts
 ActivityManager gives up and stops restarting it, so the whole strip goes dead
@@ -202,6 +210,18 @@ logged where they happen and nothing is retried into a permanent poll.
 signature. `RECORD_AUDIO`, `READ_PHONE_STATE` and `READ_CONTACTS` are runtime
 permissions the signature does not grant, so they are pre-granted through
 `default-permissions-org.lineageos.glyph.xml`.
+
+`sepolicy/private/glyph_app.te` carries an explicit list of the services the
+domain may find, and anything reached through a manager has to be named there —
+`registry_service` for the call state, `media_session_service` for the meter.
+
+**`radio_service` is deliberately not on it.** `registerTelephonyCallback`
+probes `getITelephony()` only to decide whether to deliver the current state at
+registration, so the denial costs that one notification and nothing else; the
+ring is read from the transitions afterwards. It shows as a single `name=phone`
+denial per boot, and as `notifyNow=false` in the `telephony.registry` listen
+log, which is also the easiest way to recognise this app's own registration
+there — `events=[6]`, uid 1000.
 
 The contacts provider is credential-encrypted, so no favourite can be looked up
 before the user has unlocked once. The clock app is not direct-boot aware

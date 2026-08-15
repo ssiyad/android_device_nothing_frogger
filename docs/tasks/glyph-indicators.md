@@ -1,15 +1,28 @@
 # Verify the Glyph indicators
 
 How the app works is in [glyph.md](../reference/glyph.md). What is left is
-confirming the parts that have never been watched on the device.
+watching the indicators themselves, which needs the phone handled rather than
+queried.
+
+## Standing up
+
+Confirmed on the device: the process survives boot with no crash, `Gate` holds a
+connection to `screen_upward` and cycles the accelerometer to settle each flip,
+`NotificationIndicator` is bound as a SYSTEM listener at `USER_ALL`, the call
+state is registered (`events=[6]`, `notifyNow=false`), and `Panel` reaches the
+hardware — the aw20036 driver logs the frame, the red register and the drop back
+to stand-by.
+
+None of that says an indicator looks right, only that nothing is in its way.
 
 ## Unconfirmed
 
 | Indicator | What to watch for |
 |---|---|
-| Silent ring | A silenced call never reaches `MODE_RINGTONE`, so this rests entirely on the telephony call state — confirm `READ_PHONE_STATE` was pre-granted, since without it there is no silent ring at all. `RingIndicator` logs when it is refused. |
+| The gate itself | The one decision nothing has tested. Face-down with the screen still on should stay dark, and `gate open` should appear only once the screen goes off. |
+| Silent ring | A silenced call never reaches `MODE_RINGTONE`, so this rests entirely on the call state, which is now registered. A call to a silenced phone is the whole test. |
 | Favourite's missed call | The caller is a display name matched against the contacts, which is the weak leg. Call from a starred contact and from an unstarred one; `Home` is starred here and `Home 2` is not, which makes them the pair to try. |
-| Media sessions | Whether `getActiveSessions(null)` is answered. `MediaSessionService.hasMediaControlPermission` exempts `Process.SYSTEM_UID` outright, so the app needs no permission for it; a `SecurityException` is logged if that reading is wrong, and the meter then never runs. |
+| Media sessions | Whether the meter runs at all. Nothing is denied, but no music has played through it yet. |
 | Missed-call glow | Recognising `phone_missed_call` should light it for the first time. |
 | Alert pattern | Whether a phone on silent, face-down, announces an arriving message — the whole point of it. |
 | Capture flash | Never yet seen working. A white flash from the meter masked it every time, so a photo taken face-up with the meter detached is the first clean look. |
