@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     SPDX-FileCopyrightText: 2026 The LineageOS Project
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <!-- Deliberately absent: volume, home, back, recents, lock screen and the
+         power menu, which all have a dedicated control or a standard gesture
+         already, and the quick settings toggles. A key with three gestures is
+         worth spending on what nothing else reaches. -->
+    <string-array name="action_entries">
+        <item>@string/action_none</item>
+        <item>@string/action_open_app</item>
+        <item>@string/action_screenshot</item>
+        <item>@string/action_camera</item>
+        <item>@string/action_flashlight</item>
+        <item>@string/action_play_pause</item>
+        <item>@string/action_next</item>
+        <item>@string/action_previous</item>
+        <item>@string/action_dnd</item>
+        <item>@string/action_ringer</item>
+        <item>@string/action_rotation</item>
+    </string-array>
+
+    <!-- Must match Constants.java. "open_app" is the odd one out: it is not an
+         action but the entry that opens the picker, and what gets stored is
+         "app:" followed by the chosen component. -->
+    <string-array name="action_values" translatable="false">
+        <item>none</item>
+        <item>open_app</item>
+        <item>screenshot</item>
+        <item>camera</item>
+        <item>flashlight</item>
+        <item>play_pause</item>
+        <item>next</item>
+        <item>previous</item>
+        <item>dnd</item>
+        <item>ringer</item>
+        <item>rotation</item>
+    </string-array>
+</resources>

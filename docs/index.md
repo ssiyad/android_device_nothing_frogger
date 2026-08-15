@@ -31,6 +31,7 @@ Status and blockers live here; task files describe only the work.
 | Task | Status | Blocked by |
 |---|---|---|
 | [Verify the Glyph indicators](tasks/glyph-indicators.md) | open | — |
+| [Screen recording from the Essential Key](tasks/essential-key-screen-record.md) | parked | needs a SystemUI patch or a recorder of our own |
 | [Further Glyph indicators](tasks/glyph-ideas.md) | open | — |
 | [Re-enable DeviceExtras](tasks/device-extras.md) | open | — |
 | [Evaluate vendor property groups](tasks/vendor-properties.md) | open | — |
@@ -54,6 +55,7 @@ Status and blockers live here; task files describe only the work.
 | [thermal.md](reference/thermal.md) | HAL provenance, zone lookup, what mitigates |
 | [display.md](reference/display.md) | Colour pipeline, DFPS constraints, panel feature attributes |
 | [glyph.md](reference/glyph.md) | The strip, the gate, what drives each indicator, and the dead ends |
+| [essential-key.md](reference/essential-key.md) | The button, why the keycode is `MACRO_1`, the gestures and the actions |
 | [devicetree.md](reference/devicetree.md) | Overlay model, board-id matching, verification |
 | [camera-diagnostics.md](reference/camera-diagnostics.md) | Reading camera failures by layer, and the errors a healthy session logs |
 | [camera-image-quality.md](reference/camera-image-quality.md) | Where the picture quality lives, which levers exist, and which are dead ends |

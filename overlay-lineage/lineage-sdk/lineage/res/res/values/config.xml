@@ -23,8 +23,13 @@
             32 - Camera
             64 - Volume rocker
          For example, a device with Home, Back and Menu keys would set this
-         config to 7. -->
-    <integer name="config_deviceHardwareKeys">72</integer>
+         config to 7.
+
+         Volume rocker only. The Essential Key was counted here as an assistant
+         key while it emitted ASSIST; it emits MACRO_1 now and the EssentialKey
+         app owns it, so claiming the bit would only put a dead Assist key
+         screen in LineageParts. -->
+    <integer name="config_deviceHardwareKeys">64</integer>
 
     <!-- Hardware keys present on the device with the ability to wake, stored as a bit field.
          This integer should equal the sum of the corresponding value for each
@@ -38,7 +43,23 @@
             64 - Volume rocker
          For example, a device with Home, Back and Menu keys would set this
          config to 7. -->
-    <integer name="config_deviceHardwareWakeKeys">72</integer>
+    <integer name="config_deviceHardwareWakeKeys">64</integer>
+
+    <!-- PhoneWindowManager loads each class out of the apk beside it and runs it
+         inside system_server. The arrays are positional and the paths literal,
+         so an apk that changes partition or directory stops being found with no
+         build error to say so. Overriding also replaces these rather than adding
+         to them, which is why LineageParts is repeated: dropping it would take
+         the touchscreen gestures with it. -->
+    <string-array translatable="false" name="config_deviceKeyHandlerLibs">
+        <item>/system_ext/priv-app/LineageParts/LineageParts.apk</item>
+        <item>/system_ext/app/EssentialKey/EssentialKey.apk</item>
+    </string-array>
+
+    <string-array translatable="false" name="config_deviceKeyHandlerClasses">
+        <item>org.lineageos.lineageparts.gestures.KeyHandler</item>
+        <item>org.lineageos.essentialkey.KeyHandler</item>
+    </string-array>
 
     <!-- Defines the actions shown in advanced reboot submenu -->
     <string-array translatable="false" name="config_restartActionsList">

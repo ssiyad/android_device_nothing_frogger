@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     SPDX-FileCopyrightText: 2026 The LineageOS Project
+     SPDX-License-Identifier: Apache-2.0
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.lineageos.essentialkey"
+    android:sharedUserId="android.uid.system">
+
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+
+    <application
+        android:allowBackup="false"
+        android:defaultToDeviceProtectedStorage="true"
+        android:directBootAware="true"
+        android:label="@string/essential_key_title">
+
+        <!-- IA_SETTINGS plus the system category is what puts this inside
+             Settings > System rather than in the launcher, so there is
+             deliberately no MAIN/LAUNCHER filter. Settings indexes an injected
+             tile by its label and summary on its own; keyhint only fixes the
+             key it files them under. -->
+        <activity
+            android:name=".ui.SettingsActivity"
+            android:exported="true"
+            android:label="@string/essential_key_title"
+            android:theme="@style/Theme.SubSettingsBase.Expressive">
+            <intent-filter>
+                <action android:name="com.android.settings.action.IA_SETTINGS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+
+            <meta-data
+                android:name="com.android.settings.category"
+                android:value="com.android.settings.category.ia.system" />
+            <meta-data
+                android:name="com.android.settings.icon"
+                android:resource="@drawable/ic_essential_key" />
+            <meta-data
+                android:name="com.android.settings.icon_tintable"
+                android:value="true" />
+            <meta-data
+                android:name="com.android.settings.keyhint"
+                android:value="essential_key" />
+            <meta-data
+                android:name="com.android.settings.order"
+                android:value="-255" />
+            <meta-data
+                android:name="com.android.settings.profile"
+                android:value="primary_profile_only" />
+            <meta-data
+                android:name="com.android.settings.summary"
+                android:resource="@string/essential_key_summary" />
+        </activity>
+
+        <activity
+            android:name=".ui.AppPickerActivity"
+            android:exported="false"
+            android:label="@string/action_open_app"
+            android:theme="@style/Theme.SubSettingsBase.Expressive" />
+    </application>
+</manifest>

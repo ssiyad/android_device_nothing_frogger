@@ -205,6 +205,10 @@ PRODUCT_PACKAGES += \
     vendor.qti.hardware.display.demura-service
 
 
+# Essential Key
+PRODUCT_PACKAGES += \
+    EssentialKey
+
 # FWK Detect
 PRODUCT_PACKAGES += \
     libvndfwk_detect_jni.qti_vendor
