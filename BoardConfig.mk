@@ -134,11 +134,16 @@ BOARD_USES_GENERIC_KERNEL_IMAGE := true
 TARGET_KERNEL_SOURCE := kernel/nothing/sm7635
 # frogger_perf.config lives in the kernel repo, derived from the OEM tree's
 # arch/arm64/configs/vendor/Frogger.config.
+# vendor/ksu.config is out while the audio regression is isolated. The LPASS
+# vote devices are never created, so spf_core cannot build the sound platform
+# device, no card appears, and the boot hangs waiting on an audio HAL that is
+# asleep in agm device_init. The kernel is the only functional change between
+# the last booting build and the first one that hung, and this fragment is the
+# whole of it.
 TARGET_KERNEL_CONFIG := \
     gki_defconfig \
     vendor/pineapple_perf.config \
-    vendor/frogger_perf.config \
-    vendor/ksu.config
+    vendor/frogger_perf.config
 TARGET_MERGE_DTBS_WILDCARD := *volcano*
 
 # Kernel Modules
