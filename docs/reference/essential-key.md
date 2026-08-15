@@ -171,11 +171,26 @@ Writing keys the provider has never heard of is unrestricted for `SYSTEM_UID`,
 and `installSystemProviders()` runs before `WindowManagerService.main()`, so the
 provider is up by the time the handler is constructed.
 
-The settings screen reaches Settings → System as an injected tile:
-`IA_SETTINGS` plus category `com.android.settings.category.ia.system`, and
-deliberately no launcher filter. Being on a system partition is the only
-requirement. Settings indexes an injected tile's title and summary for search on
-its own; indexing the individual rows would need a change inside Settings.
+The settings screen sits at Settings → System → Buttons, and gets there by
+answering `org.lineageos.settings.device.ADDITIONAL_BUTTONS_SETTINGS`. There is
+deliberately no launcher filter and no Settings tile.
+
+That action is the hook the buttons screen already offers for a key Lineage does
+not know about. Its Extras category carries a `RemotePreference` declaring
+`lineage:requiresAction` for it, and `SelfRemovingPreference` deletes the entry
+on any device where nothing answers — so claiming the action is the whole of the
+work, and LineageParts needs no patch. `ConstraintsHelper.resolveIntent` uses
+`queryIntentActivitiesAsUser` with `MATCH_SYSTEM_ONLY` and then tests
+`FLAG_SYSTEM`, so this holds only while the app is on the system image.
+
+The entry would otherwise read *Additional buttons*, so
+`additional_buttons_title` is overridden to *Essential Key* in `overlay-lineage`.
+The string is used at that one preference and nowhere else in LineageParts, and
+on this device the Essential Key is the only thing the entry can lead to.
+
+Nothing indexes it for Settings search. An injected tile was indexed by its own
+title and summary; a preference inside LineageParts is not, and reaching it means
+searching for *Buttons*.
 
 ## Verification
 

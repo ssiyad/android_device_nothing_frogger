@@ -12,7 +12,7 @@ import androidx.fragment.app.Fragment;
 import com.android.settingslib.collapsingtoolbar.CollapsingToolbarBaseActivity;
 import com.android.settingslib.collapsingtoolbar.R;
 
-/** Reached from Settings > System, never from a launcher icon. */
+/** Reached from Settings > System > Buttons, never from a launcher icon. */
 public class SettingsActivity extends CollapsingToolbarBaseActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {

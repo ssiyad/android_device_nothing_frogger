@@ -5,7 +5,6 @@
 -->
 <resources>
     <string name="essential_key_title">Essential Key</string>
-    <string name="essential_key_summary">Choose what the Essential Key does</string>
 
     <string name="gesture_single_press">Single press</string>
     <string name="gesture_double_press">Double press</string>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     SPDX-FileCopyrightText: 2026 The LineageOS Project
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources>
+    <!-- Names the Extras entry in the buttons screen, which is the
+         RemotePreference guarded by
+         lineage:requiresAction="org.lineageos.settings.device.ADDITIONAL_BUTTONS_SETTINGS".
+         The EssentialKey app is the only thing on this device that answers it,
+         so the entry leads nowhere else and the generic name only makes the
+         reader open it to find out which button is meant. The string is used
+         at that one preference and nowhere else in LineageParts. -->
+    <string name="additional_buttons_title">Essential Key</string>
+</resources>

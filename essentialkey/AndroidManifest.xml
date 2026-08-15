@@ -16,42 +16,27 @@
         android:directBootAware="true"
         android:label="@string/essential_key_title">
 
-        <!-- IA_SETTINGS plus the system category is what puts this inside
-             Settings > System rather than in the launcher, so there is
-             deliberately no MAIN/LAUNCHER filter. Settings indexes an injected
-             tile by its label and summary on its own; keyhint only fixes the
-             key it files them under. -->
+        <!-- This action is the hook the buttons screen already offers for a
+             key the device has and Lineage does not know about: its Extras
+             category carries a RemotePreference declaring
+             lineage:requiresAction for exactly this, and SelfRemovingPreference
+             takes the entry away again on any device where nothing answers.
+             Answering it is the whole of what puts this under
+             Settings > System > Buttons, so there is deliberately no
+             MAIN/LAUNCHER filter and no Settings tile.
+
+             The resolve is queryIntentActivitiesAsUser with MATCH_SYSTEM_ONLY
+             and a FLAG_SYSTEM test, so this only works while the app is on the
+             system image. -->
         <activity
             android:name=".ui.SettingsActivity"
             android:exported="true"
             android:label="@string/essential_key_title"
             android:theme="@style/Theme.SubSettingsBase.Expressive">
             <intent-filter>
-                <action android:name="com.android.settings.action.IA_SETTINGS" />
+                <action android:name="org.lineageos.settings.device.ADDITIONAL_BUTTONS_SETTINGS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
-
-            <meta-data
-                android:name="com.android.settings.category"
-                android:value="com.android.settings.category.ia.system" />
-            <meta-data
-                android:name="com.android.settings.icon"
-                android:resource="@drawable/ic_essential_key" />
-            <meta-data
-                android:name="com.android.settings.icon_tintable"
-                android:value="true" />
-            <meta-data
-                android:name="com.android.settings.keyhint"
-                android:value="essential_key" />
-            <meta-data
-                android:name="com.android.settings.order"
-                android:value="-255" />
-            <meta-data
-                android:name="com.android.settings.profile"
-                android:value="primary_profile_only" />
-            <meta-data
-                android:name="com.android.settings.summary"
-                android:resource="@string/essential_key_summary" />
         </activity>
 
         <activity
