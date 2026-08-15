@@ -45,6 +45,57 @@ does not.
 The limit of this method is worth stating: it compares which functions exist, not
 what they do. A changed constant inside a function body is invisible to it.
 
+## No sound card at all: reflash `dsp` and `modem`
+
+The symptom is a boot that never finishes, and it looks nothing like an audio
+bug from the outside. The chain, from the bottom:
+
+```
+/proc/asound/cards is empty
+  spf_core:   __spf_core_is_apm_ready → "gpr_send_pkt: q6 state is down"
+  so the sound platform device is never created, and pineapple-asoc-snd,
+  which is registered, has nothing to bind to
+  libagm device_init sleeps waiting for a card
+  the vendor audio HAL never returns from openPrimaryDevice_7_1
+  audioserver hangs, init SIGKILLs it, it restarts, forever
+  AudioService.<init> blocks system_server in AudioDeviceBroker.init
+  watchdog fires; sys.boot_completed never gets set
+```
+
+The ADSP core is up throughout — `adsprpc` works and battery telemetry keeps
+arriving from it. Only the **audio protection domain** is down, which shows up
+as `audioadsprpcd: fastrpc_get_info_from_dsp ... err val -111`.
+
+**The fix is to reflash stock `dsp` and `modem`**, which carry the ADSP
+firmware:
+
+```sh
+fastboot reboot fastboot              # userspace fastboot; the bootloader's
+                                      # own fastboot answers "unknown command"
+fastboot flash dsp   dsp.img   --slot=a
+fastboot flash dsp   dsp.img   --slot=b
+fastboot flash modem modem.img --slot=a
+fastboot flash modem modem.img --slot=b
+```
+
+Neither partition is in `AB_OTA_PARTITIONS`, so **no ROM flash has ever
+rewritten them** — which is exactly why the fault survives reinstalling any
+build, including one that booted before. That property is the diagnostic: if
+every build fails identically, including a known-good one, the problem is below
+the ROM and reflashing ROMs cannot reach it.
+
+The modem needs a couple of minutes to re-register afterwards, and reports
+`OUT_OF_SERVICE` until it does. `modemst1`/`modemst2` hold the EFS and are not
+touched, so IMEI and calibration survive.
+
+Two things that look like the cause and are not:
+
+- `remoteproc-adsp: loading …/adsp.b01 failed with error -13` then `-2`. The
+  kernel walks `firmware_class.path` before the mount is ready and retries; the
+  modem logs the same pattern on a healthy boot.
+- `spf-core-platform: Failed to create device link` against `vote_lpass_core_hw`
+  and friends. Those devices exist and are bound; the messages are noise.
+
 ## LVACFS mic processing
 
 LVACFS is Nothing's Goodix mic-processing library. It selects a tuning profile by
