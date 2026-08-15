@@ -53,6 +53,7 @@ Status and blockers live here; task files describe only the work.
 | [audio.md](reference/audio.md) | Card layout, LVACFS, volume configuration |
 | [thermal.md](reference/thermal.md) | HAL provenance, zone lookup, what mitigates |
 | [display.md](reference/display.md) | Colour pipeline, DFPS constraints, panel feature attributes |
+| [glyph.md](reference/glyph.md) | The strip, the gate, what drives each indicator, and the dead ends |
 | [devicetree.md](reference/devicetree.md) | Overlay model, board-id matching, verification |
 | [camera-diagnostics.md](reference/camera-diagnostics.md) | Reading camera failures by layer, and the errors a healthy session logs |
 | [camera-image-quality.md](reference/camera-image-quality.md) | Where the picture quality lives, which levers exist, and which are dead ends |
