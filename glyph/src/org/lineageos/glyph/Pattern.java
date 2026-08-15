@@ -65,20 +65,33 @@ final class Pattern {
     }
 
     /**
-     * A comet running from the bottom of the strip to the top, brightest at its
-     * head and halving for each segment behind it. The head carries on past the
-     * top so the tail leaves with it rather than piling up there.
+     * A comet running the length of the strip, brightest at its head and
+     * halving for each segment behind it. The head carries on past the far end
+     * so the tail leaves with it rather than piling up there.
+     *
+     * Which way it runs is the whole of what tells two patterns apart, so it is
+     * the one thing a caller has to choose.
      */
-    static int[][] sweep(int brightness, int tail) {
+    static int[][] sweep(int brightness, int tail, boolean up) {
         final int[][] frames = new int[Panel.SEGMENTS + tail][Panel.SEGMENTS];
         for (int frame = 0; frame < frames.length; frame++) {
             for (int behind = 0; behind <= tail; behind++) {
-                final int segment = Panel.SEGMENTS - 1 - frame + behind;
+                final int head = up ? Panel.SEGMENTS - 1 - frame : frame;
+                final int segment = up ? head + behind : head - behind;
                 if (segment >= 0 && segment < Panel.SEGMENTS) {
                     frames[frame][segment] = brightness >> behind;
                 }
             }
         }
         return frames;
+    }
+
+    /** The same frames back to back, for a pattern that reads better twice. */
+    static int[][] repeat(int[][] frames, int times) {
+        final int[][] out = new int[frames.length * times][];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = frames[i % frames.length];
+        }
+        return out;
     }
 }

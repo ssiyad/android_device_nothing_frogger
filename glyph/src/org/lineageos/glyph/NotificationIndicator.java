@@ -8,6 +8,7 @@ package org.lineageos.glyph;
 import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.os.Handler;
@@ -17,7 +18,10 @@ import android.os.SystemClock;
 import android.os.UserHandle;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
+import android.util.ArraySet;
 import android.util.Log;
+
+import java.util.Set;
 
 /**
  * Fills the white segments from whatever the notifications say is under way,
@@ -26,6 +30,9 @@ import android.util.Log;
  *
  * A countdown wins when both are present, because it is the one with a deadline
  * to miss.
+ *
+ * It is also where arrivals are noticed, both for the red glow that says
+ * something is waiting and for the pattern that says something just landed.
  *
  * This registers itself rather than being bound as a declared listener, so it
  * never appears in the user's notification-access list and never depends on it.
@@ -69,6 +76,8 @@ public final class NotificationIndicator extends NotificationListenerService
     private final Gate mGate;
     private final AlarmManager mAlarmManager;
     private final ClockTimer mClockTimer;
+    private final AlertIndicator mAlertIndicator;
+    private final Set<String> mArrived = new ArraySet<>();
 
     private String mKey;
     private long mTotal;
@@ -106,6 +115,7 @@ public final class NotificationIndicator extends NotificationListenerService
         mGate = gate;
         mAlarmManager = context.getSystemService(AlarmManager.class);
         mClockTimer = new ClockTimer(context);
+        mAlertIndicator = new AlertIndicator(context, mHandler);
     }
 
     /**
@@ -127,17 +137,64 @@ public final class NotificationIndicator extends NotificationListenerService
 
     @Override
     public void onListenerConnected() {
+        // Whatever was already showing has already been arrived at, so it is
+        // taken as seen rather than announced the next time its app reposts it.
+        final StatusBarNotification[] active = getActiveNotifications();
+        if (active != null) {
+            for (StatusBarNotification sbn : active) {
+                mArrived.add(sbn.getKey());
+            }
+        }
         refresh();
     }
 
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
+        alert(sbn);
         refresh();
     }
 
     @Override
     public void onNotificationRemoved(StatusBarNotification sbn) {
+        mArrived.remove(sbn.getKey());
         refresh();
+    }
+
+    /**
+     * A posted notification is not the same thing as a new one: an update to a
+     * progress bar arrives the same way, and so does every repost an app makes
+     * of a notification it is already showing. Keys already seen are held so
+     * that only a first appearance is an arrival.
+     */
+    private void alert(StatusBarNotification sbn) {
+        if (!mArrived.add(sbn.getKey()) || !mGate.isOn()) {
+            return;
+        }
+
+        final Notification notification = sbn.getNotification();
+        if ((notification.flags
+                & (Notification.FLAG_ONGOING_EVENT | Notification.FLAG_GROUP_SUMMARY)) != 0) {
+            return;
+        }
+
+        final RankingMap rankings = getCurrentRanking();
+        final Ranking ranking = new Ranking();
+        if (rankings == null || !rankings.getRanking(sbn.getKey(), ranking)) {
+            return;
+        }
+
+        // What would have alerted had the phone not been silent. Anything below
+        // this is a notification the user has already said not to interrupt
+        // for, and the strip is an interruption like any other.
+        if (ranking.getImportance() < NotificationManager.IMPORTANCE_DEFAULT) {
+            return;
+        }
+        if (getCurrentInterruptionFilter() != INTERRUPTION_FILTER_ALL
+                && !ranking.matchesInterruptionFilter()) {
+            return;
+        }
+
+        mAlertIndicator.play(isImportant(sbn, rankings));
     }
 
     @Override

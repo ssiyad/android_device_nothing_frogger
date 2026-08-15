@@ -41,7 +41,7 @@ final class RingIndicator {
 
     private static final long STEP_MS = 70;
 
-    private final int[][] mFrames = Pattern.sweep(BRIGHTNESS, TAIL);
+    private final int[][] mFrames = Pattern.sweep(BRIGHTNESS, TAIL, true /* up */);
     private final Context mContext;
     private final Handler mHandler;
     private final AudioManager mAudioManager;
