@@ -33,7 +33,8 @@ import android.util.Log;
  * That list is seeded from configuration only when a profile is created, which
  * leaves a declared listener inert on any device that was not wiped.
  */
-public final class NotificationIndicator extends NotificationListenerService {
+public final class NotificationIndicator extends NotificationListenerService
+        implements Gate.Listener {
     private static final String TAG = "Glyph";
 
     private static final int BRIGHTNESS = 70;
@@ -66,6 +67,7 @@ public final class NotificationIndicator extends NotificationListenerService {
     private final AlarmManager.OnAlarmListener mTick = this::refresh;
 
     private final Context mContext;
+    private final Gate mGate;
     private final AlarmManager mAlarmManager;
     private final ClockTimer mClockTimer;
 
@@ -100,8 +102,9 @@ public final class NotificationIndicator extends NotificationListenerService {
         }
     };
 
-    NotificationIndicator(Context context) {
+    NotificationIndicator(Context context, Gate gate) {
         mContext = context;
+        mGate = gate;
         mAlarmManager = context.getSystemService(AlarmManager.class);
         mClockTimer = new ClockTimer(context);
     }
@@ -138,9 +141,12 @@ public final class NotificationIndicator extends NotificationListenerService {
         refresh();
     }
 
-    private void refresh() {
-        mAlarmManager.cancel(mTick);
+    @Override
+    public void onGateChanged(boolean on) {
+        refresh();
+    }
 
+    private void refresh() {
         final StatusBarNotification[] active = getActiveNotifications();
         if (active == null) {
             Panel.get().releaseRed(Panel.RED_WAITING);
@@ -149,6 +155,22 @@ public final class NotificationIndicator extends NotificationListenerService {
         }
 
         updateWaiting(active);
+        updateBar(active);
+    }
+
+    /**
+     * The bar is only ever worth drawing behind the gate. The strip is on the
+     * back, so a phone lying face-up has it against the table, and a phone in
+     * use has it turned away — in both, an advancing bar is an animation and a
+     * countdown is a wake-up per block, spent on nobody.
+     */
+    private void updateBar(StatusBarNotification[] active) {
+        mAlarmManager.cancel(mTick);
+
+        if (!mGate.isOn()) {
+            hide();
+            return;
+        }
 
         StatusBarNotification progress = null;
         for (StatusBarNotification sbn : active) {
@@ -330,11 +352,21 @@ public final class NotificationIndicator extends NotificationListenerService {
     private void clear() {
         mKey = null;
         mTotal = 0;
+        mProgressKey = null;
+        mProgressValue = -1;
+        hide();
+    }
+
+    /**
+     * Stops drawing without forgetting what was being drawn. A countdown takes
+     * the largest remaining time it has seen as its full scale, so clearing a
+     * running timer because the phone was picked up would restart the bar from
+     * empty when it was put back down.
+     */
+    private void hide() {
         mLit = 0;
         mFalling = -1;
         mLeading = BRIGHTNESS;
-        mProgressKey = null;
-        mProgressValue = -1;
         mHandler.removeCallbacks(mFallStep);
         mHandler.removeCallbacks(mBlipEnd);
         Panel.get().releaseWhite(Panel.OWNER_NOTIFICATION);

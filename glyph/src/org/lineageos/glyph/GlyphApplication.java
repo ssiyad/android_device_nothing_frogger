@@ -38,8 +38,9 @@ public final class GlyphApplication extends Application {
         mCaptureIndicator = new CaptureIndicator(handler);
         audioManager.registerAudioPlaybackCallback(mCaptureIndicator, handler);
 
-        mNotificationIndicator = new NotificationIndicator(this);
+        mNotificationIndicator = new NotificationIndicator(this, mGate);
         mNotificationIndicator.register();
+        mGate.addListener(mNotificationIndicator);
 
         mChargeStatus = new ChargeStatus(this, handler);
         mGate.addFaceDownListener(mChargeStatus);
