@@ -25,6 +25,37 @@ These trees build Frogger and nothing else. Where another device's code is in th
 way, delete it rather than widening a condition to admit both; the merge
 conflicts on rebase are the accepted price.
 
+## Patching what we do not own
+
+Only the repos above are ours to change. Everything else in the tree is upstream
+and is reset by `repo sync --force-sync`, so a change made in place is lost
+without a word.
+
+`patches/` is the exception, and it is meant to stay one. Each subdirectory is a
+project path with `/` written as `_`, and `patches/apply.sh` reapplies every
+patch after each sync and before each build, failing the build the moment a hunk
+stops applying. Loud is the whole point: an unpatched tree produces an image that
+looks correct and quietly lacks the change.
+
+| Project | What | Why it cannot be ours |
+|---|---|---|
+| `packages/apps/LineageParts` | The *Essential button* section in the buttons screen | LineageParts loads no injected tiles, declares no `<overlayable>`, and its one device hook is a `RemotePreference` pinned to the bottom of the screen under Extras. A section in a chosen position means editing `button_settings.xml`. |
+
+Before adding another, look for the hook first — several exist and are easy to
+miss, and one of them turned out to place this same screen with no patch at all,
+just in the wrong position.
+
+A patch that has to exist is shaped to be cheap to rebase: whatever thinks goes
+in a **new file**, which cannot conflict, and the edits to existing files are
+kept to the fewest lines that reach it. Reuse the strings and conventions already
+there rather than adding parallel ones.
+
+An overlay under `overlay-lineage/` is better than a patch when it will do, since
+it changes nothing upstream. It only stretches to resources, and replacing a
+whole file that way carries the drift a patch makes noisy — which is why the
+lock screen clock font and the biometric prompt indicator are both parked rather
+than overlaid.
+
 ## Signing keys
 
 Nine RSA-2048 keys live in `vendor/lineage-priv/keys/` — `releasekey`,
