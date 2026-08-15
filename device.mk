@@ -205,9 +205,9 @@ PRODUCT_PACKAGES += \
     vendor.qti.hardware.display.demura-service
 
 
-# Essential Key
+# Essential Button
 PRODUCT_PACKAGES += \
-    EssentialKey
+    EssentialButton
 
 # FWK Detect
 PRODUCT_PACKAGES += \

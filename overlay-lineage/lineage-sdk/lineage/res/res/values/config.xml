@@ -25,10 +25,10 @@
          For example, a device with Home, Back and Menu keys would set this
          config to 7.
 
-         Volume rocker only. The Essential Key was counted here as an assistant
-         key while it emitted ASSIST; it emits MACRO_1 now and the EssentialKey
-         app owns it, so claiming the bit would only put a dead Assist key
-         screen in LineageParts. -->
+         Volume rocker only. The Essential Button was counted here as an
+         assistant key while it emitted ASSIST; it emits MACRO_1 now and the
+         EssentialButton app owns it, so claiming the bit would only put a dead
+         Assist key screen in LineageParts. -->
     <integer name="config_deviceHardwareKeys">64</integer>
 
     <!-- Hardware keys present on the device with the ability to wake, stored as a bit field.
@@ -53,12 +53,12 @@
          the touchscreen gestures with it. -->
     <string-array translatable="false" name="config_deviceKeyHandlerLibs">
         <item>/system_ext/priv-app/LineageParts/LineageParts.apk</item>
-        <item>/system_ext/app/EssentialKey/EssentialKey.apk</item>
+        <item>/system_ext/app/EssentialButton/EssentialButton.apk</item>
     </string-array>
 
     <string-array translatable="false" name="config_deviceKeyHandlerClasses">
         <item>org.lineageos.lineageparts.gestures.KeyHandler</item>
-        <item>org.lineageos.essentialkey.KeyHandler</item>
+        <item>org.lineageos.essentialbutton.KeyHandler</item>
     </string-array>
 
     <!-- Defines the actions shown in advanced reboot submenu -->

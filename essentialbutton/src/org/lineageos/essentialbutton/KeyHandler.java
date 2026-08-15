@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.lineageos.essentialkey;
+package org.lineageos.essentialbutton;
 
 import android.content.Context;
 import android.os.Handler;
@@ -16,7 +16,7 @@ import android.view.KeyEvent;
 import com.android.internal.os.DeviceKeyHandler;
 
 /**
- * The Essential Key, as seen from inside system_server.
+ * The Essential Button, as seen from inside system_server.
  *
  * PhoneWindowManager loads this class out of the apk named beside it in
  * config_deviceKeyHandlerLibs and calls it from

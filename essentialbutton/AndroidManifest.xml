@@ -4,7 +4,7 @@
      SPDX-License-Identifier: Apache-2.0
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.lineageos.essentialkey"
+    package="org.lineageos.essentialbutton"
     android:sharedUserId="android.uid.system">
 
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -14,7 +14,7 @@
         android:allowBackup="false"
         android:defaultToDeviceProtectedStorage="true"
         android:directBootAware="true"
-        android:label="@string/essential_key_title">
+        android:label="@string/essential_button_title">
 
         <!-- The gesture rows are drawn by LineageParts, under
              Settings > System > Buttons, so this app has no settings screen of
@@ -26,14 +26,15 @@
              resolves this action to decide whether the device has the key at
              all, and takes the whole section away when nothing answers, so the
              filter is also what makes the section appear. The key handed over
-             is checked against the three gestures before anything is written. -->
+             is checked against the three gestures before anything is
+             written. -->
         <activity
             android:name=".ui.AppPickerActivity"
             android:exported="true"
             android:label="@string/action_open_app"
             android:theme="@style/Theme.SubSettingsBase.Expressive">
             <intent-filter>
-                <action android:name="org.lineageos.essentialkey.PICK_APP" />
+                <action android:name="org.lineageos.essentialbutton.PICK_APP" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

@@ -4,7 +4,7 @@
 //
 
 android_app {
-    name: "EssentialKey",
+    name: "EssentialButton",
 
     defaults: ["SettingsLibDefaults"],
     srcs: ["src/**/*.java"],
@@ -22,7 +22,7 @@ android_app {
     // everything this needs, and a privileged app asking for a
     // signature|privileged permission missing from a whitelist aborts the boot.
     // It also decides the install path, which config_deviceKeyHandlerLibs names
-    // literally -- see docs/reference/essential-key.md.
+    // literally -- see docs/reference/essential-button.md.
 
     // KeyHandler is only ever reached reflectively, from system_server. R8
     // cannot see that and would rename or drop it.

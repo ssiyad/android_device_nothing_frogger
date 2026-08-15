@@ -7,7 +7,7 @@
      them under Settings > System > Buttons. What is left here is the picker
      that screen sends the user to. -->
 <resources>
-    <string name="essential_key_title">Essential Key</string>
+    <string name="essential_button_title">Essential Button</string>
 
     <string name="action_open_app">Open application</string>
     <string name="app_picker_search">Search apps</string>

@@ -30,7 +30,8 @@ key 114   VOLUME_DOWN
 key 102   HOME
 key 528   FOCUS
 key 766   CAMERA
-# The Essential Key, KEY_AI from the ai_key node. MACRO_1 is the programmable
+# The Essential Button, KEY_AI from the ai_key node. MACRO_1 is the programmable
 # button no framework rule claims; ASSIST cannot be made inert, and a WAKE flag
-# would fire for a wake that never happens. See docs/reference/essential-key.md.
+# would fire for a wake that never happens.
+# See docs/reference/essential-button.md.
 key 250   MACRO_1

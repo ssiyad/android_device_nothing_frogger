@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.lineageos.essentialkey;
+package org.lineageos.essentialbutton;
 
 import android.os.Handler;
 import android.util.Log;

@@ -1,8 +1,8 @@
-# Screen recording from the Essential Key
+# Screen recording from the Essential Button
 
-The one action from the original list the key cannot reach. Everything about the
-key itself is in [essential-key.md](../reference/essential-key.md); this is only
-about the missing action.
+The one action from the original list the button cannot reach. Everything about
+the button itself is in [essential-button.md](../reference/essential-button.md);
+this is only about the missing action.
 
 ## Why it does not ship
 

@@ -1,6 +1,6 @@
-# Essential Key
+# Essential Button
 
-`essentialkey/` builds the app behind the extra hardware button. It is signed
+`essentialbutton/` builds the app behind the extra hardware button. It is signed
 with the platform key, shares `android.uid.system`, and has two halves that run
 in different processes.
 
@@ -21,7 +21,7 @@ unassigned upstream. The same node exists in `asteroids-common-pmic.dtsi`, so
 anything here applies to that device too.
 
 Stock maps no keycode for 250 at all — its `gpio-keys.kl` stops at `CAMERA`, and
-`com.android.server.wm.NtEssentialKeyImpl` in `nt-services.jar` reads the raw
+`com.android.server.wm.NtEssentialButtonImpl` in `nt-services.jar` reads the raw
 scancode. That route needs a framework fork, so it is not available here.
 
 ## Why the keycode is `MACRO_1`
@@ -71,8 +71,8 @@ this a domain of its own the way `glyph_app` has one would reintroduce the
 public-type failure that keeps `DeviceExtras` switched off.
 
 **The apk path is a literal, checked by nothing.** It is written in
-`essentialkey/Android.bp` by omission and in `overlay-lineage/.../config.xml` by
-hand. The app is not `privileged`, so it installs to `/system_ext/app/`; adding
+`essentialbutton/Android.bp` by omission and in `overlay-lineage/.../config.xml`
+by hand. The app is not `privileged`, so it installs to `/system_ext/app/`; adding
 `privileged: true` would move it to `priv-app/`, the class would stop being
 found, and no build step would say so. Overriding the arrays also *replaces*
 them rather than adding, so the LineageParts entry has to be repeated — dropping
@@ -151,9 +151,9 @@ owns which camera a locked phone may open, and it wakes the screen itself.
 Three `Settings.System` keys, holding a token rather than an ordinal:
 
 ```
-essential_key_single_press    default screenshot
-essential_key_double_press    default none
-essential_key_long_press      default none
+essential_button_single_press    default screenshot
+essential_button_double_press    default none
+essential_button_long_press      default none
 ```
 
 `none`, `screenshot`, `camera`, `flashlight`, `play_pause`, `next`, `previous`,
@@ -189,16 +189,16 @@ the defaults and the action list exist once, in LineageParts. They must still
 agree with `Constants` here, which is what the key handler reads.
 
 The patch is shaped to survive rebasing. Everything that thinks lives in a new
-file, `input/EssentialKeyPreferences.java`, which cannot conflict; `ButtonSettings`
-gains only two lines, a `setup()` in `onCreate` and a `refresh()` in `onResume`.
+file, `input/EssentialButtonPreferences.java`, which cannot conflict;
+`ButtonSettings` gains only two lines, a `setup()` in `onCreate` and a `refresh()` in `onResume`.
 The rows reuse `hardware_keys_short_press_title`, `hardware_keys_double_tap_title`
 and `hardware_keys_long_press_title`, so only the actions no other key offers are
 named. `apply.sh` fails the build if any hunk stops applying, so upstream moving
 underneath this is loud rather than silent.
 
-`EssentialKeyPreferences` removes the whole section unless
-`org.lineageos.essentialkey.PICK_APP` resolves against a system package, which is
-how the patch stays inert on any device without the key.
+`EssentialButtonPreferences` removes the whole section unless
+`org.lineageos.essentialbutton.PICK_APP` resolves against a system package,
+which is how the patch stays inert on any device without the button.
 
 **The picker writes its own result.** LineageParts hands it the gesture's
 `Settings.System` key and starts it without waiting for a result; it stores
@@ -216,8 +216,8 @@ searching for *Buttons*.
 
 ```sh
 adb shell dumpsys input | grep -A6 -i 'gpio-keys'   # expect /vendor/usr/keylayout/
-adb logcat -b all -d | grep 'EssentialKey: KeyHandler loaded'
-adb shell settings get system essential_key_single_press
+adb logcat -b all -d | grep 'EssentialButton: KeyHandler loaded'
+adb shell settings get system essential_button_single_press
 ```
 
 A missing `KeyHandler loaded` means the resource override did not apply, or the

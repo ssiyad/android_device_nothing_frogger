@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.lineageos.essentialkey;
+package org.lineageos.essentialbutton;
 
 /**
  * The only surface the two halves of this app share: the settings UI runs in its
@@ -19,12 +19,12 @@ public final class Constants {
     private Constants() {
     }
 
-    public static final String TAG = "EssentialKey";
+    public static final String TAG = "EssentialButton";
 
     /** android.provider.Settings.System keys, one per gesture. */
-    public static final String KEY_SINGLE_PRESS = "essential_key_single_press";
-    public static final String KEY_DOUBLE_PRESS = "essential_key_double_press";
-    public static final String KEY_LONG_PRESS = "essential_key_long_press";
+    public static final String KEY_SINGLE_PRESS = "essential_button_single_press";
+    public static final String KEY_DOUBLE_PRESS = "essential_button_double_press";
+    public static final String KEY_LONG_PRESS = "essential_button_long_press";
 
     public static final String ACTION_NONE = "none";
     public static final String ACTION_SCREENSHOT = "screenshot";

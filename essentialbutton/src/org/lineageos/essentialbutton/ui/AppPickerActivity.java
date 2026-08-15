@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package org.lineageos.essentialkey.ui;
+package org.lineageos.essentialbutton.ui;
 
 import android.content.ComponentName;
 import android.content.Intent;
@@ -26,8 +26,8 @@ import android.widget.TextView;
 
 import androidx.fragment.app.FragmentActivity;
 
-import org.lineageos.essentialkey.Constants;
-import org.lineageos.essentialkey.R;
+import org.lineageos.essentialbutton.Constants;
+import org.lineageos.essentialbutton.R;
 
 import java.text.Collator;
 import java.util.ArrayList;

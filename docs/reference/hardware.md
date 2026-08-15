@@ -74,15 +74,15 @@ is treated as a trigger and gravity decides the direction.
 `pocket_mode` reports two fields, `5.00, 89.00` at rest, so it is not a boolean
 either and its meaning is still unread.
 
-## Essential Key
+## Essential Button
 
 `ai_key`, tlmm 71, active low, wake-capable, on the `gpio-keys` input device
 alongside volume up. It emits `KEY_AI` (250), a Nothing addition to
 `input-event-codes.h` — 249 and 250 are unassigned upstream.
 
 Stock maps no keycode for it and reads the raw scancode in its own framework.
-This tree maps it to `MACRO_1`; [essential-key.md](essential-key.md) has the
-reason and everything built on top of it.
+This tree maps it to `MACRO_1`; [essential-button.md](essential-button.md) has
+the reason and everything built on top of it.
 
 ## Touchscreen
 
