@@ -164,6 +164,27 @@ the only thing read reliably off six segments, so it is what tells a call from a
 message without either having to be learnt. A priority arrival gets the same
 shape brighter rather than a shape of its own.
 
+## Registering early
+
+**The app is persistent, so it starts before system_server has published its
+services, and it loses that race on every boot.** Several managers dereference
+their service with no null check on the way in and throw a
+`NullPointerException` rather than failing — telephony's registry and the media
+session service both do.
+
+**An exception let out of `Application.onCreate` is fatal here.** A persistent
+process that throws is restarted, throws again, and after a dozen attempts
+ActivityManager gives up and stops restarting it, so the whole strip goes dead
+until the next reboot with no further trace in the log. `registerTelephonyCallback`
+threw an NPE this way and took every indicator with it, not only the ring.
+
+So anything registered from `onCreate` retries rather than throwing:
+`NotificationIndicator`, `RingIndicator` and `MusicSessions` each catch and post
+themselves again. A `SecurityException` is the one answer worth accepting, since
+a permission will not arrive by being asked twice, and it costs one indicator
+rather than the process. A listener that retries is held as a field rather than
+a fresh lambda, so a second registration is recognised as the duplicate it is.
+
 ## Permissions
 
 `MEDIA_CONTENT_CONTROL` and `MODIFY_AUDIO_SETTINGS` come from the platform
