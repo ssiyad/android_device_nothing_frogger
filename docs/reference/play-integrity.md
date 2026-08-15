@@ -23,26 +23,28 @@ Root is compiled into the kernel, so it rides in the boot image: a ROM flash
 keeps it and there is no boot-patch step. Kernel string is
 `6.6.114-android15-8-4k-g<kernel-sha>`.
 
-- KernelSU-Next is a git submodule at `kernel/nothing/sm7635/KernelSU-Next`,
-  pinned to the `v3.3.0` commit on upstream `KernelSU-Next/KernelSU-Next`. Its
-  `setup.sh` symlinks `drivers/kernelsu` and wires `drivers/Kconfig` and
-  `drivers/Makefile`. Pinning to the SHA removes the force-sync drift risk that
-  the fork-everything rule exists for, so upstream is pointed at directly.
-- It must stay its own git repo, not vendored files: `Kbuild` derives
-  `KSU_VERSION = 30000 + git rev-list --count` only when KernelSU-Next is a
-  separate git root from the kernel. At `v3.3.0` that is `33214`, which the v3.3.0
-  manager expects. Flatten it into the kernel tree and the version falls back to
-  `1`/`v0.0.1` and the manager rejects the kernel.
-- `repo` does not populate the submodule — `sync-s="true"` and `repo sync
-  --recurse-submodules` both no-op it. `patches/apply.sh` runs `git submodule
-  update --init KernelSU-Next`, which is idempotent, touches no network once the
-  content is present, and survives the pre-build `repo sync --force-sync`. If the
-  content is ever missing the build fails at config time on the sourced
-  `drivers/kernelsu/Kconfig`, rather than shipping without root.
+- The driver is vendored as ordinary files at
+  `kernel/nothing/sm7635/drivers/kernelsu`, from KernelSU-Next `v3.3.0`
+  (upstream `3b18216f`). `drivers/Kconfig` sources its `Kconfig` and
+  `drivers/Makefile` has `obj-$(CONFIG_KSU) += kernelsu/`. `repo sync` therefore
+  produces a complete tree with nothing to run afterwards.
+- **The version is pinned in `drivers/kernelsu/Kbuild`, and has to be.** Upstream
+  computes `KSU_VERSION = 30000 + git rev-list --count HEAD` and takes the tag
+  from `git describe`, but only when the driver's git root differs from the
+  kernel's — a guard that exists because vendoring breaks it. Vendored, that test
+  fails and the build falls back to version `1` / tag `v0.0.1`, which the manager
+  rejects without saying why. The pin is `33214` / `v3.3.0`, matching the manager
+  apk, and a KernelSU bump means editing it.
+- **`CONFIG_KSU` defaults to `n`**, changed from upstream's `y`. With the upstream
+  default, `vendor/ksu.config` looked like the switch while controlling nothing:
+  removing the fragment left KernelSU compiled in anyway. Off by default makes
+  the fragment the only thing that enables it, so taking it out is a real test.
 - `vendor/ksu.config` carries `CONFIG_KSU=y` and is added to
   `TARGET_KERNEL_CONFIG` in `BoardConfig.mk`. This version is kprobe-only —
   `config KSU depends on KPROBES && EXT4_FS`, both already set in `gki_defconfig`
   — so there is no hook-select symbol and no kernel source patch.
+- Changing `TARGET_KERNEL_CONFIG` does **not** rebuild the kernel on its own; see
+  [build-config.md](build-config.md).
 
 ## The manager
 

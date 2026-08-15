@@ -57,6 +57,28 @@ throws, `system_server` dies, and the device loops on the boot animation while
 `adb` still reports it as `device` — the one line naming the package and the
 permission is in `logcat -b crash`, not in any build output.
 
+## A kernel config change does not rebuild the kernel
+
+`TARGET_KERNEL_CONFIG` is a list of defconfig fragments, and editing it — adding
+one, removing one, changing what one contains — leaves
+`out/target/product/frogger/obj/KERNEL_OBJ` alone. The fragments are merged onto
+the `.config` that is already there, so a symbol that was set stays set even when
+the fragment that set it is gone, and `arch/arm64/boot/Image` is not recompiled
+at all.
+
+The result is a full build that succeeds, produces a boot image, and carries the
+*old* kernel. Nothing warns. `/proc/version` on the device shows a build
+timestamp older than the ROM, which is the only tell.
+
+```sh
+rm -rf out/target/product/frogger/obj/KERNEL_OBJ
+```
+
+Verify against `KERNEL_OBJ/.config` and `KERNEL_OBJ/arch/arm64/boot/Image`, not
+`out/target/product/frogger/kernel` — that one is regenerated on every build
+whether or not the kernel was rebuilt, so it looks fresh either way. `strings`
+on it proves nothing either, because it is compressed.
+
 ## SELinux
 
 The runtime mode is bootconfig, and a permissive build is one that *adds*
