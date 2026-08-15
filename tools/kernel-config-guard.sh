@@ -61,13 +61,16 @@ inputs="$(
 
 current="$(printf '%s' "$inputs" | sha256sum | cut -d' ' -f1)"
 
+# Everything below reports on stderr and says nothing when there is nothing to
+# do. It is called from BoardConfig.mk through $(shell), whose stdout make
+# parses as makefile text -- a single line on stdout there fails the build with
+# "Failed to parse make line".
 if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$current" ]; then
-    echo "kernel config unchanged"
     exit 0
 fi
 
 if [ -d "$obj" ]; then
-    echo "kernel config changed -- clearing KERNEL_OBJ"
+    echo "kernel config changed -- clearing KERNEL_OBJ" >&2
     rm -rf "$obj"
 fi
 

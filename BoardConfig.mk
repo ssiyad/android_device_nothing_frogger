@@ -150,7 +150,11 @@ TARGET_MERGE_DTBS_WILDCARD := *volcano*
 # It hashes this assignment and the contents of every fragment it names, so it
 # is cheap enough to run on each invocation, and does nothing when nothing
 # moved. See tools/kernel-config-guard.sh and docs/reference/build-config.md.
-$(info $(shell $(DEVICE_PATH)/tools/kernel-config-guard.sh 2>&1 || echo 'kernel-config-guard FAILED'))
+# The result is assigned and discarded rather than printed: make parses whatever
+# $(shell) returns on stdout as makefile text, so a single line of output here
+# fails the build with "Failed to parse make line". The script reports on stderr
+# and stays quiet when it has nothing to do.
+kernel_config_guard := $(shell $(DEVICE_PATH)/tools/kernel-config-guard.sh)
 
 # Kernel Modules
 BOARD_SYSTEM_KERNEL_MODULES_LOAD := $(strip $(shell cat $(DEVICE_PATH)/modules.load.system_dlkm))
