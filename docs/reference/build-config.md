@@ -30,16 +30,32 @@ crash buffer naming the package and permission.
 
 **Being platform-signed does not exempt it.** Signing decides whether the
 permission can be granted; the allowlist is a separate consistency check over
-what a privileged package is allowed to ask for, and it fires either way. This
-cost a boot to learn: `SCHEDULE_EXACT_ALARM` looks ordinary, is
-`signature|privileged|appop`, and was not needed at all — an app running as
-`android.uid.system` is exempt from the exact-alarm check through
-`UserHandle.isCore`.
+what a privileged package is allowed to ask for, and it fires either way.
 
-So the cheapest rule is to check `protectionLevel` in
+Two permissions have cost a boot here, and neither was needed, because the
+service behind each exempts the system uid before it ever looks at a permission:
+
+| Permission | Level | Why it was unnecessary |
+|---|---|---|
+| `SCHEDULE_EXACT_ALARM` | `signature\|privileged\|appop` | `UserHandle.isCore` exempts the caller from the exact-alarm check |
+| `MEDIA_CONTENT_CONTROL` | `signature\|privileged` | `MediaSessionService.hasMediaControlPermission` returns early on `uid == Process.SYSTEM_UID` |
+
+Both look like ordinary permissions at the call site, which is what makes this
+recur. So the rule is to check `protectionLevel` in
 `frameworks/base/core/res/AndroidManifest.xml` before adding any permission to a
-privileged package, and to prefer dropping a privileged permission over
-allowlisting one that the system uid already makes unnecessary.
+privileged package, then read the service's own enforcement — an app running as
+`android.uid.system` is usually already past it — and to prefer dropping the
+permission over adding an allowlist entry for one that buys nothing.
+
+Dropping `privileged: true` would sidestep the check entirely, but it is not
+available to `Glyph`: `sepolicy/private/seapp_contexts` matches it on
+`isPrivApp=true` to put it in the `glyph_app` domain, and without that domain it
+loses the `sysfs_leds` access the strip depends on.
+
+The failure is quiet in the worst way. `PermissionManagerService.onSystemReady()`
+throws, `system_server` dies, and the device loops on the boot animation while
+`adb` still reports it as `device` — the one line naming the package and the
+permission is in `logcat -b crash`, not in any build output.
 
 ## SELinux
 
