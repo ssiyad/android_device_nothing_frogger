@@ -41,7 +41,7 @@ final class RingIndicator {
 
     private static final long STEP_MS = 70;
 
-    private static final long REGISTER_RETRY_MS = 2000;
+    private static final String TELEPHONY_REGISTRY = "telephony.registry";
 
     private final int[][] mFrames = Pattern.sweep(BRIGHTNESS, TAIL, true /* up */);
     private final Context mContext;
@@ -77,30 +77,27 @@ final class RingIndicator {
 
     void register() {
         mAudioManager.addOnModeChangedListener(mHandler::post, mModeListener);
-        registerCallState();
+        ServiceWait.whenPublished(mHandler, TELEPHONY_REGISTRY, this::registerCallState);
     }
 
     /**
-     * Telephony's registry is dereferenced with no null check on the way in, so
-     * asking before system_server has published it throws rather than failing.
-     * This process is persistent and starts early enough to lose that race on
-     * every boot, so it keeps asking — and an exception let out of here kills a
-     * persistent process, which takes every other indicator with it.
+     * Held back until the registry exists, because TelephonyRegistryManager
+     * caches it in a static the first time one is built and asking too early
+     * caches a null that every later call then throws on. Retrying the call
+     * cannot recover from that, so the first one has to be worth making.
      *
-     * A refusal is the one answer worth accepting. READ_PHONE_STATE is a
-     * runtime permission the platform signature does not grant, and it is not
-     * going to arrive by being asked again; what it costs is the silent ring
-     * rather than the whole indicator.
+     * Whatever is left is final. A refusal is not going to be reconsidered —
+     * READ_PHONE_STATE is a runtime permission the platform signature does not
+     * grant — and anything thrown here arrives on the looper, where letting it
+     * out would kill a persistent process and take every other indicator with
+     * it. What is lost is the silent ring.
      */
     private void registerCallState() {
         try {
             mContext.getSystemService(TelephonyManager.class)
                     .registerTelephonyCallback(mHandler::post, mCallListener);
-        } catch (SecurityException e) {
-            Log.w(TAG, "No call state, a silent ring will not show", e);
         } catch (RuntimeException e) {
-            Log.w(TAG, "Telephony not up yet, retrying", e);
-            mHandler.postDelayed(this::registerCallState, REGISTER_RETRY_MS);
+            Log.w(TAG, "No call state, a silent ring will not show", e);
         }
     }
 

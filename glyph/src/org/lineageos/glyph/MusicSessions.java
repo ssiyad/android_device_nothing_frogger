@@ -37,17 +37,16 @@ import java.util.List;
 final class MusicSessions {
     private static final String TAG = "Glyph";
 
-    private static final long REGISTER_RETRY_MS = 2000;
-
     interface Listener {
         void onMusicChanged(boolean playing);
     }
 
-    private final MediaSessionManager mManager;
+    private final Context mContext;
     private final Handler mHandler;
     private final Listener mListener;
     private final List<MediaController> mControllers = new ArrayList<>();
 
+    private MediaSessionManager mManager;
     private boolean mPlaying;
 
     /**
@@ -74,30 +73,28 @@ final class MusicSessions {
     };
 
     MusicSessions(Context context, Handler handler, Listener listener) {
-        mManager = context.getSystemService(MediaSessionManager.class);
+        mContext = context;
         mHandler = handler;
         mListener = listener;
     }
 
-    /**
-     * The session service is dereferenced with no null check on the way in, so
-     * asking before system_server has published it throws rather than failing,
-     * and this process is persistent enough to start before it. Held as a field
-     * rather than a fresh lambda so that a retry after a half-done registration
-     * is ignored as the duplicate it is.
-     */
-    private final MediaSessionManager.OnActiveSessionsChangedListener mSessionsListener =
-            this::onSessions;
-
     void register() {
+        ServiceWait.whenPublished(mHandler, Context.MEDIA_SESSION_SERVICE, this::registerSessions);
+    }
+
+    /**
+     * Even the manager is asked for late. MediaSessionManager reads its binder
+     * once, in its constructor, and is then kept per context and never built
+     * again — so asking for it before the service is published is what breaks
+     * it, and nothing done afterwards recovers.
+     */
+    private void registerSessions() {
+        mManager = mContext.getSystemService(MediaSessionManager.class);
         try {
-            mManager.addOnActiveSessionsChangedListener(mSessionsListener, null, mHandler);
+            mManager.addOnActiveSessionsChangedListener(this::onSessions, null, mHandler);
             onSessions(mManager.getActiveSessions(null));
-        } catch (SecurityException e) {
-            Log.e(TAG, "Cannot read the media sessions, the meter will not run", e);
         } catch (RuntimeException e) {
-            Log.w(TAG, "Media sessions not up yet, retrying", e);
-            mHandler.postDelayed(this::register, REGISTER_RETRY_MS);
+            Log.e(TAG, "Cannot read the media sessions, the meter will not run", e);
         }
     }
 
