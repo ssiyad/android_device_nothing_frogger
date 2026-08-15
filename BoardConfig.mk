@@ -141,6 +141,17 @@ TARGET_KERNEL_CONFIG := \
     vendor/ksu.config
 TARGET_MERGE_DTBS_WILDCARD := *volcano*
 
+# Clearing KERNEL_OBJ when the fragments above change is the build system's job
+# and it does not do it, so the guard runs here, at config time, where every
+# entry point passes through: brunch, a bare mka, and the targeted dtbo,
+# sepolicy and vendor_dlkm builds alike. Hooking it into a wrapper script
+# instead would only cover the wrapper.
+#
+# It hashes this assignment and the contents of every fragment it names, so it
+# is cheap enough to run on each invocation, and does nothing when nothing
+# moved. See tools/kernel-config-guard.sh and docs/reference/build-config.md.
+$(info $(shell $(DEVICE_PATH)/tools/kernel-config-guard.sh 2>&1 || echo 'kernel-config-guard FAILED'))
+
 # Kernel Modules
 BOARD_SYSTEM_KERNEL_MODULES_LOAD := $(strip $(shell cat $(DEVICE_PATH)/modules.load.system_dlkm))
 SYSTEM_KERNEL_MODULES := $(BOARD_SYSTEM_KERNEL_MODULES_LOAD)
