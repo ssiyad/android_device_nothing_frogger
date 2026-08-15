@@ -1,0 +1,304 @@
+diff --git a/res/values/arrays.xml b/res/values/arrays.xml
+index fb22fc6..386a60f 100644
+--- a/res/values/arrays.xml
++++ b/res/values/arrays.xml
+@@ -71,6 +71,44 @@
+     </string-array>
+ 
+     <!-- Hardware key rebinding -->
++    <!-- The Essential Key's actions. Deliberately not the hardware_keys_action
++         list below: that one is what a Menu or Assist key can be remapped to,
++         and this key is not a remapped anything. Volume, home, back, recents,
++         lock screen and the power menu are left out because each already has a
++         control or a standard gesture. -->
++    <string-array name="essential_key_action_entries" translatable="false">
++        <item>@string/hardware_keys_action_nothing</item>
++        <item>@string/hardware_keys_action_open_app</item>
++        <item>@string/hardware_keys_action_screenshot</item>
++        <item>@string/hardware_keys_action_launch_camera</item>
++        <item>@string/hardware_keys_action_flashlight</item>
++        <item>@string/hardware_keys_action_play_pause_music</item>
++        <item>@string/hardware_keys_action_next_track</item>
++        <item>@string/hardware_keys_action_previous_track</item>
++        <item>@string/hardware_keys_action_dnd</item>
++        <item>@string/hardware_keys_action_ringer</item>
++        <item>@string/hardware_keys_action_rotation</item>
++    </string-array>
++
++    <!-- Tokens rather than ordinals, and they must match Constants.java in the
++         EssentialKey app, which reads these out of Settings.System inside
++         system_server. "open_app" is the odd one out: it is not an action but
++         the entry that opens the picker, and what gets stored is "app:"
++         followed by the chosen component. -->
++    <string-array name="essential_key_action_values" translatable="false">
++        <item>none</item>
++        <item>open_app</item>
++        <item>screenshot</item>
++        <item>camera</item>
++        <item>flashlight</item>
++        <item>play_pause</item>
++        <item>next</item>
++        <item>previous</item>
++        <item>dnd</item>
++        <item>ringer</item>
++        <item>rotation</item>
++    </string-array>
++
+     <string-array name="hardware_keys_action_entries" translatable="false">
+         <item>@string/hardware_keys_action_nothing</item>
+         <item>@string/hardware_keys_action_menu</item>
+diff --git a/res/values/strings.xml b/res/values/strings.xml
+index 9a0010f..5399af3 100644
+--- a/res/values/strings.xml
++++ b/res/values/strings.xml
+@@ -190,6 +190,18 @@
+     <string name="hardware_keys_short_press_title">Short press action</string>
+     <string name="hardware_keys_long_press_title">Long press action</string>
+     <string name="hardware_keys_double_tap_title">Double tap action</string>
++    <!-- Essential Key. The gesture rows reuse the short press, double tap and
++         long press titles above; only the actions this key offers and no other
++         does are named here. -->
++    <string name="hardware_keys_essential_key_title">Essential button</string>
++    <string name="hardware_keys_action_open_app">Open application</string>
++    <string name="hardware_keys_action_flashlight">Flashlight</string>
++    <string name="hardware_keys_action_next_track">Next track</string>
++    <string name="hardware_keys_action_previous_track">Previous track</string>
++    <string name="hardware_keys_action_dnd">Do Not Disturb</string>
++    <string name="hardware_keys_action_ringer">Ringer mode</string>
++    <string name="hardware_keys_action_rotation">Rotation lock</string>
++
+     <string name="hardware_keys_action_nothing">No action</string>
+     <string name="hardware_keys_action_menu">Open/close menu</string>
+     <string name="hardware_keys_action_app_switch">Recent apps switcher</string>
+diff --git a/res/xml/button_settings.xml b/res/xml/button_settings.xml
+index 72f2b36..a043a3c 100644
+--- a/res/xml/button_settings.xml
++++ b/res/xml/button_settings.xml
+@@ -113,6 +113,36 @@
+ 
+     </PreferenceCategory>
+ 
++    <PreferenceCategory
++        android:key="essential_key"
++        android:title="@string/hardware_keys_essential_key_title" >
++
++        <ListPreference
++            android:key="essential_key_single_press"
++            android:title="@string/hardware_keys_short_press_title"
++            android:dialogTitle="@string/hardware_keys_short_press_title"
++            android:entries="@array/essential_key_action_entries"
++            android:entryValues="@array/essential_key_action_values"
++            android:persistent="false" />
++
++        <ListPreference
++            android:key="essential_key_double_press"
++            android:title="@string/hardware_keys_double_tap_title"
++            android:dialogTitle="@string/hardware_keys_double_tap_title"
++            android:entries="@array/essential_key_action_entries"
++            android:entryValues="@array/essential_key_action_values"
++            android:persistent="false" />
++
++        <ListPreference
++            android:key="essential_key_long_press"
++            android:title="@string/hardware_keys_long_press_title"
++            android:dialogTitle="@string/hardware_keys_long_press_title"
++            android:entries="@array/essential_key_action_entries"
++            android:entryValues="@array/essential_key_action_values"
++            android:persistent="false" />
++
++    </PreferenceCategory>
++
+     <PreferenceCategory
+         android:key="home_key"
+         android:title="@string/hardware_keys_home_key_title" >
+diff --git a/src/org/lineageos/lineageparts/input/ButtonSettings.java b/src/org/lineageos/lineageparts/input/ButtonSettings.java
+index e14655c..302bb37 100644
+--- a/src/org/lineageos/lineageparts/input/ButtonSettings.java
++++ b/src/org/lineageos/lineageparts/input/ButtonSettings.java
+@@ -522,12 +522,16 @@ public class ButtonSettings extends SettingsPreferenceFragment
+ 
+         mEdgeLongSwipeAction.setEntries(actionEntries);
+         mEdgeLongSwipeAction.setEntryValues(actionValues);
++
++        EssentialKeyPreferences.setup(this);
+     }
+ 
+     @Override
+     public void onResume() {
+         super.onResume();
+ 
++        EssentialKeyPreferences.refresh(this);
++
+         // Power button ends calls.
+         if (mPowerEndCall != null) {
+             final int incallPowerBehavior = Settings.Secure.getInt(getContentResolver(),
+diff --git a/src/org/lineageos/lineageparts/input/EssentialKeyPreferences.java b/src/org/lineageos/lineageparts/input/EssentialKeyPreferences.java
+new file mode 100644
+index 0000000..fb1cd48
+--- /dev/null
++++ b/src/org/lineageos/lineageparts/input/EssentialKeyPreferences.java
+@@ -0,0 +1,164 @@
++/*
++ * SPDX-FileCopyrightText: 2026 The LineageOS Project
++ * SPDX-License-Identifier: Apache-2.0
++ */
++
++package org.lineageos.lineageparts.input;
++
++import android.content.ComponentName;
++import android.content.Context;
++import android.content.Intent;
++import android.content.pm.PackageManager;
++import android.provider.Settings;
++import android.util.Log;
++
++import androidx.preference.ListPreference;
++import androidx.preference.Preference;
++import androidx.preference.PreferenceCategory;
++import androidx.preference.PreferenceFragmentCompat;
++
++/**
++ * The Essential Key's three gestures, for devices that have the key.
++ *
++ * The rows are marked non-persistent and read and written by hand, because the
++ * values live in Settings.System rather than in this app: the half of the
++ * EssentialKey app that acts on them runs inside system_server and can see
++ * nothing else. The tokens here have to match its Constants.
++ *
++ * "Open application" is a list entry whose stored value is not the entry value.
++ * Choosing it opens the picker in the app that owns the key, and that picker
++ * writes the chosen component itself -- so nothing is stored until an app is
++ * actually chosen, backing out leaves the gesture as it was, and no result has
++ * to be carried back across the two packages. Coming back to this screen is what
++ * shows the change, which is why onResume refreshes.
++ *
++ * All of this lives in its own file so that carrying it costs two lines in
++ * ButtonSettings and nothing that upstream is likely to touch.
++ */
++public final class EssentialKeyPreferences implements Preference.OnPreferenceChangeListener {
++    private static final String TAG = "EssentialKeyPreferences";
++
++    private static final String CATEGORY = "essential_key";
++
++    private static final String[] KEYS = {
++            "essential_key_single_press",
++            "essential_key_double_press",
++            "essential_key_long_press",
++    };
++
++    /** Not an action, only the list entry that leads to the picker. */
++    private static final String ENTRY_OPEN_APP = "open_app";
++
++    /** Followed by a flattened ComponentName. */
++    private static final String APP_PREFIX = "app:";
++
++    private static final String PICKER_ACTION = "org.lineageos.essentialkey.PICK_APP";
++    private static final String EXTRA_SETTING = "setting";
++
++    private static final String DEFAULT_SINGLE_PRESS = "screenshot";
++    private static final String DEFAULT_OTHER = "none";
++
++    private final PreferenceFragmentCompat mFragment;
++
++    private EssentialKeyPreferences(PreferenceFragmentCompat fragment) {
++        mFragment = fragment;
++    }
++
++    /**
++     * Takes the section away on any device without the key, which is every
++     * device whose build does not carry the app that answers the picker.
++     */
++    public static void setup(PreferenceFragmentCompat fragment) {
++        final PreferenceCategory category = fragment.findPreference(CATEGORY);
++        if (category == null) {
++            return;
++        }
++        if (!hasEssentialKey(fragment.getContext())) {
++            fragment.getPreferenceScreen().removePreference(category);
++            return;
++        }
++
++        final EssentialKeyPreferences listener = new EssentialKeyPreferences(fragment);
++        for (String key : KEYS) {
++            final ListPreference preference = fragment.findPreference(key);
++            if (preference != null) {
++                preference.setPersistent(false);
++                preference.setOnPreferenceChangeListener(listener);
++            }
++        }
++        refresh(fragment);
++    }
++
++    /** Re-reads every row, which is how a pick made in the other app shows up. */
++    public static void refresh(PreferenceFragmentCompat fragment) {
++        if (fragment.findPreference(CATEGORY) == null) {
++            return;
++        }
++        for (String key : KEYS) {
++            final ListPreference preference = fragment.findPreference(key);
++            if (preference != null) {
++                refresh(preference);
++            }
++        }
++    }
++
++    @Override
++    public boolean onPreferenceChange(Preference preference, Object value) {
++        final String key = preference.getKey();
++
++        if (ENTRY_OPEN_APP.equals(value)) {
++            mFragment.startActivity(new Intent(PICKER_ACTION)
++                    .putExtra(EXTRA_SETTING, key));
++            return false;
++        }
++
++        store(preference.getContext(), key, (String) value);
++        refresh((ListPreference) preference);
++        return false;
++    }
++
++    private static void store(Context context, String key, String value) {
++        Settings.System.putString(context.getContentResolver(), key, value);
++    }
++
++    private static void refresh(ListPreference preference) {
++        final Context context = preference.getContext();
++        final String stored = read(context, preference.getKey());
++
++        if (stored.startsWith(APP_PREFIX)) {
++            preference.setValue(ENTRY_OPEN_APP);
++            preference.setSummary(labelOf(context, stored.substring(APP_PREFIX.length())));
++            return;
++        }
++
++        preference.setValue(stored);
++        preference.setSummary(preference.getEntry());
++    }
++
++    private static String read(Context context, String key) {
++        final String value = Settings.System.getString(context.getContentResolver(), key);
++        if (value != null) {
++            return value;
++        }
++        return KEYS[0].equals(key) ? DEFAULT_SINGLE_PRESS : DEFAULT_OTHER;
++    }
++
++    /** Falls back to the flattened name, so an uninstalled app still reads as something. */
++    private static CharSequence labelOf(Context context, String flattened) {
++        final ComponentName component = ComponentName.unflattenFromString(flattened);
++        final PackageManager pm = context.getPackageManager();
++        if (component != null) {
++            try {
++                return pm.getActivityInfo(component, 0).loadLabel(pm);
++            } catch (PackageManager.NameNotFoundException e) {
++                Log.w(TAG, "Gone: " + flattened);
++            }
++        }
++        return flattened;
++    }
++
++    private static boolean hasEssentialKey(Context context) {
++        return context.getPackageManager().resolveActivity(new Intent(PICKER_ACTION),
++                PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_SYSTEM_ONLY)) != null;
++    }
++}

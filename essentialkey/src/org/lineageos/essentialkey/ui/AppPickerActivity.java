@@ -11,8 +11,10 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,6 +26,7 @@ import android.widget.TextView;
 
 import androidx.fragment.app.FragmentActivity;
 
+import org.lineageos.essentialkey.Constants;
 import org.lineageos.essentialkey.R;
 
 import java.text.Collator;
@@ -32,7 +35,13 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Picks one launchable activity.
+ * Picks one launchable activity and stores it against the gesture that asked.
+ *
+ * The caller is the buttons screen in LineageParts, which names the gesture in
+ * an extra and reads the result back out of Settings.System when it resumes.
+ * Writing it here rather than returning it is what keeps that screen free of
+ * any result plumbing, and it means backing out stores nothing, so the gesture
+ * keeps whatever it had.
  *
  * Enumerated through the package manager rather than through LauncherApps, which
  * gates most of its methods on the caller being the active launcher. Package
@@ -44,12 +53,14 @@ import java.util.Locale;
  * plain list is unusable at that length.
  */
 public class AppPickerActivity extends FragmentActivity {
-    public static final String EXTRA_COMPONENT = "component";
+    /** Names the Settings.System key the choice belongs to. */
+    public static final String EXTRA_SETTING = "setting";
 
     private final List<Entry> mAll = new ArrayList<>();
     private final List<Entry> mShown = new ArrayList<>();
 
     private Adapter mAdapter;
+    private String mSetting;
 
     private static final class Entry {
         final ComponentName component;
@@ -66,6 +77,15 @@ public class AppPickerActivity extends FragmentActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        mSetting = getIntent().getStringExtra(EXTRA_SETTING);
+        if (!Constants.isGestureKey(mSetting)) {
+            // Nothing else may aim this at an arbitrary Settings.System key.
+            Log.w(Constants.TAG, "Not a gesture key: " + mSetting);
+            finish();
+            return;
+        }
+
         setContentView(R.layout.app_picker);
 
         load();
@@ -75,8 +95,9 @@ public class AppPickerActivity extends FragmentActivity {
         final ListView list = findViewById(R.id.list);
         list.setAdapter(mAdapter);
         list.setOnItemClickListener((parent, view, position, id) -> {
-            setResult(RESULT_OK, new Intent().putExtra(EXTRA_COMPONENT,
-                    mShown.get(position).component.flattenToShortString()));
+            Settings.System.putString(getContentResolver(), mSetting,
+                    Constants.ACTION_APP_PREFIX
+                            + mShown.get(position).component.flattenToShortString());
             finish();
         });
 

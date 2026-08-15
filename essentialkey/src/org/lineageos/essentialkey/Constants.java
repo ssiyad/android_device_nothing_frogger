@@ -44,6 +44,17 @@ public final class Constants {
     public static final String DEFAULT_DOUBLE_PRESS = ACTION_NONE;
     public static final String DEFAULT_LONG_PRESS = ACTION_NONE;
 
+    /**
+     * The picker is exported, so the key it is handed is an input from another
+     * package and has to be one of these rather than any Settings.System name
+     * that happens to be passed.
+     */
+    public static boolean isGestureKey(String key) {
+        return KEY_SINGLE_PRESS.equals(key)
+                || KEY_DOUBLE_PRESS.equals(key)
+                || KEY_LONG_PRESS.equals(key);
+    }
+
     public static String defaultFor(String key) {
         switch (key) {
             case KEY_SINGLE_PRESS:

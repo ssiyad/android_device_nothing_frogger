@@ -64,8 +64,8 @@ canonical name resolves without the vendor/product forms being tried.
 class out of that apk with a `PathClassLoader` and runs it **inside
 system_server**. Two things follow.
 
-**No sepolicy.** The handler is in the `system_server` domain and the settings
-screen is an ordinary `android.uid.system` app that
+**No sepolicy.** The handler is in the `system_server` domain and the picker is
+an ordinary `android.uid.system` app that
 `system/sepolicy/private/seapp_contexts` already covers as `system_app`. Giving
 this a domain of its own the way `glyph_app` has one would reintroduce the
 public-type failure that keeps `DeviceExtras` switched off.
@@ -171,25 +171,45 @@ Writing keys the provider has never heard of is unrestricted for `SYSTEM_UID`,
 and `installSystemProviders()` runs before `WindowManagerService.main()`, so the
 provider is up by the time the handler is constructed.
 
-The settings screen sits at Settings → System → Buttons, and gets there by
-answering `org.lineageos.settings.device.ADDITIONAL_BUTTONS_SETTINGS`. There is
-deliberately no launcher filter and no Settings tile.
+## Where the settings live
 
-That action is the hook the buttons screen already offers for a key Lineage does
-not know about. Its Extras category carries a `RemotePreference` declaring
-`lineage:requiresAction` for it, and `SelfRemovingPreference` deletes the entry
-on any device where nothing answers — so claiming the action is the whole of the
-work, and LineageParts needs no patch. `ConstraintsHelper.resolveIntent` uses
-`queryIntentActivitiesAsUser` with `MATCH_SYSTEM_ONLY` and then tests
-`FLAG_SYSTEM`, so this holds only while the app is on the system image.
+**In LineageParts, not in this app.** The three gestures are an *Essential
+button* section in the buttons screen, between *Power button* and *Home button*,
+carried by `patches/packages_apps_LineageParts/`. This app has no settings
+screen and no launcher filter; what is left of its UI is the app picker.
 
-The entry would otherwise read *Additional buttons*, so
-`additional_buttons_title` is overridden to *Essential Key* in `overlay-lineage`.
-The string is used at that one preference and nowhere else in LineageParts, and
-on this device the Essential Key is the only thing the entry can lead to.
+The buttons screen offers a hook for a device-specific key — a `RemotePreference`
+in its Extras category guarded by `lineage:requiresAction` — but that hook is one
+row pinned at the bottom of the screen, and a section in a chosen position is not
+something it can give. Editing `button_settings.xml` is the only way to place
+one, which is why this is a patch rather than a manifest action.
 
-Nothing indexes it for Settings search. An injected tile was indexed by its own
-title and summary; a preference inside LineageParts is not, and reaching it means
+Nothing is duplicated: the rows moved rather than being copied, so the tokens,
+the defaults and the action list exist once, in LineageParts. They must still
+agree with `Constants` here, which is what the key handler reads.
+
+The patch is shaped to survive rebasing. Everything that thinks lives in a new
+file, `input/EssentialKeyPreferences.java`, which cannot conflict; `ButtonSettings`
+gains only two lines, a `setup()` in `onCreate` and a `refresh()` in `onResume`.
+The rows reuse `hardware_keys_short_press_title`, `hardware_keys_double_tap_title`
+and `hardware_keys_long_press_title`, so only the actions no other key offers are
+named. `apply.sh` fails the build if any hunk stops applying, so upstream moving
+underneath this is loud rather than silent.
+
+`EssentialKeyPreferences` removes the whole section unless
+`org.lineageos.essentialkey.PICK_APP` resolves against a system package, which is
+how the patch stays inert on any device without the key.
+
+**The picker writes its own result.** LineageParts hands it the gesture's
+`Settings.System` key and starts it without waiting for a result; it stores
+`app:<component>` itself, and `onResume` is what shows the change. That keeps
+result plumbing out of a shared repo, and backing out of the picker stores
+nothing, so the gesture keeps what it had. The picker is exported, so the key it
+is handed is checked against the three gestures before anything is written.
+
+Nothing indexes the rows for Settings search. An injected tile was indexed by its
+own title and summary; preferences inside LineageParts are indexed by its own
+search provider, which this patch does not touch, so reaching them means
 searching for *Buttons*.
 
 ## Verification

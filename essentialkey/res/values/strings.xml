@@ -3,24 +3,12 @@
      SPDX-FileCopyrightText: 2026 The LineageOS Project
      SPDX-License-Identifier: Apache-2.0
 -->
+<!-- The gesture rows and the action names live in LineageParts, which draws
+     them under Settings > System > Buttons. What is left here is the picker
+     that screen sends the user to. -->
 <resources>
     <string name="essential_key_title">Essential Key</string>
 
-    <string name="gesture_single_press">Single press</string>
-    <string name="gesture_double_press">Double press</string>
-    <string name="gesture_long_press">Long press</string>
-
-    <string name="action_none">None</string>
     <string name="action_open_app">Open application</string>
-    <string name="action_screenshot">Screenshot</string>
-    <string name="action_camera">Camera</string>
-    <string name="action_flashlight">Flashlight</string>
-    <string name="action_play_pause">Play / pause</string>
-    <string name="action_next">Next track</string>
-    <string name="action_previous">Previous track</string>
-    <string name="action_dnd">Do Not Disturb</string>
-    <string name="action_ringer">Ringer mode</string>
-    <string name="action_rotation">Rotation lock</string>
-
     <string name="app_picker_search">Search apps</string>
 </resources>

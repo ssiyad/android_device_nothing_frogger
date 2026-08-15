@@ -16,33 +16,26 @@
         android:directBootAware="true"
         android:label="@string/essential_key_title">
 
-        <!-- This action is the hook the buttons screen already offers for a
-             key the device has and Lineage does not know about: its Extras
-             category carries a RemotePreference declaring
-             lineage:requiresAction for exactly this, and SelfRemovingPreference
-             takes the entry away again on any device where nothing answers.
-             Answering it is the whole of what puts this under
-             Settings > System > Buttons, so there is deliberately no
-             MAIN/LAUNCHER filter and no Settings tile.
+        <!-- The gesture rows are drawn by LineageParts, under
+             Settings > System > Buttons, so this app has no settings screen of
+             its own and deliberately no MAIN/LAUNCHER filter. The picker is all
+             that screen cannot draw for itself, and this action is how it is
+             reached.
 
-             The resolve is queryIntentActivitiesAsUser with MATCH_SYSTEM_ONLY
-             and a FLAG_SYSTEM test, so this only works while the app is on the
-             system image. -->
+             Exported because the caller is another package. LineageParts also
+             resolves this action to decide whether the device has the key at
+             all, and takes the whole section away when nothing answers, so the
+             filter is also what makes the section appear. The key handed over
+             is checked against the three gestures before anything is written. -->
         <activity
-            android:name=".ui.SettingsActivity"
+            android:name=".ui.AppPickerActivity"
             android:exported="true"
-            android:label="@string/essential_key_title"
+            android:label="@string/action_open_app"
             android:theme="@style/Theme.SubSettingsBase.Expressive">
             <intent-filter>
-                <action android:name="org.lineageos.settings.device.ADDITIONAL_BUTTONS_SETTINGS" />
+                <action android:name="org.lineageos.essentialkey.PICK_APP" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-
-        <activity
-            android:name=".ui.AppPickerActivity"
-            android:exported="false"
-            android:label="@string/action_open_app"
-            android:theme="@style/Theme.SubSettingsBase.Expressive" />
     </application>
 </manifest>
