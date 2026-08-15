@@ -7,10 +7,10 @@ confirming the parts that have never been watched on the device.
 
 | Indicator | What to watch for |
 |---|---|
-| Silent ring | Whether a call reaching a silenced phone raises `MODE_RINGTONE` at all. If it does not, the telephony call state is the only thing that catches it, and that needs `READ_PHONE_STATE` to have been pre-granted. Both paths log. |
-| Favourite's missed call | Whether the notification carries a `Person` or the legacy people array. If it carries neither, the blink is resting on a display-name match against the contacts, which is the weak leg. |
+| Silent ring | A silenced call never reaches `MODE_RINGTONE`, so this rests entirely on the telephony call state — confirm `READ_PHONE_STATE` was pre-granted, since without it there is no silent ring at all. `RingIndicator` logs when it is refused. |
+| Favourite's missed call | The caller is a display name matched against the contacts, which is the weak leg. Call from a starred contact and from an unstarred one; `Home` is starred here and `Home 2` is not, which makes them the pair to try. |
 | Media sessions | Whether `getActiveSessions(null)` is answered. It needs `MEDIA_CONTENT_CONTROL`, which the platform signature should grant; a `SecurityException` is logged if not, and the meter then never runs. |
-| Missed-call glow | Recognising the two dialer channels should light it for the first time. |
+| Missed-call glow | Recognising `phone_missed_call` should light it for the first time. |
 | Alert pattern | Whether a phone on silent, face-down, announces an arriving message — the whole point of it. |
 | Capture flash | Never yet seen working. A white flash from the meter masked it every time, so a photo taken face-up with the meter detached is the first clean look. |
 | Waiting glow | Has been seen staying lit after notifications were cleared, with nothing among them that should match. It logs `waiting on <package> <key>`, which names the cause the next time it happens. |

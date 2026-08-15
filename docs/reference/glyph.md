@@ -92,7 +92,7 @@ it.
 |---|---|
 | Beat meter | `Visualizer` on the output mix, bass energy 40–260 Hz |
 | Music present | An active `MediaSession` playing, with media usage |
-| Ring | Audio mode `MODE_RINGTONE`, or telephony `CALL_STATE_RINGING` |
+| Ring | Telephony `CALL_STATE_RINGING`, or audio mode `MODE_RINGTONE` |
 | Countdown | A `Chronometer` inflated out of the clock app's RemoteViews |
 | Progress | `EXTRA_PROGRESS` against `EXTRA_PROGRESS_MAX` |
 | Alerts, waiting, missed calls | The notification listener |
@@ -126,11 +126,33 @@ not set the user-locked bit.
 channel as well: `phone_missed_call` from `com.android.dialer`, and
 `TelecomMissedCalls` from `com.android.server.telecom`.
 
+**The dialer names the caller in the text, not the title.** Its missed-call
+notification is titled "Missed call" and carries no `Person` and no people
+array. The text holds the contact's display name when it knows one and the bare
+number when it does not, so it is tried as both. Two missed calls also raise a
+group summary on the same channel, which names no caller.
+
 An arrival is a key not seen before. A posted notification is not a new one —
 a progress update arrives the same way, and so does every repost an app makes of
 something it is already showing.
 
-## Patterns
+## A silent ring never reaches the audio mode
+
+**`MODE_RINGTONE` is not set for a call the phone will not ring for**, so the
+audio mode alone cannot see a silent ring and `READ_PHONE_STATE` is load-bearing
+rather than a nicety. Telecom's `CallAudioModeStateMachine` enters its ringing
+state and then takes the branch that does not acquire focus:
+
+```
+CallAudioModeStateMachine: Audio focus entering RINGING state
+CallAudioModeStateMachine: RINGING state, try start ringing but not acquiring audio focus
+RingerAttributes{... mAcquireAudioFocus=false, mRingerAudible=false ...}
+Ringer: ringer & haptics are off, user missed alerts for call
+```
+
+`setMode` is called once for the whole call, with `MODE_NORMAL`, on the way out.
+The audio mode is still watched because it is what catches a VoIP app, which
+asks for ringing focus without going through telephony at all.
 
 Position reads at a glance and brightness does not, because the eye cannot rank
 brightness against a shifting ambient level. Six segments carry about two and a
