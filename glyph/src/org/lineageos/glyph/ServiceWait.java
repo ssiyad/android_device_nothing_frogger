@@ -31,7 +31,16 @@ import android.util.Log;
 final class ServiceWait {
     private static final String TAG = "Glyph";
 
-    private static final long RETRY_MS = 2000;
+    private static final long FIRST_RETRY_MS = 500;
+
+    /**
+     * The wait backs off rather than polling flat out. A service that is
+     * refused rather than late never answers, and every ask is an SELinux
+     * denial in the log — a steady poll wrote 251 of them in ten minutes and
+     * rotated away everything worth reading, including the lines that would
+     * have shown what was working.
+     */
+    private static final long MAX_RETRY_MS = 30000;
 
     /** Long enough for a slow boot, short enough not to poll for ever. */
     private static final long GIVE_UP_MS = 300000;
@@ -39,10 +48,11 @@ final class ServiceWait {
     private ServiceWait() {}
 
     static void whenPublished(Handler handler, String name, Runnable action) {
-        poll(handler, name, action, SystemClock.uptimeMillis());
+        poll(handler, name, action, SystemClock.uptimeMillis(), FIRST_RETRY_MS);
     }
 
-    private static void poll(Handler handler, String name, Runnable action, long since) {
+    private static void poll(Handler handler, String name, Runnable action, long since,
+            long delay) {
         if (ServiceManager.getService(name) != null) {
             action.run();
             return;
@@ -51,6 +61,7 @@ final class ServiceWait {
             Log.w(TAG, "Gave up waiting for " + name);
             return;
         }
-        handler.postDelayed(() -> poll(handler, name, action, since), RETRY_MS);
+        final long next = Math.min(delay * 2, MAX_RETRY_MS);
+        handler.postDelayed(() -> poll(handler, name, action, since, next), delay);
     }
 }
