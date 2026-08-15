@@ -5,15 +5,10 @@
 
 package org.lineageos.glyph;
 
-import android.media.AudioAttributes;
-import android.media.AudioManager;
-import android.media.AudioPlaybackConfiguration;
 import android.media.audiofx.Visualizer;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.util.Log;
-
-import java.util.List;
 
 /**
  * Drives the white segments from the beat rather than the volume.
@@ -29,11 +24,11 @@ import java.util.List;
  * starts high and settles downwards, because a scale that starts at the first
  * sample it sees makes the opening frame full.
  *
- * A ringtone drives the same meter and is not held back by any of the gating,
- * since a call is worth showing whichever way the phone is lying.
+ * Only music drives this. A ringtone has its own pattern, because a call is one
+ * event rather than a quantity, and a ringtone's own audio is mastered too flat
+ * to move a meter that reads the bass envelope.
  */
-final class MusicVisualizer extends AudioManager.AudioPlaybackCallback
-        implements Gate.Listener {
+final class MusicVisualizer implements Gate.Listener {
     private static final String TAG = "Glyph";
 
     private static final int BRIGHTNESS = 110;
@@ -70,12 +65,10 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback
 
     private final int[] mLevels = new int[Panel.SEGMENTS];
     private final Handler mHandler;
-    private final AudioManager mAudioManager;
 
     private Visualizer mVisualizer;
     private boolean mSettling;
     private boolean mMusic;
-    private boolean mRinging;
     private boolean mGateOn;
     private int mBassFrom;
     private int mBassTo;
@@ -83,7 +76,6 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback
     private double mEnvelope;
     private double mReference = INITIAL_REFERENCE;
     private double mHeight;
-    private int mOwner = Panel.OWNER_MUSIC;
 
     private final Runnable mAttach = new Runnable() {
         @Override
@@ -95,8 +87,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback
         }
     };
 
-    MusicVisualizer(AudioManager audioManager, Handler handler) {
-        mAudioManager = audioManager;
+    MusicVisualizer(Handler handler) {
         mHandler = handler;
     }
 
@@ -137,27 +128,9 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback
                         : fill <= 0 ? 0 : (int) (BRIGHTNESS * fill);
             }
 
-            Panel.get().setWhite(mOwner, mLevels);
+            Panel.get().setWhite(Panel.OWNER_MUSIC, mLevels);
         }
     };
-
-    @Override
-    public void onPlaybackConfigChanged(List<AudioPlaybackConfiguration> configs) {
-        // Unprivileged callers are only handed configurations that are active,
-        // so presence is the whole of the test.
-        mRinging = false;
-        for (AudioPlaybackConfiguration config : configs) {
-            // Ringtone usage alone is not a call: plenty of ordinary sounds
-            // carry it. Only the audio mode says the phone is ringing.
-            if (config.getAudioAttributes().getUsage()
-                            == AudioAttributes.USAGE_NOTIFICATION_RINGTONE
-                    && mAudioManager.getMode() == AudioManager.MODE_RINGTONE) {
-                mRinging = true;
-                break;
-            }
-        }
-        update();
-    }
 
     void onMusicChanged(boolean playing) {
         mMusic = playing;
@@ -171,22 +144,6 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback
     }
 
     private void update() {
-        final int owner = mRinging ? Panel.OWNER_RINGING : Panel.OWNER_MUSIC;
-        if (owner != mOwner) {
-            Panel.get().releaseWhite(mOwner);
-            mOwner = owner;
-            reset();
-        }
-
-        if (mRinging) {
-            // A ring is worth showing at once, and nothing sonifies a ringtone
-            // by accident, so it neither waits to settle nor waits to be seen.
-            mSettling = false;
-            mHandler.removeCallbacks(mAttach);
-            attach();
-            return;
-        }
-
         // The meter is decoration, and decoration on a face the holder cannot
         // see costs an effect chain for nothing.
         if (allowed()) {
@@ -203,7 +160,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback
 
     /** Whether anything should be driving the meter at all. */
     private boolean allowed() {
-        return mRinging || (mMusic && mGateOn);
+        return mMusic && mGateOn;
     }
 
     private synchronized void attach() {
@@ -238,7 +195,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback
         }
         release();
         Log.i(TAG, "visualizer detached");
-        Panel.get().releaseWhite(mOwner);
+        Panel.get().releaseWhite(Panel.OWNER_MUSIC);
     }
 
     private void release() {

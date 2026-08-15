@@ -16,6 +16,7 @@ public final class GlyphApplication extends Application {
     private RecordingIndicator mRecordingIndicator;
     private MusicVisualizer mMusicVisualizer;
     private MusicSessions mMusicSessions;
+    private RingIndicator mRingIndicator;
     private CaptureIndicator mCaptureIndicator;
     private NotificationIndicator mNotificationIndicator;
     private ChargeStatus mChargeStatus;
@@ -32,12 +33,14 @@ public final class GlyphApplication extends Application {
         mRecordingIndicator = new RecordingIndicator(handler);
         audioManager.registerAudioRecordingCallback(mRecordingIndicator, handler);
 
-        mMusicVisualizer = new MusicVisualizer(audioManager, handler);
-        audioManager.registerAudioPlaybackCallback(mMusicVisualizer, handler);
+        mMusicVisualizer = new MusicVisualizer(handler);
         mGate.addListener(mMusicVisualizer);
 
         mMusicSessions = new MusicSessions(this, handler, mMusicVisualizer::onMusicChanged);
         mMusicSessions.register();
+
+        mRingIndicator = new RingIndicator(this, handler, audioManager);
+        mRingIndicator.register();
 
         mCaptureIndicator = new CaptureIndicator(handler);
         audioManager.registerAudioPlaybackCallback(mCaptureIndicator, handler);
