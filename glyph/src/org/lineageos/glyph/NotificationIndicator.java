@@ -8,7 +8,6 @@ package org.lineageos.glyph;
 import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
-import android.app.NotificationManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.os.Handler;
@@ -247,11 +246,19 @@ public final class NotificationIndicator extends NotificationListenerService
      * Glows red while anything worth turning the phone over for is waiting.
      *
      * What counts is decided by settings the user already keeps elsewhere: a
-     * conversation marked priority, a channel the user themselves set to alert,
-     * a call already missed, and whatever Do Not Disturb is letting through.
+     * conversation marked priority, a channel allowed through Do Not Disturb, a
+     * call already missed, and whatever the current filter is letting through.
      * Nothing here has a setting of its own.
+     *
+     * It waits on the gate with everything else. A glow the user is holding in
+     * their hand tells them what the screen in front of them already has.
      */
     private void updateWaiting(StatusBarNotification[] active) {
+        if (!mGate.isOn()) {
+            Panel.get().releaseRed(Panel.RED_WAITING);
+            return;
+        }
+
         final RankingMap rankings = getCurrentRanking();
         for (StatusBarNotification sbn : active) {
             if (isImportant(sbn, rankings)) {
@@ -293,12 +300,15 @@ public final class NotificationIndicator extends NotificationListenerService
             return false;
         }
 
-        // The importance an app picked says nothing about what matters: a third
-        // of the channels on this phone ship at high, because that is simply
-        // what alerting costs. Only the user having chosen it is a statement.
-        return channel.isImportantConversation()
-                || (channel.hasUserSetImportance()
-                        && channel.getImportance() >= NotificationManager.IMPORTANCE_HIGH);
+        // Importance says nothing about what matters, and the user having once
+        // adjusted it says little more. Seven channels on this phone carry a
+        // user-set importance and one of them is the SMS channel, at high,
+        // which is why every text lit the strip.
+        //
+        // What is left are the two settings that mean this and nothing else: a
+        // conversation marked priority, and a channel allowed through Do Not
+        // Disturb.
+        return channel.isImportantConversation() || channel.canBypassDnd();
     }
 
     /** Returns -1 unless the notification carries determinate progress. */
