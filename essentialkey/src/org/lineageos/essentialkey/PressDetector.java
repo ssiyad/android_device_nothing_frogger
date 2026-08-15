@@ -43,22 +43,29 @@ final class PressDetector {
     private boolean mDoublePending;
     private boolean mAwaitingSecondPress;
 
-    private final Runnable mLongPress = () -> {
-        mLongFired = true;
-        mDoublePending = false;
-        mAwaitingSecondPress = false;
-        mExecutor.performHaptic();
-        fire(Constants.KEY_LONG_PRESS);
-    };
-
-    private final Runnable mSinglePress = () -> {
-        mAwaitingSecondPress = false;
-        fire(Constants.KEY_SINGLE_PRESS);
-    };
+    // Held as fields rather than posted as method references, because
+    // removeCallbacks matches on identity and a fresh reference would cancel
+    // nothing. Built here rather than at their declaration, which would read
+    // mExecutor before the constructor has assigned it.
+    private final Runnable mLongPress;
+    private final Runnable mSinglePress;
 
     PressDetector(Handler handler, ActionExecutor executor) {
         mHandler = handler;
         mExecutor = executor;
+
+        mLongPress = () -> {
+            mLongFired = true;
+            mDoublePending = false;
+            mAwaitingSecondPress = false;
+            mExecutor.performHaptic();
+            fire(Constants.KEY_LONG_PRESS);
+        };
+
+        mSinglePress = () -> {
+            mAwaitingSecondPress = false;
+            fire(Constants.KEY_SINGLE_PRESS);
+        };
     }
 
     void onKey(boolean down) {
