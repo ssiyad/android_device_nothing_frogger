@@ -17,6 +17,7 @@ allow glyph_app {
   hint_service
   media_session_service
   netstats_service
+  registry_service
   sensorservice_service
   surfaceflinger_service
   vendor_perf_service
