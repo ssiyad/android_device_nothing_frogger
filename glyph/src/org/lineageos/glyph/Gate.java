@@ -5,38 +5,47 @@
 
 package org.lineageos.glyph;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.os.BatteryManager;
-import android.os.Handler;
 import android.os.PowerManager;
 import android.util.Log;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Shows the charge level as a column for a few seconds when the phone is set
- * down on its face, which is the moment the strip becomes the only thing worth
- * looking at.
+ * The condition anything merely worth seeing waits on: the phone lying on its
+ * face with the screen off.
  *
  * The vendor screen_upward sensor is on-change and wakes the machine, so this
  * costs nothing while the phone sits still and works with the screen off. It
  * only says that the up-down state changed; a single accelerometer sample says
  * which way, which avoids depending on a polarity nothing in the tree
- * documents.
+ * documents. That sample also has to be flat, not merely tilted past the
+ * horizontal, which is what keeps a phone carried in a pocket from lighting the
+ * strip.
  *
- * That sample also has to be flat, not merely tilted past the horizontal, which
- * is what keeps a phone carried in a pocket from lighting the strip.
+ * Posture on its own has not proved reliable enough to gate on: the strip has
+ * been seen running while the phone was in use. The screen is the second
+ * opinion, and it is a cheap one, because a phone whose screen is on is a phone
+ * whose strip is against something or facing away — either way nobody is
+ * looking at it. Both have to agree.
+ *
+ * Face-down is published separately from the gate, because putting the phone
+ * down is a moment rather than a state and the charge column belongs to that
+ * moment, before the screen has had time to time out.
  */
-final class FaceDownStatus implements SensorEventListener {
+final class Gate implements SensorEventListener {
     private static final String TAG = "Glyph";
 
     private static final String SCREEN_UPWARD = "android.sensor.screen_upward";
     private static final String POCKET_MODE = "android.sensor.pocket_mode";
-
-    private static final int BRIGHTNESS = 80;
-    private static final long DURATION_MS = 3000;
 
     /** Gravity along z, in m/s². Near -9.8 is flat on its face. */
     private static final float FACE_DOWN = -7f;
@@ -48,43 +57,46 @@ final class FaceDownStatus implements SensorEventListener {
      */
     private static final int SETTLE_SAMPLES = 8;
 
-    /** Told whenever the phone settles the other way up. */
+    /** Told whenever the gate opens or closes. */
     interface Listener {
-        void onFaceDown(boolean faceDown);
+        void onGateChanged(boolean on);
     }
 
-    private final Handler mHandler;
-    private final Listener mListener;
+    /**
+     * Told whenever the phone settles the other way up, gate or no gate. The
+     * first reading is the state the sensor was already in at registration
+     * rather than a flip, and is flagged so nothing reacts to a phone that has
+     * been lying there since before the process started.
+     */
+    interface FaceDownListener {
+        void onFaceDown(boolean faceDown, boolean initial);
+    }
+
+    private final Context mContext;
     private final SensorManager mSensorManager;
-    private final BatteryManager mBatteryManager;
-    private final PowerManager.WakeLock mWakeLock;
-    private final int[] mLevels = new int[Panel.SEGMENTS];
+    private final List<Listener> mListeners = new ArrayList<>();
+    private final List<FaceDownListener> mFaceDownListeners = new ArrayList<>();
 
     private Sensor mScreenUpward;
     private Sensor mPocketMode;
     private Sensor mAccelerometer;
     private boolean mFaceDown;
+    private boolean mInteractive;
+    private boolean mOn;
     private boolean mKnown;
     private int mSamples;
 
-    private final Runnable mHide = new Runnable() {
+    private final BroadcastReceiver mScreenReceiver = new BroadcastReceiver() {
         @Override
-        public void run() {
-            Panel.get().releaseWhite(Panel.OWNER_STATUS);
-            if (mWakeLock.isHeld()) {
-                mWakeLock.release();
-            }
+        public void onReceive(Context context, Intent intent) {
+            mInteractive = Intent.ACTION_SCREEN_ON.equals(intent.getAction());
+            update();
         }
     };
 
-    FaceDownStatus(Context context, Handler handler, Listener listener) {
-        mHandler = handler;
-        mListener = listener;
+    Gate(Context context) {
+        mContext = context;
         mSensorManager = context.getSystemService(SensorManager.class);
-        mBatteryManager = context.getSystemService(BatteryManager.class);
-        mWakeLock = context.getSystemService(PowerManager.class)
-                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
-        mWakeLock.setReferenceCounted(false);
 
         for (Sensor sensor : mSensorManager.getSensorList(Sensor.TYPE_ALL)) {
             if (SCREEN_UPWARD.equals(sensor.getStringType())) {
@@ -96,19 +108,38 @@ final class FaceDownStatus implements SensorEventListener {
         mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
     }
 
+    void addListener(Listener listener) {
+        mListeners.add(listener);
+    }
+
+    void addFaceDownListener(FaceDownListener listener) {
+        mFaceDownListeners.add(listener);
+    }
+
+    boolean isOn() {
+        return mOn;
+    }
+
     void register() {
+        mInteractive = mContext.getSystemService(PowerManager.class).isInteractive();
+
+        final IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_ON);
+        filter.addAction(Intent.ACTION_SCREEN_OFF);
+        mContext.registerReceiver(mScreenReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+
         if (mScreenUpward == null || mAccelerometer == null) {
             // Nothing left to gate with, so let whatever waits on this run
             // rather than leaving it switched off for good.
-            Log.w(TAG, "No screen_upward sensor, the face-down status is inert");
-            mListener.onFaceDown(true);
+            Log.w(TAG, "No screen_upward sensor, the posture half of the gate is inert");
+            mFaceDown = true;
+            update();
             return;
         }
         mSensorManager.registerListener(this, mScreenUpward, SensorManager.SENSOR_DELAY_NORMAL);
 
         // Watched only to record what it reports. Which value means in-pocket
         // is undocumented, and guessing it wrong would invert the gate rather
-        // than weaken it: the status would appear only in a pocket.
+        // than weaken it: the strip would speak only in a pocket.
         if (mPocketMode != null) {
             mSensorManager.registerListener(this, mPocketMode, SensorManager.SENSOR_DELAY_NORMAL);
         }
@@ -143,10 +174,10 @@ final class FaceDownStatus implements SensorEventListener {
         final boolean faceDown = event.values[2] < FACE_DOWN;
         if (faceDown != mFaceDown) {
             mFaceDown = faceDown;
-            mListener.onFaceDown(faceDown);
-            if (faceDown && mKnown) {
-                show();
+            for (FaceDownListener listener : mFaceDownListeners) {
+                listener.onFaceDown(faceDown, !mKnown);
             }
+            update();
         }
         mKnown = true;
     }
@@ -155,25 +186,15 @@ final class FaceDownStatus implements SensorEventListener {
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
     }
 
-    private void show() {
-        final int capacity = mBatteryManager.getIntProperty(
-                BatteryManager.BATTERY_PROPERTY_CAPACITY);
-        if (capacity < 0) {
+    private void update() {
+        final boolean on = mFaceDown && !mInteractive;
+        if (on == mOn) {
             return;
         }
-
-        // The strip holds its own pattern across suspend, but the release does
-        // not, so the machine has to stay up for as long as this is showing.
-        mWakeLock.acquire(DURATION_MS * 2);
-
-        final double height = Panel.SEGMENTS * capacity / 100.0;
-        for (int i = 0; i < Panel.SEGMENTS; i++) {
-            final double fill = height - (Panel.SEGMENTS - 1 - i);
-            mLevels[i] = fill >= 1 ? BRIGHTNESS : fill <= 0 ? 0 : (int) (BRIGHTNESS * fill);
+        mOn = on;
+        Log.i(TAG, "gate " + (on ? "open" : "closed"));
+        for (Listener listener : mListeners) {
+            listener.onGateChanged(on);
         }
-        Panel.get().setWhite(Panel.OWNER_STATUS, mLevels);
-
-        mHandler.removeCallbacks(mHide);
-        mHandler.postDelayed(mHide, DURATION_MS);
     }
 }

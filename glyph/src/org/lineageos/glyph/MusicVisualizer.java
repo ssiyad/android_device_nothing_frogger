@@ -32,7 +32,8 @@ import java.util.List;
  * A ringtone drives the same meter and is not held back by any of the gating,
  * since a call is worth showing whichever way the phone is lying.
  */
-final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
+final class MusicVisualizer extends AudioManager.AudioPlaybackCallback
+        implements Gate.Listener {
     private static final String TAG = "Glyph";
 
     private static final int BRIGHTNESS = 110;
@@ -75,7 +76,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
     private boolean mSettling;
     private boolean mMedia;
     private boolean mRinging;
-    private boolean mFaceDown;
+    private boolean mGateOn;
     private int mBassFrom;
     private int mBassTo;
     private long mQuietSince;
@@ -160,8 +161,9 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
         update();
     }
 
-    void onFaceDownChanged(boolean faceDown) {
-        mFaceDown = faceDown;
+    @Override
+    public void onGateChanged(boolean on) {
+        mGateOn = on;
         update();
     }
 
@@ -198,7 +200,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
 
     /** Whether anything should be driving the meter at all. */
     private boolean allowed() {
-        return mRinging || (mMedia && mFaceDown);
+        return mRinging || (mMedia && mGateOn);
     }
 
     private synchronized void attach() {
@@ -220,7 +222,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback {
             mVisualizer.setDataCaptureListener(mCaptureListener,
                     Visualizer.getMaxCaptureRate(), false /* waveform */, true /* fft */);
             mVisualizer.setEnabled(true);
-            Log.i(TAG, "visualizer attached, faceDown=" + mFaceDown);
+            Log.i(TAG, "visualizer attached, gate=" + mGateOn);
         } catch (RuntimeException e) {
             Log.e(TAG, "Failed to attach the visualizer", e);
             release();

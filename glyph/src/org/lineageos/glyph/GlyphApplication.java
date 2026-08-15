@@ -12,11 +12,12 @@ import android.os.Looper;
 
 /** The process is persistent, so registering here is enough to stay live. */
 public final class GlyphApplication extends Application {
+    private Gate mGate;
     private RecordingIndicator mRecordingIndicator;
     private MusicVisualizer mMusicVisualizer;
     private CaptureIndicator mCaptureIndicator;
     private NotificationIndicator mNotificationIndicator;
-    private FaceDownStatus mFaceDownStatus;
+    private ChargeStatus mChargeStatus;
 
     @Override
     public void onCreate() {
@@ -25,11 +26,14 @@ public final class GlyphApplication extends Application {
         final Handler handler = new Handler(Looper.getMainLooper());
         final AudioManager audioManager = getSystemService(AudioManager.class);
 
+        mGate = new Gate(this);
+
         mRecordingIndicator = new RecordingIndicator(handler);
         audioManager.registerAudioRecordingCallback(mRecordingIndicator, handler);
 
         mMusicVisualizer = new MusicVisualizer(audioManager, handler);
         audioManager.registerAudioPlaybackCallback(mMusicVisualizer, handler);
+        mGate.addListener(mMusicVisualizer);
 
         mCaptureIndicator = new CaptureIndicator(handler);
         audioManager.registerAudioPlaybackCallback(mCaptureIndicator, handler);
@@ -37,7 +41,10 @@ public final class GlyphApplication extends Application {
         mNotificationIndicator = new NotificationIndicator(this);
         mNotificationIndicator.register();
 
-        mFaceDownStatus = new FaceDownStatus(this, handler, mMusicVisualizer::onFaceDownChanged);
-        mFaceDownStatus.register();
+        mChargeStatus = new ChargeStatus(this, handler);
+        mGate.addFaceDownListener(mChargeStatus);
+
+        // Registered last, so nothing is told the state before it can act on it.
+        mGate.register();
     }
 }
