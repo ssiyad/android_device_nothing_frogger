@@ -48,9 +48,10 @@ final class Panel {
      * while it lasts, because two things blinking red could not be read.
      */
     static final int RED_WAITING = 0;
-    static final int RED_RECORDING = 1;
-    static final int RED_CAPTURE = 2;
-    private static final int RED_OWNERS = 3;
+    static final int RED_MISSED = 1;
+    static final int RED_RECORDING = 2;
+    static final int RED_CAPTURE = 3;
+    private static final int RED_OWNERS = 4;
 
     private static final Panel sInstance = new Panel();
 

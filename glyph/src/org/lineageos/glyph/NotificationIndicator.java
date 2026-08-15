@@ -50,6 +50,10 @@ public final class NotificationIndicator extends NotificationListenerService
 
     private static final long REGISTER_RETRY_MS = 2000;
 
+    /** com.android.dialer and com.android.server.telecom respectively. */
+    private static final Set<String> MISSED_CALL_CHANNELS =
+            Set.of("phone_missed_call", "TelecomMissedCalls");
+
     /**
      * How long a block takes to fall one place. Steps are posted rather than
      * scheduled, so a sleeping phone holds the frame it had instead of being
@@ -77,6 +81,8 @@ public final class NotificationIndicator extends NotificationListenerService
     private final AlarmManager mAlarmManager;
     private final ClockTimer mClockTimer;
     private final AlertIndicator mAlertIndicator;
+    private final MissedCallIndicator mMissedCallIndicator;
+    private final Favourites mFavourites;
     private final Set<String> mArrived = new ArraySet<>();
 
     private String mKey;
@@ -116,6 +122,8 @@ public final class NotificationIndicator extends NotificationListenerService
         mAlarmManager = context.getSystemService(AlarmManager.class);
         mClockTimer = new ClockTimer(context);
         mAlertIndicator = new AlertIndicator(context, mHandler);
+        mMissedCallIndicator = new MissedCallIndicator(context, mHandler);
+        mFavourites = new Favourites(context);
     }
 
     /**
@@ -206,12 +214,41 @@ public final class NotificationIndicator extends NotificationListenerService
         final StatusBarNotification[] active = getActiveNotifications();
         if (active == null) {
             Panel.get().releaseRed(Panel.RED_WAITING);
+            mMissedCallIndicator.clear();
             clear();
             return;
         }
 
         updateWaiting(active);
+        updateMissed(active);
         updateBar(active);
+    }
+
+    /**
+     * Blinks for a call missed from someone starred, where an ordinary missed
+     * call only glows. The contacts are asked about nothing else, so this costs
+     * a lookup per missed call rather than one per notification.
+     */
+    private void updateMissed(StatusBarNotification[] active) {
+        for (StatusBarNotification sbn : active) {
+            final Notification notification = sbn.getNotification();
+            if (isMissedCall(notification) && mFavourites.isStarred(notification)) {
+                mMissedCallIndicator.show(sbn.getKey());
+                return;
+            }
+        }
+        mMissedCallIndicator.clear();
+    }
+
+    /**
+     * Neither the dialer nor Telecom sets CATEGORY_MISSED_CALL, which is why
+     * the missed-call indicator never lit, so their channels are named here as
+     * well. The category is still tested first: it is what any other dialer
+     * would set, and it costs nothing to accept.
+     */
+    private static boolean isMissedCall(Notification notification) {
+        return Notification.CATEGORY_MISSED_CALL.equals(notification.category)
+                || MISSED_CALL_CHANNELS.contains(notification.getChannelId());
     }
 
     /**
@@ -338,7 +375,7 @@ public final class NotificationIndicator extends NotificationListenerService
         }
 
         // A call already missed stands on its own, whatever the filter says.
-        if (Notification.CATEGORY_MISSED_CALL.equals(notification.category)) {
+        if (isMissedCall(notification)) {
             return true;
         }
 
