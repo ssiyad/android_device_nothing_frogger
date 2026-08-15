@@ -70,14 +70,16 @@ The result is a full build that succeeds, produces a boot image, and carries the
 *old* kernel. Nothing warns. `/proc/version` on the device shows a build
 timestamp older than the ROM, which is the only tell.
 
-```sh
-rm -rf out/target/product/frogger/obj/KERNEL_OBJ
-```
+`tools/kernel-config-guard.sh` handles it: it hashes the `TARGET_KERNEL_CONFIG`
+assignment together with the contents of every fragment it names, and clears
+`KERNEL_OBJ` when that hash moves. It runs before each build, so this is not
+something to remember.
 
-Verify against `KERNEL_OBJ/.config` and `KERNEL_OBJ/arch/arm64/boot/Image`, not
-`out/target/product/frogger/kernel` — that one is regenerated on every build
-whether or not the kernel was rebuilt, so it looks fresh either way. `strings`
-on it proves nothing either, because it is compressed.
+When checking by hand, read `KERNEL_OBJ/.config` and
+`KERNEL_OBJ/arch/arm64/boot/Image`, not `out/target/product/frogger/kernel` —
+that one is rewritten on every build whether or not the kernel was rebuilt, so
+it always looks fresh, and it is compressed, so `strings` finds nothing in it
+either.
 
 ## SELinux
 
