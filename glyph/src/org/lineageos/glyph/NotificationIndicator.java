@@ -232,6 +232,11 @@ public final class NotificationIndicator extends NotificationListenerService
     private void updateMissed(StatusBarNotification[] active) {
         for (StatusBarNotification sbn : active) {
             final Notification notification = sbn.getNotification();
+            // Two missed calls raise a summary on the same channel, and it
+            // names no caller — it is titled "Missed call" and carries no text.
+            if ((notification.flags & Notification.FLAG_GROUP_SUMMARY) != 0) {
+                continue;
+            }
             if (isMissedCall(notification) && mFavourites.isStarred(notification)) {
                 mMissedCallIndicator.show(sbn.getKey());
                 return;

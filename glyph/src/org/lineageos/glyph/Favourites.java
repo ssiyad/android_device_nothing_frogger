@@ -19,17 +19,20 @@ import java.util.List;
 /**
  * Whether a notification is about someone the user has starred.
  *
- * The caller is looked for in three places because no one of them is
+ * The caller is looked for in several places because no one of them is
  * dependable. A Person carries a URI that is either a contact or a number and
  * is the right answer when it is there; the legacy people array carries the
- * same thing as bare strings; and the title is the contact's display name,
- * which is all that is left when an app publishes neither.
+ * same thing as bare strings.
  *
- * Matching a display name is the weakest of the three and is last for that
- * reason: two contacts can share a name, and a caller who is not in the
- * contacts at all has a number for a title, which matches nobody. Both failures
- * land on the safe side — the wrong answer is a missed blink, not a blink for a
- * stranger.
+ * com.android.dialer publishes neither. Its missed-call notification titles
+ * itself "Missed call" and puts the caller in the text, as the contact's
+ * display name if it knows one and the bare number if it does not — so the text
+ * is tried both ways, and the title only after it, for the sake of a dialer
+ * that puts the caller where it belongs.
+ *
+ * Matching a display name is the weakest leg: two contacts can share one. It
+ * fails on the safe side though — this phone holds a starred "Home" and an
+ * unstarred "Home 2", and an exact match keeps them apart.
  *
  * The contacts provider is credential-encrypted, so none of this can be
  * answered before the user has unlocked once. That is a failure to look up
@@ -66,8 +69,18 @@ final class Favourites {
             }
         }
 
-        final CharSequence title = notification.extras.getCharSequence(Notification.EXTRA_TITLE);
-        return title != null && isStarredName(title.toString());
+        return isStarredCaller(notification.extras.getCharSequence(Notification.EXTRA_TEXT))
+                || isStarredCaller(
+                        notification.extras.getCharSequence(Notification.EXTRA_TITLE));
+    }
+
+    /** A caller written out as text, which is a name or a number and says which by failing. */
+    private boolean isStarredCaller(CharSequence caller) {
+        if (caller == null) {
+            return false;
+        }
+        final String text = caller.toString();
+        return isStarredNumber(text) || isStarredName(text);
     }
 
     private boolean isStarredUri(String uri) {
