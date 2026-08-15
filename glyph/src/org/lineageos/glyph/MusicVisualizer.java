@@ -74,7 +74,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback
 
     private Visualizer mVisualizer;
     private boolean mSettling;
-    private boolean mMedia;
+    private boolean mMusic;
     private boolean mRinging;
     private boolean mGateOn;
     private int mBassFrom;
@@ -145,19 +145,22 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback
     public void onPlaybackConfigChanged(List<AudioPlaybackConfiguration> configs) {
         // Unprivileged callers are only handed configurations that are active,
         // so presence is the whole of the test.
-        mMedia = false;
         mRinging = false;
         for (AudioPlaybackConfiguration config : configs) {
-            final int usage = config.getAudioAttributes().getUsage();
-            if (usage == AudioAttributes.USAGE_MEDIA) {
-                mMedia = true;
-            } else if (usage == AudioAttributes.USAGE_NOTIFICATION_RINGTONE
+            // Ringtone usage alone is not a call: plenty of ordinary sounds
+            // carry it. Only the audio mode says the phone is ringing.
+            if (config.getAudioAttributes().getUsage()
+                            == AudioAttributes.USAGE_NOTIFICATION_RINGTONE
                     && mAudioManager.getMode() == AudioManager.MODE_RINGTONE) {
-                // Ringtone usage alone is not a call: plenty of ordinary sounds
-                // carry it. Only the audio mode says the phone is ringing.
                 mRinging = true;
+                break;
             }
         }
+        update();
+    }
+
+    void onMusicChanged(boolean playing) {
+        mMusic = playing;
         update();
     }
 
@@ -200,7 +203,7 @@ final class MusicVisualizer extends AudioManager.AudioPlaybackCallback
 
     /** Whether anything should be driving the meter at all. */
     private boolean allowed() {
-        return mRinging || (mMedia && mGateOn);
+        return mRinging || (mMusic && mGateOn);
     }
 
     private synchronized void attach() {
