@@ -30,6 +30,7 @@ Status and blockers live here; task files describe only the work.
 
 | Task | Status | Blocked by |
 |---|---|---|
+| [Ship a way to calibrate the proximity part](tasks/proximity-calibration.md) | open | — |
 | [Verify the Glyph indicators](tasks/glyph-indicators.md) | open | — |
 | [Screen recording from the Essential Button](tasks/essential-button-screen-record.md) | parked | needs a SystemUI patch or a recorder of our own |
 | [Further Glyph indicators](tasks/glyph-ideas.md) | open | — |
@@ -54,6 +55,7 @@ Status and blockers live here; task files describe only the work.
 | [audio.md](reference/audio.md) | Card layout, LVACFS, volume configuration |
 | [thermal.md](reference/thermal.md) | HAL provenance, zone lookup, what mitigates |
 | [display.md](reference/display.md) | Colour pipeline, DFPS constraints, panel feature attributes |
+| [proximity.md](reference/proximity.md) | Where the part runs, the calibration that outlives a flash, reading the in-call path |
 | [glyph.md](reference/glyph.md) | The strip, the gate, what drives each indicator, and the dead ends |
 | [essential-button.md](reference/essential-button.md) | The button, why the keycode is `MACRO_1`, the gestures and the actions |
 | [devicetree.md](reference/devicetree.md) | Overlay model, board-id matching, verification |
