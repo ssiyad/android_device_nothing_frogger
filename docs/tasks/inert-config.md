@@ -14,6 +14,13 @@ exists.
 Mounting a partition the OEM chose not to mount is a deliberate decision rather
 than an oversight. If first-stage mount fails, comment it out to match stock.
 
+## Optical sensor permissions
+
+`init/ueventd.qcom.rc` sets ownership on `ps_adc` and `ps_poll_delay` under
+`/sys/devices/virtual/optical_sensors/proximity`. That directory does not exist:
+the proximity part is driven from the ADSP by SEE and has no kernel driver. See
+[proximity.md](../reference/proximity.md).
+
 ## `ro.boot.pbid` consumers
 
 `nothing-fwk`'s `NtFeaturesUtils` reads
