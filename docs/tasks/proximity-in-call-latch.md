@@ -4,13 +4,17 @@ The display blanks during a call and does not come back when the phone leaves
 the ear.
 
 **Establish which half is at fault before changing anything.** Two unrelated
-faults produce the same symptom. With the screen dark and the phone away from
-the ear, read `DisplayPowerProximityStateController` in `dumpsys display`:
+faults produce the same symptom, and the sample that separates them has to be
+taken mid-call, with the screen dark and the phone away from the ear — which is
+not a state anything can be read by hand from. `tools/prox-watch.sh` does the
+reads device-side once a second and logs them, so the call can be placed
+normally and the transition read afterwards.
 
-| Reading | Means |
+| In the log, screen dark and the phone away from the ear | Means |
 |---|---|
 | `mProximity` near, `mScreenOffBecauseOfProximity=true` | the part is latched near, and the thresholds are the problem |
 | `mProximity` far, `mScreenOffBecauseOfProximity=true` | the release arrived and nothing acted on it |
+| `wl=0` | the dialer is not holding the proximity wake lock, so this is audio routing rather than either of the above |
 
 The rest of the reading path is in [proximity.md](../reference/proximity.md).
 
