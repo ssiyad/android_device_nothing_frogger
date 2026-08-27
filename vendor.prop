@@ -158,13 +158,14 @@ ro.surface_flinger.protected_contents=true
 # Revisit once the flicker is understood. See docs/vendor-props.md.
 ro.surface_flinger.set_idle_timer_ms=3000
 ro.surface_flinger.set_touch_timer_ms=200
-# Stock sets 0, and blur is not free here: it forces SurfaceFlinger into client
+# Matches stock, and blur is not free here: it forces SurfaceFlinger into client
 # composition for the shade and quick settings, the only full-screen blur the
-# device draws. Measured over five shade open/close cycles, disabling it halves
-# the median SystemUI frame time (30ms -> 15ms) and drops jank from 41% to 14%.
-# Kept enabled anyway -- it is a per-user appearance call, and Developer Options
-# exposes it as "Disable window blurs" (Settings.Global disable_window_blurs).
-ro.surface_flinger.supports_background_blur=1
+# device draws. Measured over five shade open/close cycles, dropping it halves
+# the median SystemUI frame time (30ms -> 15ms) and takes jank from 41% to 14%.
+# This removes the capability rather than the appearance: isCrossWindowBlurEnabled
+# reads it, so SystemUI draws its solid fallback and Developer Options' "Disable
+# window blurs" has nothing left to switch. Set 1 to hand that choice back.
+ro.surface_flinger.supports_background_blur=0
 ro.surface_flinger.use_color_management=true
 ro.surface_flinger.use_content_detection_for_refresh_rate=true
 ro.surface_flinger.wcg_composition_dataspace=143261696

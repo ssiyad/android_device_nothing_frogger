@@ -68,15 +68,16 @@ shipping stock's durations starves the pipeline, and the producer blocks in
 The framebuffer is only on the critical path when SurfaceFlinger falls back to
 **client composition**. Background blur is what forces that here: it is the sole
 full-screen blur the device draws, behind the notification shade and quick
-settings. Stock ships `ro.surface_flinger.supports_background_blur=0` for that
-reason, so on stock the buffer count and the blur cost are tuned together.
+settings. Both stock and this tree ship
+`ro.surface_flinger.supports_background_blur=0`, so the buffer count and the blur
+cost stay tuned together.
 
-This tree keeps blur enabled, because it is an appearance choice rather than a
-correctness one. The cost is real and measurable — over five shade open/close
-cycles, disabling blur halves the median SystemUI frame time (30 ms to 15 ms) and
-drops jank from 41% to 14% — so the buffer count carries a load stock never asks
-it to. Blur is switchable per user without a rebuild, through Developer Options'
-"Disable window blurs", which is `Settings.Global disable_window_blurs`.
+The measurement is why: over five shade open/close cycles, blur doubles the
+median SystemUI frame time (15 ms to 30 ms) and takes jank from 14% to 41%,
+which is the buffer count carrying a load stock never asks it to. Setting the
+property to 1 restores the capability and with it Developer Options' "Disable
+window blurs" (`Settings.Global disable_window_blurs`), which reaches the same
+composition path per user and without a rebuild.
 
 Two related stock properties are inert in this tree and are deliberately not
 carried: `debug.sf.enable_advanced_sf_phase_offset` appears nowhere in
