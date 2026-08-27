@@ -6,6 +6,13 @@ Status and blockers live here; task files describe only the work.
 
 ## Tasks
 
+### Reliability
+
+| Task | Status | Blocked by |
+|---|---|---|
+| [The screen stays dark mid-call](tasks/proximity-in-call-latch.md) | open | — |
+| [Catch the reboot to the crash dump screen](tasks/crash-dump-reboot.md) | open | — |
+
 ### Audio
 
 | Task | Status | Blocked by |
@@ -17,6 +24,7 @@ Status and blockers live here; task files describe only the work.
 | Task | Status | Blocked by |
 |---|---|---|
 | [Get the best achievable stills](tasks/camera-image-quality.md) | open | — |
+| [The camera lens cannot be changed from the lock screen](tasks/lockscreen-camera-lens.md) | open | — |
 
 ### Build and packaging
 
@@ -34,6 +42,7 @@ Status and blockers live here; task files describe only the work.
 | [Verify the Glyph indicators](tasks/glyph-indicators.md) | open | — |
 | [Screen recording from the Essential Button](tasks/essential-button-screen-record.md) | parked | needs a SystemUI patch or a recorder of our own |
 | [Further Glyph indicators](tasks/glyph-ideas.md) | open | — |
+| [Features worth taking from elsewhere](tasks/ported-features.md) | open | — |
 | [Re-enable DeviceExtras](tasks/device-extras.md) | open | — |
 | [Evaluate vendor property groups](tasks/vendor-properties.md) | open | — |
 | [Express deferred devicetree items as overrides](tasks/devicetree-overrides.md) | open | — |
