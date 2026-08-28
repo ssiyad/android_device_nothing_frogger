@@ -42,8 +42,20 @@ active thermal mitigation. That is worse than leaving it alone, and it explains
 why the item was deferred rather than merely forgotten. The OEM change belongs
 to a later board revision where the pin was rewired.
 
-Recheck only if `/proc/hwid` stops reporting a board stage, or on a unit whose
-`in_temp_pm7550_volt_detect_input` reads like a temperature.
+Recheck only on a unit whose `in_temp_pm7550_volt_detect_input` reads like a
+temperature.
+
+Two things about `volt_detect` that look like leads and are not. Its driver,
+`drivers/misc/hwid.c`, is gated on `CONFIG_HWID`, which is set in
+`asteroids_perf.config` and not in Frogger's — `/proc/config.gz` on the device
+confirms it is not built. So the node in `frogger-common-pmic.dtsi` binds
+nothing and the ADC channel it claims is unclaimed. And `/proc/hwid` does work,
+reporting `version = PVT_India platform_board_id = 18`, but it comes from one of
+the other providers (`hardware_id.c` or `gpio_boardid.c`), not from this path —
+`hwid.c` logs nothing at all.
+
+None of that changes the conclusion. The 761 °C reading is the pin's wiring, not
+the driver's.
 
 ## The audio pop item
 
