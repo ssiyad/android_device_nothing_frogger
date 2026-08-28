@@ -44,26 +44,30 @@ without moving the thresholds changes the sensitivity.
 
 The factory measured this unit on a bare panel and wrote `ct_threshold=1739`,
 `near_threshold=2999`, `far_threshold=2177`, demanding a rise of 1260 counts
-before declaring near. The screen protector fitted since prints a border across
-the sensor strip; the ambient light sensor still reads normally through it, but
-the proximity emitter is clipped enough that an ear returns under 438 counts and
-only hard contact clears 2999. The thresholds now in place are
+before declaring near. That pair is what is in place. The screen protector
+fitted since prints a border across the sensor strip; the ambient light sensor
+still reads normally through it, but the proximity emitter is clipped enough
+that an ear returns under 438 counts above the bare-panel baseline.
 
-```
-ct_threshold 1739   near_threshold 2000   far_threshold 1900
-```
+Both values move together and far stays below near: inverted, there is no
+behaviour to expect.
 
-chosen so that an ear held normally latches. Restoring the factory pair means
-writing 2999 and 2177 back. Both values move together, and far stays below
-near: inverted, there is no behaviour to expect.
+**The standing return is no longer 1739.** A `near 2000 / far 1900` pair, chosen
+to meet the attenuated ear, left the part reporting near continuously — it could
+neither release nor ever have been far. That brackets the crosstalk the factory
+measured at 1739: at or above 2000, since the part read near, and at or below
+2177, since the factory `far_threshold` releases it at rest. Somewhere between
+those two, so the protector has cost 261 to 438 counts of baseline.
 
-Both numbers are unusually close to the crosstalk baseline, so **ambient
-infrared is a real risk here in a way it is not at the factory values**. Direct
-sun on the panel can add enough to cross 2000 and blank the screen, or convince
-the lock screen the phone is pocketed. That is the cost of meeting a signal the
-protector has already attenuated, and it cannot be tuned away — the protector
-lowers the ratio between the return and the baseline, and no threshold, gain or
-LED drive setting recovers a ratio.
+That is what makes a pair close to the recorded baseline unusable, and it is the
+second-order failure rather than the obvious one. A threshold a few hundred
+counts above 1739 looks safe against the number in this file and is not, because
+the number in this file is the value on a bare panel. **Ambient infrared then
+compounds it**: direct sun on the panel adds to a return that already starts
+higher, so it crosses sooner and blanks the screen, or convinces the lock screen
+the phone is pocketed. None of this can be tuned away — the protector lowers the
+ratio between the return and the baseline, and no threshold, gain or LED drive
+setting recovers a ratio.
 
 Because this lives on persist it survives every flash and factory reset, and
 nothing in the tree records it. A device that has never had these values written

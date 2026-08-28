@@ -46,22 +46,25 @@ The part itself is alive. The ALS shares the optical window and is streaming
 current lux with advancing timestamps, so this is neither a dead sensor nor a
 dead SEE.
 
-## What to do
+## Where it stands
 
-The raw count is still unreadable, so the thresholds remain the only
-comparator — but the search is one-sided now, since any candidate pair has to
-clear the standing return. Both values move together and far stays below near;
-inverting them is not a configuration the part has behaviour for.
+The factory pair is written back and survives the reboot, and the part now
+reports `5.00` at rest — three events since boot, all far. So the standing
+return is at or below 2177, and with the earlier pin it is at or above 2000.
+[proximity.md](../reference/proximity.md) carries the bracket.
 
-Restore the factory pair first — `near_threshold 2999`, `far_threshold 2177`.
-It is the only pair known to have been measured against this unit, and the
-current state is the worst outcome available, so nothing is risked. The registry
-is read at ADSP boot, so it takes a reboot.
+**Far at rest is only half the test.** `near_threshold` is 2999, which the
+factory measured against a bare panel, and an ear returns under 438 counts above
+baseline. Even taking the standing return at the top of its bracket, an ear
+lands near 2615 and does not reach 2999 — so the likely outcome is the opposite
+failure: the screen never blanks at all, and a cheek works the touchscreen.
 
-| After the reboot | Means |
-|---|---|
-| at rest it reports far | the standing return is under 2177, and a pair between there and 2000 will work |
-| still pinned near | the shift is 438 counts or more |
+That is the next reading, and it needs a real call held to an ear. If the screen
+blanks and comes back, this is finished. If it never blanks, `near_threshold`
+has to come down to somewhere between the standing return and the ear, with
+`far_threshold` above the standing return and below it — a pair around
+`near 2400 / far 2250` is the first candidate, and it is a guess at the ear
+return rather than a measurement.
 
-If the factory pair is still pinned, no threshold recovers it — the protector
-has taken the band, and the protector is the thing to change.
+The raw count is still unreadable, so each candidate costs a reboot: the
+registry is read at ADSP boot and nothing short of one reloads it.
