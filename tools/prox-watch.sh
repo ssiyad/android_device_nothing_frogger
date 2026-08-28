@@ -6,16 +6,17 @@
 # phone is at an ear, and what matters is a transition rather than a value. Start
 # this before dialling, hang up, stop it with ctrl-c, and read the log.
 #
-# It separates the two faults that look identical from outside:
+# It separates the faults that look identical from outside:
 #
-#   mProximity stays near              the part is latched near and the
+#   prox stays Positive                the part is latched near and the
 #                                      thresholds are the problem
-#   mProximity reaches far while       the release arrived and the display
-#   mScreenOffBecauseOfProximity=true  server did not act on it
+#   prox reaches Negative while        the release arrived and the display
+#   soff stays true                    server did not act on it
+#   wl=0 with the screen dark          the dialer never took the lock, so this
+#                                      is audio routing and not the sensor
 #
-# wl counts held proximity wake locks. The dialer takes one only while audio
-# routes to the earpiece, so a sample with the screen dark and wl=0 is a
-# different fault again -- audio routing, not the sensor.
+# useProx is the display server being asked to use proximity at all, and is what
+# distinguishes "the dialer never asked" from "it asked and got nothing".
 #
 # The thresholds themselves are not readable: SEE publishes a two-state value.
 # docs/reference/proximity.md has them, and what changing them costs.
@@ -38,26 +39,31 @@ echo "sampling into $OUT -- place the call, then stop with ctrl-c"
 # One adb shell for the whole run, with the loop and the greps device-side: a
 # sample then costs one dumpsys pair rather than a round trip per field, which
 # matters because both dumps are large and the interesting window is seconds
-# long. No apostrophes below -- the block is single-quoted all the way to the
-# device.
+# long.
+#
+# The dumps go to files rather than into variables. `dumpsys power` carries the
+# whole wake lock log and does not fit in an argument list, so feeding it to
+# printf or grep as "$var" fails with E2BIG and every field from it silently
+# reads as unmatched.
+#
+# No apostrophes below -- the block is single-quoted all the way to the device.
 "$ADB" shell '
+    d=/data/local/tmp/prox-watch.$$
+    trap "rm -f $d.power $d.display" EXIT INT TERM
+    g() { grep -m1 -oE "$1" "$2" || echo "${3}=?"; }
     while true; do
-        pw=$(dumpsys power)
-        dp=$(dumpsys display)
-        pstate=$(printf %s "$dp" | grep -m1 -oE "Display Power: state=[A-Z_]+")
-        prox=$(printf %s "$dp" | grep -m1 -oE "mProximity=[^ ,]*")
-        soff=$(printf %s "$dp" | grep -m1 -oE "mScreenOffBecauseOfProximity=[^ ,]*")
-        wneg=$(printf %s "$dp" | grep -m1 -oE "mWaitingForNegativeProximity=[^ ,]*")
-        ppos=$(printf %s "$pw" | grep -m1 -oE "mProximityPositive=[^ ,]*")
-        wl=$(printf %s "$pw" | grep -cE "WAKE_LOCK.*ProximitySensor")
-        printf "%s %s %s %s %s %s wl=%s\n" \
+        dumpsys power > "$d.power"
+        dumpsys display > "$d.display"
+        printf "%s %s %s %s %s %s %s %s wl=%s\n" \
             "$(date +%H:%M:%S)" \
-            "${pstate:-state=?}" \
-            "${prox:-mProximity=?}" \
-            "${soff:-mScreenOffBecauseOfProximity=?}" \
-            "${wneg:-mWaitingForNegativeProximity=?}" \
-            "${ppos:-mProximityPositive=?}" \
-            "$wl"
+            "$(g "mWakefulness=[A-Za-z]+" "$d.power" wake)" \
+            "$(g "policy=[A-Z_]+" "$d.display" policy)" \
+            "$(g "useProximitySensor=[a-z]+" "$d.display" useProx)" \
+            "$(g "mProximitySensorEnabled=[a-z]+" "$d.display" sensorEnabled)" \
+            "$(g "mProximity=[A-Za-z]+" "$d.display" prox)" \
+            "$(g "mScreenOffBecauseOfProximity=[a-z]+" "$d.display" soff)" \
+            "$(g "mWaitingForNegativeProximity=[a-z]+" "$d.display" waitNeg)" \
+            "$(grep -cE "WAKE_LOCK.*ProximitySensor" "$d.power")"
         sleep 1
     done
 ' | tee "$OUT"
