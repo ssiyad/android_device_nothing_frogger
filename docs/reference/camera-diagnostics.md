@@ -50,6 +50,28 @@ failed to apply.
 `camxoverridesettings.txt` raises CamX logging via `chiLogInfoMask`, commented
 out in stock.
 
+## Which cameras an app actually reached
+
+`dumpsys media.camera` keeps a service events log, most recent first, recording
+every client connection by package and camera id:
+
+```
+08-28 12:01:06 : CONNECT device 3 client for package org.codeaurora.snapcam (PID 13072)
+08-28 12:01:09 : DISCONNECT device 3 client for package org.codeaurora.snapcam (PID 0)
+```
+
+Five devices are added at boot and two of them are normal, visible to API1. The
+log is per-boot, so a fresh boot makes any single session unambiguous, and it
+settles whether a camera an app will not offer is one the service never
+published to it — without inspecting a single view.
+
+**A death in that log is not evidence of a crash.** `DIED client ... Binder died
+unexpectedly` here, and `Process ... has died: fg TOP` in the main log, are how
+a process that simply exited is recorded. Check the `START` line immediately
+before it, and the absence of both a fresh tombstone and a `FATAL EXCEPTION` in
+`logcat -b crash`: an app leaving one activity for another produces exactly this
+shape, and reads as a crash if only the camera log is consulted.
+
 ## Blob-absence theories, and where they still apply
 
 Within `vendor/lib64/camera/` and the CamX/CHI core the blob set is complete and

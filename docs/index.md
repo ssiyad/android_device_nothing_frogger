@@ -24,7 +24,6 @@ Status and blockers live here; task files describe only the work.
 | Task | Status | Blocked by |
 |---|---|---|
 | [Get the best achievable stills](tasks/camera-image-quality.md) | open | — |
-| [The camera lens cannot be changed from the lock screen](tasks/lockscreen-camera-lens.md) | open | — |
 
 ### Build and packaging
 
