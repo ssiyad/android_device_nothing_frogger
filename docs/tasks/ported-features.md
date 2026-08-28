@@ -13,7 +13,7 @@ Judge each one on what it costs to keep, not on what it costs to land.
 | Want | Where it lands | What to settle first |
 |---|---|---|
 | Depth effect on the lock screen wallpaper | wallpaper picker and SystemUI | The effect is Google's rather than AOSP's: the subject segmentation that lifts the foreground ships with the Pixel wallpaper picker, so establish whether anything open reproduces it before costing the rest. |
-| Core pinning for latency-sensitive processes | `configs/power/powerhint.json`, ours | The one item on this list that needs nothing upstream. Frogger already ships `power-service.lineage-libperfmgr` and its own hint file, so this is a device change, and it can be measured rather than argued about. |
+| Core pinning for latency-sensitive processes | device tree, ours | Split out as [SurfaceFlinger runs on the little cluster](surfaceflinger-affinity.md), which is the concrete case and a measured divergence from stock rather than a wish. Nothing's own per-app pinning turned out to be two PUBG packages, so there is no general scheme here to copy. |
 | The rest of AxionOS' performance and graphics changes | varies | Take them one at a time and find what each actually does. A ROM's collected tuning is a mix of real fixes, defaults already set here, and settings that are inert on this SoC — porting the set wholesale imports all three. |
 | Pixel features | varies | Only the ones that work without the Pixel stack behind them. Anything that reaches for a Google service or a GMS-side model belongs with the depth effect above, not here. |
 
