@@ -1,7 +1,10 @@
 # Evaluate the remaining vendor property groups
 
-`vendor.prop` carries 217 properties against stock's 499. The gap and stock's
-values are listed in [data/vendor-props-missing.txt](../data/vendor-props-missing.txt).
+The built `vendor/build.prop` carries 212 properties against stock's 451. The
+gap and stock's values are listed in
+[data/vendor-props-missing.txt](../data/vendor-props-missing.txt), which is
+generated — regenerate it before trusting it, since a property adopted since the
+last run still shows as missing.
 
 Treat that file as a lead list, never a patch.
 
