@@ -116,6 +116,18 @@ enabled:
 | every SurfaceFlinger thread pinned to 4–7 | 4.5%, 4.6% | 14 ms, 13 ms |
 | main and RenderEngine only, on 4–7 | 4.4%, 4.0% | 14 ms, 13 ms |
 
+and on the shipped build, which also has blur off, isolating the placement:
+
+| Placement, blur disabled | Janky frames | p90 |
+|---|---|---|
+| moved back to `system-background`, 0–3 | 13.9%, 17.5% | 27 ms, 32 ms |
+| `display`, 4–7, as shipped | 4.0%, 4.3%, 5.2% | 13 ms, 13 ms, 14 ms |
+
+**The placement carries this on its own.** Disabling blur removes the client
+composition that made the little cluster hurt most, and the compositor on 0–3 is
+still three times as janky at twice the p90. The two changes are not
+substitutes.
+
 Two things worth taking from that. **Widening without pinning is worse than
 leaving it alone** — giving the scheduler big cores it is not obliged to use
 buys migration cost and no placement. And the narrow version measures the same

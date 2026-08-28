@@ -25,12 +25,6 @@ Status and blockers live here; task files describe only the work.
 |---|---|---|
 | [Get the best achievable stills](tasks/camera-image-quality.md) | open | — |
 
-### Performance
-
-| Task | Status | Blocked by |
-|---|---|---|
-| [SurfaceFlinger runs on the little cluster](tasks/surfaceflinger-affinity.md) | open | — |
-
 ### Build and packaging
 
 | Task | Status | Blocked by |
