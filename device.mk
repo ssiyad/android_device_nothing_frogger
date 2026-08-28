@@ -376,6 +376,15 @@ PRODUCT_PACKAGES += \
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/configs/power/powerhint.json:$(TARGET_COPY_OUT_VENDOR)/etc/powerhint.json
 
+# Loaded after the system task_profiles.json, and redefining a profile there is
+# the supported vendor override -- libprocessgroup moves the actions onto the
+# existing profile rather than replacing it, precisely so aggregate profiles
+# keep working. Ours overrides SFMainPolicy and SFRenderEnginePolicy, which
+# SurfaceFlinger applies to itself, off system-background (0-3 here) and onto
+# the display cpuset. See docs/reference/display.md.
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/configs/task_profiles.json:$(TARGET_COPY_OUT_VENDOR)/etc/task_profiles.json
+
 # Project ID Quota
 $(call inherit-product, $(SRC_TARGET_DIR)/product/emulated_storage.mk)
 

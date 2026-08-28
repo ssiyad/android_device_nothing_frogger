@@ -36,6 +36,21 @@ on post-fs-data
     setprop ro.media.xml_variant.profiles "_volcano_v1"
 
 on early-boot
+    # SurfaceFlinger's own SFMainPolicy and SFRenderEnginePolicy land its main
+    # thread and RenderEngine here, via the task_profiles override in
+    # configs/. AOSP sends both to system-background, which is 0-3 on this
+    # device, so the compositor never reaches a big core. mems must be set
+    # before a task can join, and this has to exist before class_start core in
+    # `on boot` starts surfaceflinger.
+    mkdir /dev/cpuset/display
+    write /dev/cpuset/display/cpus 4-7
+    write /dev/cpuset/display/mems 0
+    chown system system /dev/cpuset/display
+    chown system system /dev/cpuset/display/tasks
+    chown system system /dev/cpuset/display/cgroup.procs
+    chmod 0664 /dev/cpuset/display/tasks
+    chmod 0664 /dev/cpuset/display/cgroup.procs
+
     chmod 660 /sys/devices/platform/soc/8c0000.qcom,qupv3_1_geni_se/880000.i2c/i2c-7/7-003a/leds/aw20036_led/dev_color
     chown system system /sys/devices/platform/soc/8c0000.qcom,qupv3_1_geni_se/880000.i2c/i2c-7/7-003a/leds/aw20036_led/dev_color
 

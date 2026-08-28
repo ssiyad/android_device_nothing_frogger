@@ -84,6 +84,53 @@ carried: `debug.sf.enable_advanced_sf_phase_offset` appears nowhere in
 SurfaceFlinger, and `debug.sf.latch_unsignaled` has been superseded by
 `debug.sf.auto_latch_unsignaled`.
 
+## Where the compositor runs
+
+SurfaceFlinger places two of its own threads by task profile —
+`SFMainPolicy` from `SurfaceFlinger::init`, and `SFRenderEnginePolicy` from the
+RenderEngine thread, both `SetTaskProfiles(0, ...)` on themselves. AOSP points
+both at the `system-background` cpuset, and on this device that cpuset is
+**CPUs 0–3**, so out of the box the compositor and the thread that does client
+composition never touch a big core.
+
+This tree ships a `display` cpuset of 4–7, created in `init.frogger.rc` before
+`class_start core`, and a `/vendor/etc/task_profiles.json` that redefines those
+two profiles onto it. Redefining a profile is the supported vendor override:
+libprocessgroup loads the vendor file after the system one and *moves* the
+actions onto the existing profile rather than replacing the object, so that
+aggregate profiles referring to it keep working.
+
+Stock arrives at the same place by a different route, setting `sf_affinity` to
+`240` — `0b11110000` — in `vendor/etc/nt_performance/platform_config.xml`. That
+file is staged into `/data/nt_performance` by a `system_ext` init script for a
+Nothing framework component this tree does not ship, so on a build without it
+the value is inert and the compositor stays on the little cluster.
+
+Measured over six quick-settings open/close cycles, twice each, with blur
+enabled:
+
+| Placement | Janky frames | p90 |
+|---|---|---|
+| `system-background`, 0–3, as AOSP ships | 17.4%, 26.6% | 28 ms, 36 ms |
+| whole process widened to 0–7, no pin | 27.9%, 35.5% | 34 ms, 38 ms |
+| every SurfaceFlinger thread pinned to 4–7 | 4.5%, 4.6% | 14 ms, 13 ms |
+| main and RenderEngine only, on 4–7 | 4.4%, 4.0% | 14 ms, 13 ms |
+
+Two things worth taking from that. **Widening without pinning is worse than
+leaving it alone** — giving the scheduler big cores it is not obliged to use
+buys migration cost and no placement. And the narrow version measures the same
+as pinning everything, so the two threads AOSP already singles out are where the
+whole difference lives; the binder threads and the timers gain nothing from a
+big core and would only cost power.
+
+**A cpuset masks `sched_setaffinity`.** The request is intersected with the
+cpuset's CPUs, so pinning to 4–7 from inside a 0–3 cpuset does not partially
+work — it fails, quietly enough to look applied. That is why this is a cpuset
+change rather than a `taskset` in a boot script, and the other reason is that
+SurfaceFlinger reapplies its profiles on every start: the composer HAL carries
+`onrestart restart surfaceflinger`, and a boot-time pin would be lost there
+without a word.
+
 ## `ro.surface_flinger.set_idle_timer_ms`
 
 A shorter idle timer drops to the idle refresh rate sooner and therefore switches
