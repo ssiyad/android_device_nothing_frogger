@@ -81,6 +81,35 @@ that one is rewritten on every build whether or not the kernel was rebuilt, so
 it always looks fresh, and it is compressed, so `strings` finds nothing in it
 either.
 
+## `TARGET_CPU_VARIANT` is `cortex-a76`, and stock's value would be a downgrade
+
+The cores are Cortex-A520 (`0xd80`, CPUs 0–3) and Cortex-A720 (`0xd81`, CPUs
+4–7), and `/proc/cpuinfo` advertises `crc32 atomics fphp asimddp` with no `sve`.
+
+Neither core has a Soong variant to name. `build/soong/cc/config/arm64_device.go`
+knows eight arm64 CPU variants and none is newer than `cortex-a76`, which itself
+maps to `-mcpu=cortex-a55` with a comment that the little core is what matters
+for instruction ordering. The compile side is therefore a deliberately
+conservative little-core target, and there is nothing better available to pick.
+
+What the value actually decides is ART. `dalvik.vm.isa.arm64.variant` reaches
+dex2oat as `--instruction-set-variant`, and
+`art/runtime/arch/arm64/instruction_set_features_arm64.cc` turns the name into a
+feature set by table lookup:
+
+| Variant | crc | lse | fp16 | dotprod |
+|---|---|---|---|---|
+| `cortex-a76`, ours | yes | yes | yes | yes |
+| `kryo300`, stock | no | no | no | no |
+
+`kryo300` is a *known* variant, so nothing warns and nothing fails — it simply
+appears in none of the four feature arrays. **Matching stock here would compile
+every method without CRC32, LSE atomics, FP16 or dot product on a CPU that has
+all four**, and the only symptom would be slower code.
+
+The `cortex-a76` row is exactly the hardware's HWCAP set, so nothing is
+over-declared in the other direction either.
+
 ## SELinux
 
 The runtime mode is bootconfig, and a permissive build is one that *adds*
