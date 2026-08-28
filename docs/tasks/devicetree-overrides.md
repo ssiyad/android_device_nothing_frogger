@@ -57,10 +57,23 @@ the other providers (`hardware_id.c` or `gpio_boardid.c`), not from this path �
 None of that changes the conclusion. The 761 °C reading is the pin's wiring, not
 the driver's.
 
-## The audio pop item
+## Done: the audio pop item
 
-`BELL-5845`, one pinctrl `bias-disable` to `bias-pull-down`, is untouched and
-still needs locating and expressing the same way.
+`BELL-5845`. gpio17 is `i2s0_data1`, and the shared base leaves it with no pull
+in its active state, so the line floats between the codec releasing it and the
+amplifier muting. The OEM's Frogger pinctrl pulls it down; the generic file it
+was branched from does not, and this tree carried the generic value.
+
+Overridden in `noth/frogger-common-pinctrl.dtsi`, matching what that file
+already does for the se13 i2c pins.
+
+Both properties are handled on purpose. `pinconf-generic` walks `dt_params[]` in
+order — `bias-disable` at 162, `bias-pull-down` at 166 — so the pull-down is
+applied second and wins whether or not the `/delete-property/` survives into the
+overlay. The delete is there so the node does not read as a contradiction.
+
+Verification is by ear, after a build and a flash: the pop is at the start and
+end of playback.
 
 ## Why the shared files are suspect generally
 
