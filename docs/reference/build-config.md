@@ -103,11 +103,25 @@ else works, because board config is evaluated after product config.
 Do **not** set `ro.adb.secure=0` directly — `vendor/lineage/config/common.mk`
 already assigns it and Soong fails on duplicate sysprop assignments.
 
+## `spunvm` is deliberately not mounted
+
+`init/fstab.default` carries the `spunvm` entry commented out, matching stock,
+which ships the identical line live in `fstab.emmc` and commented in
+`fstab.default`. Frogger boots from UFS and therefore reads `fstab.default`, so
+stock does not mount this partition on this device, and no SPU or spss service
+runs on this build to want it.
+
+The reason to leave it alone is what happened while it *was* mounted: vold took
+the 32 MB formattable vfat partition for **portable storage**, and Android
+created `Android/data/<package>` scaffolding on it before it went away again.
+A formattable vfat partition that nothing owns is exactly the shape vold goes
+looking for, so an fstab entry justified by "the partition exists" is not free.
+
 ## Out-of-tree patches
 
 `patches/` holds changes this device needs in projects it does not own, with
-`patches/apply.sh` to put them back. It currently holds none; the machinery is
-kept because the next one is easier than rebuilding it.
+`patches/apply.sh` to put them back. It holds one, the *Essential button*
+section in LineageParts.
 
 **`apply.sh` must run after every `repo sync` and before every build.** `repo
 sync` runs with the force flag and resets those projects, so the patches come off
