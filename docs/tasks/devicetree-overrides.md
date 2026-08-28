@@ -75,6 +75,19 @@ overlay. The delete is there so the node does not read as a contradiction.
 Verification is by ear, after a build and a flash: the pop is at the start and
 end of playback.
 
+**`/delete-property/` does not survive into a `/plugin/` overlay.** The built
+`dtbo.img` shows `fragment@21` carrying `bias-pull-down` and nothing else — dtc
+drops the delete silently when emitting overlay output, so the base's
+`bias-disable` stays in `volcano.dtb` and both reach the pin controller. The
+change works on the `dt_params[]` ordering alone.
+
+That is the same limitation the `/delete-node/` lines in
+`frogger-common-pmic.dtsi` are documented under, and it means the
+`/delete-property/ qcom,i2c_pull` entries beside this one, on the se13 i2c pins,
+are almost certainly inert too. They predate this change and are not known to be
+causing anything; they are recorded here so the idiom is not trusted a third
+time.
+
 ## Why the shared files are suspect generally
 
 Anything under `qcom/` that touches a board-level peripheral carries whichever
