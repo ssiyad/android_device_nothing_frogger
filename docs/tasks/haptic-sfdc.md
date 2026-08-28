@@ -20,57 +20,67 @@ nothing about it is obvious from using the phone.
 `/sys/.../i2c-8/8-005f/leds/vibrator_nt/{f0,f0_en,daq_en,daq_data}`. That
 directory does not exist, and neither does any other `vibrator*` node in sysfs.
 
-Two things are missing, not one, and the second is the expensive one.
+**sysfs is the data path, and it is not optional.** `/dev/ics_sfdc` carries no
+data at all: `.read` returns 0, `.write` discards, and there is no
+`.unlocked_ioctl` despite `sfdc_drv.h` declaring two ioctl codes. Its only real
+operation is `.poll`, raising `POLLIN` when `bemf_daq_done` is set. It is a
+completion notification.
 
-**The device is never registered.** `vibrator_init()` in
-`drivers/misc/haptic/haptic_drv.c` has two branches, `#ifdef TIMED_OUTPUT` and
-`#elif 0`. `TIMED_OUTPUT` is defined nowhere in the tree and the second is dead
-by construction, so nothing is registered and `sysfs_create_group` never runs.
+The acquisition loop is four steps and one is compiled:
 
-**The attribute layer is not compiled either.** Lines 610 to 960 — every
-`DEVICE_ATTR`, the `ics_haptic_attributes[]` array and
-`ics_haptic_attribute_group` itself — sit inside an `#if 0`. The attributes are
-written in the source and built into nothing.
+| Step | Where | Built |
+|---|---|---|
+| write `daq_en` to start | `daq_en_store` | no |
+| IRQ fills `daq_data`, calls `sfdc_wakeup_bemf_daq_poll` | `haptic_drv.c` ~995 | yes |
+| poll `/dev/ics_sfdc` | `sfdc_drv.c` | yes |
+| read `daq_data` back | `daq_data_show` | no |
 
-That second point was established the expensive way: enabling only the
-registration branch fails to compile, because there is no attribute group left
-for `sysfs_create_group` to reference.
+`daq_en_store` is the only writer of `haptic_data->daq_en`, so even the IRQ's
+acquisition branch can never run.
 
-```
-haptic_drv.c:1628:61: error: use of undeclared identifier 'ics_haptic_attribute_group'
-```
+## Why flipping the guards does not fix it
 
-So this is not a one-word fix. It means enabling a 350-line dead block, finding
-what else it depends on, and only then registering the device.
+Two attempts, two failed builds, and the second is the informative one.
 
-## Before doing that, establish whether sysfs is even the intended path
+`vibrator_init()` has `#ifdef TIMED_OUTPUT` / `#elif 0`, neither of which
+compiles. Enabling the second fails, because `ics_haptic_attribute_group` is
+inside an `#if 0` spanning lines 610–960. Enabling *that* fails with twenty
+errors, because the `DEVICE_ATTR` lines there reference show and store functions
+inside a **second** `#if 0`, lines 105–586. About 830 lines between them, and no
+guarantee a third does not appear behind those.
 
-`sfdc_drv.c` registers a misc device and `/dev/ics_sfdc` exists on the device
-with a real major:minor and an SELinux label. `libics_haptic.so` carries both
-that path and the sysfs ones. If SFDC is meant to be driven through the char
-device's ioctls, the sysfs layer may be `#if 0` deliberately and the failure is
-somewhere else entirely — in which case reviving 350 lines of it would be effort
-spent on the wrong half of the driver.
+**And it would still not be enough.** The blob asks for nineteen attribute names
+under `leds/vibrator_nt`; this driver defines fifteen. The four missing are
+`stream1_data`, `stream1_start`, and — the ones that decide this — **`sfdc_f0`
+and `autotrack_f0`**, both SFDC's own.
 
-Read `sfdc_drv.c` and the `sfdc_*` symbols in the blob before touching the
-`#if 0`. The blob is the only thing that knows which interface it prefers.
-## What to check, once there is something to check
+So the interface `libics_haptic.so` expects is not the interface this driver
+implements, guards or no guards. That is a driver older than the blob, not a
+driver with its features switched off.
 
-The change that would have gone first was reverted for not compiling, so there
-is nothing on a device to verify yet. When there is:
+## What this actually is
+
+A port, not a fix: either a newer `ics_haptic` driver that implements
+`sfdc_f0` and `autotrack_f0`, or accepting that f0 tracking does not run here
+and the actuator stays on its factory 170.9 Hz.
+
+Nothing in the tree is left enabled. Both attempts are reverted, and the
+guards are as they were.
+
+## If a newer driver is ever ported
 
 | Check | Why it can fail |
 |---|---|
-| haptics still work at all | `devm_led_classdev_register` failing returns an error out of `vibrator_init`, which fails probe and takes the driver with it. Test this before anything about SFDC |
-| `/sys/class/leds/vibrator_nt/` exists and carries `f0`, `daq_en`, `daq_data` | a registered device with no attributes means the `#if 0` block is still not building what it needs to |
+| haptics still work at all | `devm_led_classdev_register` failing returns an error out of `vibrator_init`, which fails probe and takes the driver with it. Test before anything about SFDC |
+| `/sys/class/leds/vibrator_nt/` carries all nineteen names the blob wants | fifteen is not enough; `sfdc_f0` and `autotrack_f0` are the ones to confirm |
 | `sfdc is not initialized` is gone from logcat | the point of the exercise |
 | `sfdc f0 update: %.1f` appears | `Vibrator.cpp`'s callback, which only fires once tracking runs |
 
-Then permissions, and only then. The attributes are `0644` root-owned and the
-vibrator HAL runs as `system`, so it can read `f0` and `daq_data` but cannot
-write `daq_en` or `f0_en`. That needs a ueventd rule, and the new sysfs nodes
-will need labelling for the HAL's domain. Both are deliberately unwritten: rules
-for a path that does not exist are how inert configuration arrives.
+Permissions come after that and not before. The attributes are `0644`
+root-owned and the HAL runs as `system`, so it can read `f0` and `daq_data` but
+cannot write `daq_en` or `f0_en`; that needs a ueventd rule, and the nodes need
+labelling for the HAL's domain. Both are deliberately unwritten — rules for a
+path that does not exist are how inert configuration arrives.
 
 ## The property that started this
 
