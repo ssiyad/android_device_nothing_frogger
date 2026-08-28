@@ -181,7 +181,33 @@ some other way if repeating this.
 
 ## What is left
 
-Two candidates, neither cheap.
+**The audio devicetree, which was never on the list.** The eliminated set above
+covers config, ACDB contents, properties, topology selection, mic routing, the
+codec gain chain and the source-built PAL and AHAL. It does not cover the
+devicetree, and this tree does not carry the OEM's audio one:
+`noth/frogger-common.dtsi` ports the AW882xx amplifier nodes by hand out of
+`Frogger/volcano-audio-overlay.dtsi` and takes nothing else from it.
+
+That file exists locally, in the OEM kernel kept as a merge reference:
+
+```
+~/sources/android/kernels/frogger/vendor/qcom/proprietary/audio-devicetree/Frogger/
+    volcano-audio-overlay.dtsi     635 lines, 23 references to the capture path
+    volcano-audio-qrd.dtsi
+```
+
+**So the "no stock reference" that parked this task is not true of the
+devicetree.** It is true of a running stock boot, which is what the topology-gain
+branch below still needs. The capture path's TX macro, VA macro and SoundWire
+DMIC configuration can be diffed against the OEM's today, on this laptop, with
+no device and no build.
+
+That is the cheapest remaining candidate and the only one that was never
+examined. Start there.
+
+## The two that were already known
+
+Neither cheap.
 
 **AP-side LVACFS.** It is off here and stock almost certainly runs it — the gate
 that turns it off is a LineageOS invention stock's PAL cannot even read, so its
