@@ -119,9 +119,23 @@ enabled:
 Two things worth taking from that. **Widening without pinning is worse than
 leaving it alone** — giving the scheduler big cores it is not obliged to use
 buys migration cost and no placement. And the narrow version measures the same
-as pinning everything, so the two threads AOSP already singles out are where the
-whole difference lives; the binder threads and the timers gain nothing from a
-big core and would only cost power.
+as pinning everything, so the two threads AOSP singles out are where the whole
+difference lives.
+
+**In practice the placement is not narrow, because cpuset membership is
+inherited.** A thread that joins a cpuset passes that membership to every thread
+it creates afterwards, and `SFMainPolicy` is applied from `SurfaceFlinger::init`,
+early. So on the running device `app`, `appSf`, `TimerDispatch`, `TouchTimer`,
+`IdleTimer`, `RegionSampling`, `RegSampIdle`, `HwcAsyncWorker` and
+`BckgrndExec HP` are all on 4–7 as well — everything the main thread spawned
+after it joined. Only what already existed stays outside: the binder threadpool,
+`TracingMuxer` and `BckgrndExec LP`, all on 0–7.
+
+The measurements say that costs nothing, since pinning every thread and pinning
+two measured the same. But it means the shipped configuration is the broad one,
+reached by inheritance rather than by intent, and anything that later wants a
+genuinely narrow placement has to move threads back out rather than assume the
+profile scoped it.
 
 **A cpuset masks `sched_setaffinity`.** The request is intersected with the
 cpuset's CPUs, so pinning to 4–7 from inside a 0–3 cpuset does not partially

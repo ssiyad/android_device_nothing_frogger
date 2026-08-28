@@ -1,47 +1,47 @@
 # Catch the reboot to the crash dump screen
 
 The device reboots at random into the crash dump screen XBL puts up ahead of the
-bootloader. No trigger is known, so the first job is not to debug it but to make
-sure the next one leaves something to read. Right now it would not.
+bootloader. No trigger is known, so the job is to make sure the next one leaves
+something to read.
 
-## Nothing records a panic yet
+## The capture works now
 
-`/sys/module/ramoops/parameters/record_size` reads 0 on the running build, and
-`noth/frogger-common.dtsi` said why: the ramoops node divided its 4 MB carveout
-into 2 MB of console and 2 MB of pmsg and set no `record-size`. pstore gives the
-dmesg zone whatever console and pmsg leave behind, which was nothing, so there
-was no dmesg zone at all — a panic wrote no record, and `/sys/fs/pstore` came
-back holding only `pmsg-ramoops-0`.
+It did not before. The ramoops node split its 4 MB carveout into 2 MB of console
+and 2 MB of pmsg with no `record-size`, and pstore gives the dmesg zone whatever
+console and pmsg leave behind — which was nothing. A panic wrote no record at
+all. On the running build:
 
-The devicetree carries a `record-size` now, with a megabyte taken back from pmsg
-rather than console, since console is the previous boot's kernel log and is what
-a boot failure is read from. **It is not on the device yet.** Until
-`dtbo-build.sh` and a flash, the running build still records nothing, and none
-of the capture advice below reaches a backtrace.
+```
+/sys/module/ramoops/parameters/record_size   131072
+                                console_size 2097152
+                                pmsg_size    1048576
+```
 
-`console-ramoops-0` is missing too, which the layout does not explain:
-`console-size` is 2 MB, `CONFIG_PSTORE_CONSOLE=y`, and the device has been up
-since a warm reboot, so the previous boot's console should be there. Establish
-what happens to it before relying on it — a dmesg zone that lands next to a
-console log that never appears is half a fix.
+and `/sys/fs/pstore` now carries `console-ramoops-0` as well as
+`pmsg-ramoops-0`, where it previously held only pmsg. So the console log was
+collateral damage from the same layout, not a separate fault.
 
-## When it is recording
+The console record is written without ECC — `ramoops.ecc` is 0 — so a few bytes
+per boot come back corrupted, single characters at a time. It is readable, and
+worth knowing before treating a mangled line as evidence of anything.
 
-**The obvious way out of that screen destroys the evidence.** pstore lives in
+## Getting the record off the device
+
+**The obvious way out of the crash dump screen destroys it.** pstore lives in
 RAM at `0x81f20000` and survives a warm reboot but not a power-hold, which is a
-PMIC-level reset — so holding power to escape the crash dump screen erases the
-backtrace that explains it. Leave the screen with a warm reboot into LineageOS
-recovery, which has a root shell where stock recovery has only sideload, and run
-`tools/grab-logs.sh` from there.
+PMIC-level reset. Leave that screen with a warm reboot into LineageOS recovery,
+which has a root shell where stock recovery has only sideload, and run
+`tools/grab-logs.sh`.
 
 | Entry | Holds |
 |---|---|
-| `dmesg-ramoops-*` | the panic backtrace — the one that matters, and the one that does not exist yet |
+| `dmesg-ramoops-*` | the panic backtrace — the one that matters |
 | `console-ramoops-*` | the previous boot's console, for what led up to it |
 | `pmsg-ramoops-*` | the previous boot's userspace ring buffer |
 
-`pstore.kmsg_bytes` caps each dmesg record at 10 KB, so what lands is the tail
-of the log rather than the whole of it. That covers a backtrace and little else.
+`pstore.kmsg_bytes` caps each dmesg record at 10 KB, so what lands is the tail of
+the log rather than all of it. That covers a backtrace and little else. The zone
+holds eight such records.
 
 `nt_log:boot_log/` is written by Android userspace, so it stops where the crash
 began rather than describing it.
@@ -54,6 +54,6 @@ tree sets `persist.vendor.ssr.enable_ramdumps` or
 `persist.vendor.sys.rawdump_copy`, so the `init.qcom.rc` triggers that start
 `vendor.ss_ramdump` and arm the rawdump copy never fire.
 
-Setting them by hand before the next occurrence costs nothing, but neither
-replaces pstore for this: they cover subsystem restarts — ADSP, modem — and the
-crash dump screen is the applications processor going down.
+Setting them by hand costs nothing, but neither replaces pstore here: they cover
+subsystem restarts — ADSP, modem — and the crash dump screen is the applications
+processor going down.
