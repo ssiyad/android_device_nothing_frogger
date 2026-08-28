@@ -20,38 +20,57 @@ nothing about it is obvious from using the phone.
 `/sys/.../i2c-8/8-005f/leds/vibrator_nt/{f0,f0_en,daq_en,daq_data}`. That
 directory does not exist, and neither does any other `vibrator*` node in sysfs.
 
-The kernel defines every one of those attributes. It just never attaches them.
-`vibrator_init()` in `drivers/misc/haptic/haptic_drv.c` had two branches,
-`#ifdef TIMED_OUTPUT` and `#elif 0`; `TIMED_OUTPUT` is defined nowhere in the
-tree and the second was dead by construction, so no device was registered and
-`sysfs_create_group` never ran.
+Two things are missing, not one, and the second is the expensive one.
 
-Everything else was already correct. The devicetree sets `device-name =
-"vibrator_nt"` on the `ics_haptic@5f` node, `vib_name` is read from it, and
-`vib_dev_t` is already `struct led_classdev` when `TIMED_OUTPUT` is undefined —
-so the disabled code was written against the type it would get.
+**The device is never registered.** `vibrator_init()` in
+`drivers/misc/haptic/haptic_drv.c` has two branches, `#ifdef TIMED_OUTPUT` and
+`#elif 0`. `TIMED_OUTPUT` is defined nowhere in the tree and the second is dead
+by construction, so nothing is registered and `sysfs_create_group` never runs.
 
-Both are `#else` now, in the kernel repo. **That is unproven until a build and a
-flash.**
+**The attribute layer is not compiled either.** Lines 610 to 960 — every
+`DEVICE_ATTR`, the `ics_haptic_attributes[]` array and
+`ics_haptic_attribute_group` itself — sit inside an `#if 0`. The attributes are
+written in the source and built into nothing.
 
-## What to check after the next kernel build
+That second point was established the expensive way: enabling only the
+registration branch fails to compile, because there is no attribute group left
+for `sysfs_create_group` to reference.
+
+```
+haptic_drv.c:1628:61: error: use of undeclared identifier 'ics_haptic_attribute_group'
+```
+
+So this is not a one-word fix. It means enabling a 350-line dead block, finding
+what else it depends on, and only then registering the device.
+
+## Before doing that, establish whether sysfs is even the intended path
+
+`sfdc_drv.c` registers a misc device and `/dev/ics_sfdc` exists on the device
+with a real major:minor and an SELinux label. `libics_haptic.so` carries both
+that path and the sysfs ones. If SFDC is meant to be driven through the char
+device's ioctls, the sysfs layer may be `#if 0` deliberately and the failure is
+somewhere else entirely — in which case reviving 350 lines of it would be effort
+spent on the wrong half of the driver.
+
+Read `sfdc_drv.c` and the `sfdc_*` symbols in the blob before touching the
+`#if 0`. The blob is the only thing that knows which interface it prefers.
+## What to check, once there is something to check
+
+The change that would have gone first was reverted for not compiling, so there
+is nothing on a device to verify yet. When there is:
 
 | Check | Why it can fail |
 |---|---|
-| haptics still work at all | `devm_led_classdev_register` failing returns an error out of `vibrator_init`, which fails probe and takes the whole driver with it. Test this first |
-| `/sys/class/leds/vibrator_nt/` exists and carries `f0`, `daq_en`, `daq_data` | the group is attached to `vib_dev.dev->kobj`, so a registered device with no attributes means `sysfs_create_group` failed |
+| haptics still work at all | `devm_led_classdev_register` failing returns an error out of `vibrator_init`, which fails probe and takes the driver with it. Test this before anything about SFDC |
+| `/sys/class/leds/vibrator_nt/` exists and carries `f0`, `daq_en`, `daq_data` | a registered device with no attributes means the `#if 0` block is still not building what it needs to |
 | `sfdc is not initialized` is gone from logcat | the point of the exercise |
 | `sfdc f0 update: %.1f` appears | `Vibrator.cpp`'s callback, which only fires once tracking runs |
 
-Then permissions, and only then. The attributes are `0644` root-owned, and the
+Then permissions, and only then. The attributes are `0644` root-owned and the
 vibrator HAL runs as `system`, so it can read `f0` and `daq_data` but cannot
 write `daq_en` or `f0_en`. That needs a ueventd rule, and the new sysfs nodes
-will need labelling for the HAL's domain.
-
-**Both are deliberately not written yet.** Adding rules for a path that does not
-exist is how inert configuration gets into a tree, and this device tree has just
-had a round of it removed. Let the nodes appear, read the denials, then write
-exactly what is needed.
+will need labelling for the HAL's domain. Both are deliberately unwritten: rules
+for a path that does not exist are how inert configuration arrives.
 
 ## The property that started this
 
