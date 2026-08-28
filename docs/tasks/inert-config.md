@@ -1,28 +1,20 @@
 # Drop inert configuration
 
-## Dolby
+## `spunvm` is the one that was not inert
 
-`device.mk` carries `inherit-product-if-exists hardware/dolby/dolby.mk`. Frogger
-ships zero Dolby files, so the inherit resolves to nothing.
+It mounted. `/dev/block/sde75` was on `/mnt/vendor/spunvm` as vfat, 32 MB, and
+vold picked the partition up as **portable storage** for fourteen seconds on
+2026-08-05 — `dumpsys mount` still carries the record, `type=PUBLIC
+fsUuid=627A-A42B`, created 19:26:28 and last seen 19:26:42 — long enough for
+Android to create `Android/data/com.spotify.music` on it. Empty directories on a
+vendor partition, and nothing since.
 
-## `spunvm`
+It is commented out now, which is what stock does: the same line appears in both
+of stock's fstabs, live in `fstab.emmc` and commented in `fstab.default`. Frogger
+boots from UFS and reads `fstab.default`, so stock does not mount it on this
+device. No SPU or spss service runs here to want it.
 
-`init/fstab.default` mounts `/dev/block/by-name/spunvm` at
-`/mnt/vendor/spunvm`. Stock comments this mount out even though the partition
-exists.
-
-Mounting a partition the OEM chose not to mount is a deliberate decision rather
-than an oversight. If first-stage mount fails, comment it out to match stock.
-
-## Optical sensor permissions
-
-`init/ueventd.qcom.rc` sets ownership on `ps_adc` and `ps_poll_delay` under
-`/sys/devices/virtual/optical_sensors/proximity`. That directory does not exist:
-the proximity part is driven from the ADSP by SEE and has no kernel driver. See
-[proximity.md](../reference/proximity.md).
-
-## `ro.boot.pbid` consumers
-
-`nothing-fwk`'s `NtFeaturesUtils` reads
-`ro.vendor.nothing.feature.diff.plus.<device>` and `ro.boot.pbid`. Frogger has
-neither, so the path is inert.
+The general point is worth keeping. The task started from "stock comments this
+out, so match stock" and the interesting part turned out to be *why* the mount
+was not harmless — a formattable vfat partition that nothing owns is exactly the
+shape vold goes looking for.
