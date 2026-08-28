@@ -16,7 +16,7 @@ Status and blockers live here; task files describe only the work.
 
 | Task | Status | Blocked by |
 |---|---|---|
-| [Capture runs ~25 dB below other handsets](tasks/capture-gain-deficit.md) | open | — |
+| [Capture runs ~25 dB below other handsets](tasks/capture-gain-deficit.md) | parked | no stock reference |
 
 ### Camera
 
