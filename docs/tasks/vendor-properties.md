@@ -27,7 +27,7 @@ except the appearance of configuration.
 | display | 28 | `nt-services.jar`, not shipped |
 | glyph | 20 | Nothing's Glyph framework, not shipped |
 | `ro.vendor.nothing.*` | 65 | settled, adopt none — see below |
-| sys, sf, newAAC, qcom, product | 17 | unexamined |
+| sys, sf, newAAC, qcom, product, misc | 42 | settled bar one — see below |
 | bt | 7 | settled, adopt none — see below |
 | `ro.product.*_for_attestation` | 3 | inert twice over: stock's values are empty, and `SystemProperties.get` returns the default for an empty value, so `Build.getVendorDeviceIdProperty` falls through to `ro.product.vendor.*` exactly as it does when they are absent |
 | `persist.sys.zram*` | 7 | inert: the only readers in the tree are goldfish and cuttlefish. Frogger's zram comes from `swapon_all /odm/etc/fstab.zram` in `init.frogger.rc`, which consults none of them |
@@ -82,6 +82,31 @@ The five codec-control properties beside it —
 `persist.vendor.qcom.bluetooth.aac_vbr_ctl.enabled`,
 `dualmode_transport_support` and `lossless_aptx_adaptive_le.enabled` — have no
 reader in any shipped blob either.
+
+## The miscellaneous group: one candidate out of 42
+
+Eight are set already, from a partition other than vendor. Of the rest, the
+readers rule out nearly everything:
+
+| Property | Why it stays unset |
+|---|---|
+| `ro.vendor.boot_security_patch` | read by the *default* KeyMint HAL's `lib.rs`; this device runs `keymint-service-qti`, whose binary does not carry the string |
+| `ro.vndk.version` | `AVendorSupport_getVendorApiLevel` falls back to `ro.board.api_level`, which is already 34 — stock's exact value |
+| `ro.surface_flinger.clear_slots_with_set_layer_buffer` | stock's `false` is the reader's own default |
+| `vendor.pasr.*` | `init.kernel.early_boot-memory.sh`, which we ship, *sets* these from the DDR type; it never reads them |
+| `persist.vendor.newAAC.*` | consumer is `libAACeffect_NT.so`, not shipped |
+| the remaining ~20 | no consumer in any shipped blob or in source |
+
+The exception is `persist.vendor.sfdc.ntc`, read by `libics_haptic.so`, which
+this tree ships and whose HAL runs. It is the **only** property of the 260 whose
+consumer is both shipped and running. It has its own task rather than an
+adoption, because what it exposed is a question about whether SFDC works here at
+all: [haptic-sfdc.md](haptic-sfdc.md).
+
+A warning about method, learned the hard way in this group: `grep -rl` on a
+property name matches prefixes. `persist.vendor.sfdc` appeared to have a
+consumer, and the hits were `persist.vendor.sfdc.ntc` and
+`persist.vendor.sfdc.result`. Anchor the match or read the surrounding strings.
 
 ## Values that differ and are deliberate
 

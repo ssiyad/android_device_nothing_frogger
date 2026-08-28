@@ -38,6 +38,7 @@ Status and blockers live here; task files describe only the work.
 |---|---|---|
 | [Ship a way to calibrate the proximity part](tasks/proximity-calibration.md) | open | — |
 | [Verify the Glyph indicators](tasks/glyph-indicators.md) | open | — |
+| [Is SFDC f0 tracking actually running?](tasks/haptic-sfdc.md) | open | — |
 | [Screen recording from the Essential Button](tasks/essential-button-screen-record.md) | parked | needs a SystemUI patch or a recorder of our own |
 | [Further Glyph indicators](tasks/glyph-ideas.md) | open | — |
 | [Features worth taking from elsewhere](tasks/ported-features.md) | open | — |
