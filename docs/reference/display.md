@@ -174,3 +174,14 @@ not one node.
 
 The group is `brightnessid`, `fp_status`, `panel_id1`, `panel_id2`, `panel_id3`.
 Optical UDFPS depends on `fp_status` to light the finger.
+
+**There is no `ui_status`, and nothing here writes one.** The fingerprint HAL's
+`Session.cpp` writes `/sys/panel_feature/ui_status` in four places, which reads
+like four silent failures against a node that does not exist. All four are inside
+`#ifndef TARGET_USES_LHBM`, `device.mk` sets `nothing_fingerprint.use_lhbm` to
+true, and the shipped
+`/vendor/bin/hw/android.hardware.biometrics.fingerprint-service.nothing` contains
+no occurrence of the string. It is the other boards' path, compiled out here.
+
+What this device uses instead is `setFOD()`, writing `/proc/touchpanel/fod_mode`
+— the only FOD path in the binary.
