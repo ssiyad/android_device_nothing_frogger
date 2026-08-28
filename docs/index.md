@@ -43,7 +43,6 @@ Status and blockers live here; task files describe only the work.
 | [Further Glyph indicators](tasks/glyph-ideas.md) | open | — |
 | [Features worth taking from elsewhere](tasks/ported-features.md) | open | — |
 | [Re-enable DeviceExtras](tasks/device-extras.md) | open | — |
-| [Evaluate vendor property groups](tasks/vendor-properties.md) | open | — |
 | [Express deferred devicetree items as overrides](tasks/devicetree-overrides.md) | open | — |
 | [Reconcile the kernel module load lists](tasks/kernel-module-list.md) | open | — |
 | [Remove the `ui_status` writes](tasks/fingerprint-ui-status.md) | open | — |
@@ -69,6 +68,7 @@ Status and blockers live here; task files describe only the work.
 | [camera-diagnostics.md](reference/camera-diagnostics.md) | Reading camera failures by layer, and the errors a healthy session logs |
 | [camera-image-quality.md](reference/camera-image-quality.md) | Where the picture quality lives, which levers exist, and which are dead ends |
 | [vendor-blobs.md](reference/vendor-blobs.md) | Blob list method, fixup scoping, inventory |
+| [vendor-properties.md](reference/vendor-properties.md) | Why none of the stock property gap is worth adopting, and how to check |
 | [build-config.md](reference/build-config.md) | API levels, SELinux mode, switches that must not be tidied away |
 | [play-integrity.md](reference/play-integrity.md) | Root via KernelSU-Next, the attestation stack, and the keybox reality |
 | [repositories.md](reference/repositories.md) | Forks, branches, signing keys |

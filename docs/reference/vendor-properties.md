@@ -1,4 +1,4 @@
-# Evaluate the remaining vendor property groups
+# Vendor properties
 
 The built `vendor/build.prop` carries 212 properties against stock's 451. The
 gap and stock's values are listed in
@@ -6,7 +6,12 @@ gap and stock's values are listed in
 generated — regenerate it before trusting it, since a property adopted since the
 last run still shows as missing.
 
-Treat that file as a lead list, never a patch.
+**Every group has been examined and none of the 260 is worth adopting.** One is
+an open question rather than a settled no: `persist.vendor.sfdc.ntc`, which has
+[its own task](../tasks/haptic-sfdc.md).
+
+That result is worth stating because the file reads like a to-do list and is
+not one. Treat it as a lead list, never a patch.
 
 ## Find the reader first
 
@@ -16,24 +21,30 @@ grep -rl "<prop>" --include=*.c --include=*.cpp --include=*.h --include=*.rc \
 strings -a <shipped blob> | grep <prop>
 ```
 
-Every group examined so far has been inert: the consumers are Nothing's
-proprietary framework and HAL components this tree does not ship, or legacy QCOM
-HALs for other SoCs it does not build. Copying such a property achieves nothing
-except the appearance of configuration.
+The consumers are, almost without exception, Nothing's proprietary framework and
+HAL components this tree does not ship, or legacy QCOM HALs for other SoCs it
+does not build. Copying such a property achieves nothing except the appearance
+of configuration.
 
-| Group | Count | Consumer |
+Two traps in that method, both hit in practice. `grep -rl` on a property name
+matches **prefixes**: `persist.vendor.sfdc` looked like it had a consumer, and
+the hits were `sfdc.ntc` and `sfdc.result`. And a name having a source-side
+constant is not a reader — `Property::kA2dpOffloadCap` is declared in the
+Bluetooth HAL and used nowhere.
+
+| Group | Count | Verdict |
 |---|---|---|
 | audio | 81 | legacy `audio_extn` HAL; this tree builds the PAL/AGM stack |
+| `ro.vendor.nothing.*` | 65 | unreachable by construction — below |
+| sys, sf, newAAC, qcom, product, misc | 42 | one candidate, the rest ruled out — below |
 | display | 28 | `nt-services.jar`, not shipped |
 | glyph | 20 | Nothing's Glyph framework, not shipped |
-| `ro.vendor.nothing.*` | 65 | settled, adopt none — see below |
-| sys, sf, newAAC, qcom, product, misc | 42 | settled bar one — see below |
-| bt | 7 | settled, adopt none — see below |
-| `ro.product.*_for_attestation` | 3 | inert twice over: stock's values are empty, and `SystemProperties.get` returns the default for an empty value, so `Build.getVendorDeviceIdProperty` falls through to `ro.product.vendor.*` exactly as it does when they are absent |
-| `persist.sys.zram*` | 7 | inert: the only readers in the tree are goldfish and cuttlefish. Frogger's zram comes from `swapon_all /odm/etc/fstab.zram` in `init.frogger.rc`, which consults none of them |
+| bt | 7 | our name is the one that is read — below |
+| `persist.sys.zram*` | 7 | only readers in the tree are goldfish and cuttlefish; Frogger's zram comes from `swapon_all /odm/etc/fstab.zram` in `init.frogger.rc` |
+| `ro.product.*_for_attestation` | 3 | inert twice over: stock's values are empty, and `SystemProperties.get` returns the default for an empty value, so `Build.getVendorDeviceIdProperty` falls through to `ro.product.vendor.*` exactly as when they are absent |
 
-Split any adoption into one commit per subsystem, so a regression bisects to a
-group rather than to a single large change.
+If a property is ever adopted, split it into one commit per subsystem so a
+regression bisects to a group rather than to one large change.
 
 ## `ro.vendor.nothing.feature.*` is unreachable by construction
 
