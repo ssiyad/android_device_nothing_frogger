@@ -6,17 +6,18 @@ sure the next one leaves something to read. Right now it would not.
 
 ## Nothing records a panic yet
 
-`/sys/module/ramoops/parameters/record_size` reads 0 on the device, and
-`noth/frogger-common.dtsi` says why. The ramoops node divides its 4 MB carveout
-into 2 MB of console and 2 MB of pmsg and sets no `record-size`. pstore gives
-the dmesg zone whatever console and pmsg leave behind, which is nothing, so
-there is no dmesg zone at all: a panic writes no record, and `/sys/fs/pstore`
-comes back holding only `pmsg-ramoops-0`.
+`/sys/module/ramoops/parameters/record_size` reads 0 on the running build, and
+`noth/frogger-common.dtsi` said why: the ramoops node divided its 4 MB carveout
+into 2 MB of console and 2 MB of pmsg and set no `record-size`. pstore gives the
+dmesg zone whatever console and pmsg leave behind, which was nothing, so there
+was no dmesg zone at all — a panic wrote no record, and `/sys/fs/pstore` came
+back holding only `pmsg-ramoops-0`.
 
-The devicetree repo is ours, so the fix is a `record-size` and a megabyte taken
-back — from pmsg rather than console, since console is the previous boot's
-kernel log and is what a boot failure is read from. It needs `dtbo-build.sh`
-and a flash before any of the capture advice below applies.
+The devicetree carries a `record-size` now, with a megabyte taken back from pmsg
+rather than console, since console is the previous boot's kernel log and is what
+a boot failure is read from. **It is not on the device yet.** Until
+`dtbo-build.sh` and a flash, the running build still records nothing, and none
+of the capture advice below reaches a backtrace.
 
 `console-ramoops-0` is missing too, which the layout does not explain:
 `console-size` is 2 MB, `CONFIG_PSTORE_CONSOLE=y`, and the device has been up

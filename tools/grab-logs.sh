@@ -14,7 +14,8 @@
 #                                    boot never got that far
 #   nt_kmsg, rawdump                 Nothing/Qualcomm dump partitions
 #
-# IMPORTANT: pstore lives in RAM at 0x81f20000 (4 MB: 2 console + 2 pmsg). It
+# IMPORTANT: pstore lives in RAM at 0x81f20000 (4 MB: 2 console, 1 pmsg, 1 of
+# 128 KB dmesg records -- a build older than that split has no dmesg zone). It
 # survives a warm reboot but NOT a power-hold, which is a PMIC-level reset. If
 # the device has been forced off since the failure, pstore will be empty and
 # there is nothing to collect -- that is why flash-frogger.sh installs to the
