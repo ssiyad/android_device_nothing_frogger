@@ -27,7 +27,8 @@ except the appearance of configuration.
 | display | 28 | `nt-services.jar`, not shipped |
 | glyph | 20 | Nothing's Glyph framework, not shipped |
 | `ro.vendor.nothing.*` | 65 | settled, adopt none — see below |
-| sys, sf, newAAC, qcom, product, bt | 24 | unexamined |
+| sys, sf, newAAC, qcom, product | 17 | unexamined |
+| bt | 7 | settled, adopt none — see below |
 | `ro.product.*_for_attestation` | 3 | inert twice over: stock's values are empty, and `SystemProperties.get` returns the default for an empty value, so `Build.getVendorDeviceIdProperty` falls through to `ro.product.vendor.*` exactly as it does when they are absent |
 | `persist.sys.zram*` | 7 | inert: the only readers in the tree are goldfish and cuttlefish. Frogger's zram comes from `swapon_all /odm/etc/fstab.zram` in `init.frogger.rc`, which consults none of them |
 
@@ -59,6 +60,28 @@ build, and these trees build Frogger and nothing else.
 Worth recording alongside it: `diff.plus.*` exists for **Asteroids only**. That
 is the `ro.boot.pbid` path, and its absence for Frogger is why that branch came
 out of `NtFeaturesUtils`.
+
+## The Bluetooth group: our name is the one that is read
+
+Stock declares the A2DP offload capability under two names this build does not
+set, `persist.bluetooth.a2dp_offload.cap` and `persist.vendor.bt.a2dp_offload_cap`,
+which reads like a gap. It is the opposite.
+
+The consumer is `vendor.qti.hardware.btconfigstore@{1,2}.0-impl.so`, both of
+which this tree ships, and both read a third name —
+`persist.vendor.qcom.bluetooth.a2dp_offload_cap` — which `vendor.prop` sets to a
+superset of stock's codec list, `aptxadaptiver2` included. Neither of stock's two
+names appears in any stock vendor blob.
+
+`persist.bluetooth.a2dp_offload.cap` does have a source-side constant,
+`Property::kA2dpOffloadCap` in the Bluetooth HAL's `hal_types.h`. It is declared
+and never used: the declaration is the only occurrence in the tree.
+
+The five codec-control properties beside it —
+`persist.vendor.bt.aac_frm_ctl.enabled`, `aac_vbr_frm_ctl.enabled`,
+`persist.vendor.qcom.bluetooth.aac_vbr_ctl.enabled`,
+`dualmode_transport_support` and `lossless_aptx_adaptive_le.enabled` — have no
+reader in any shipped blob either.
 
 ## Values that differ and are deliberate
 
