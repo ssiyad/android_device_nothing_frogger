@@ -75,6 +75,22 @@ TrickyStore fabricates the whole chain, including a locked-bootloader and
 green-verified-boot report, so the bootloader can stay unlocked and DEVICE is
 independent of [signing vbmeta and re-locking](../tasks/avb-verified-boot.md).
 
+## `getprop` does not report what the build ships
+
+`playintegrityfix` and `tricky_store` rewrite properties at boot, so the running
+device answers for the spoof rather than for the image. `ro.oem_unlock_supported`
+reads `0` where `system_ext.prop` ships `1` and where stock also sets `1`;
+`ro.boot.flash.locked` reads `1` and `ro.boot.verifiedbootstate` reads `green` on
+an unlocked bootloader running an unofficial build.
+
+Grepping `/data/adb/modules` for those names finds nothing — the rewrite happens
+in zygisk-injected code rather than in a shell script, so a clean grep is not
+evidence the modules left a property alone.
+
+**Validate a property against the built `build.prop` under `out/`, or against a
+partition image. Never against `getprop` on this device.** It is the obvious
+check and it is wrong here, in a direction that looks like a build bug.
+
 ## The keybox is the recurring cost
 
 TrickyStore's keybox private key must chain to Google's attestation root and be

@@ -8,6 +8,14 @@
 #
 # Stock assigns 31 keys twice, always to the same value, so its 487 assignment
 # lines are 451 distinct properties.
+#
+# Two things this comparison cannot see. It looks at vendor only, so 12 of the
+# entries below are set on the device from another partition and are not missing
+# at all -- ro.adb.secure, ro.control_privapp_permissions, drm.service.enabled
+# and ro.cp_system_other_odex among them. And a property must not be checked
+# with getprop on the daily driver: the Play Integrity modules rewrite some at
+# boot, so ro.oem_unlock_supported reads 0 there while every build.prop on the
+# device ships 1. See docs/reference/play-integrity.md.
 
 audio.sys.noisy.broadcast.delay=600
 audio.sys.offload.pstimeout.secs=3

@@ -28,6 +28,8 @@ except the appearance of configuration.
 | glyph | 20 | Nothing's Glyph framework, not shipped |
 | `ro.vendor.nothing.*` | 65 | unexamined; likely `nt-services.jar` |
 | sys, sf, newAAC, qcom, product, bt | 24 | unexamined |
+| `ro.product.*_for_attestation` | 3 | inert twice over: stock's values are empty, and `SystemProperties.get` returns the default for an empty value, so `Build.getVendorDeviceIdProperty` falls through to `ro.product.vendor.*` exactly as it does when they are absent |
+| `persist.sys.zram*` | 7 | inert: the only readers in the tree are goldfish and cuttlefish. Frogger's zram comes from `swapon_all /odm/etc/fstab.zram` in `init.frogger.rc`, which consults none of them |
 
 Split any adoption into one commit per subsystem, so a regression bisects to a
 group rather than to a single large change.
