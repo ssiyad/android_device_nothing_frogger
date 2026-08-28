@@ -1,41 +1,68 @@
-# Is SFDC f0 tracking actually running?
+# SFDC f0 tracking is not running
 
-The vibrator HAL is ours and it uses SFDC — `hardware/nothing/vibrator/Vibrator.cpp`
-calls `sfdc_initialize`, `sfdc_calibrate`, `sfdc_get_continuous_f0` and
-`sfdc_get_transient_fc` out of `libics_haptic.so`, which this tree ships. SFDC
-tracks the actuator's resonant frequency, which drifts with temperature, so
-without it the drive waveform is tuned for a frequency the LRA no longer has.
+The actuator is driven at its factory resonance whatever the temperature. SFDC
+exists to correct exactly that, and it has never initialised on this build.
 
-Haptics work — the log shows `play go enter` and `set stream data successfully`,
-so the drive path is fine. What is unclear is whether the tracking is.
+The library says so itself, repeatedly, on every query:
 
-## What does not add up
+```
+E/libics_haptic: ics_sfdc: sfdc is not initialized, please initialize sfdc first
+E/libics_haptic: ics_sfdc: sfdc is not initialized! return manufacture f0 = 170.9
+```
 
-| Reading | Expected if SFDC were running |
+Haptics work — the drive path logs `play go enter` and `set stream data
+successfully`. It is only the frequency tracking that is dead, which is why
+nothing about it is obvious from using the phone.
+
+## Why
+
+`libics_haptic.so` reaches for
+`/sys/.../i2c-8/8-005f/leds/vibrator_nt/{f0,f0_en,daq_en,daq_data}`. That
+directory does not exist, and neither does any other `vibrator*` node in sysfs.
+
+The kernel defines every one of those attributes. It just never attaches them.
+`vibrator_init()` in `drivers/misc/haptic/haptic_drv.c` had two branches,
+`#ifdef TIMED_OUTPUT` and `#elif 0`; `TIMED_OUTPUT` is defined nowhere in the
+tree and the second was dead by construction, so no device was registered and
+`sysfs_create_group` never ran.
+
+Everything else was already correct. The devicetree sets `device-name =
+"vibrator_nt"` on the `ics_haptic@5f` node, `vib_name` is read from it, and
+`vib_dev_t` is already `struct led_classdev` when `TIMED_OUTPUT` is undefined —
+so the disabled code was written against the type it would get.
+
+Both are `#else` now, in the kernel repo. **That is unproven until a build and a
+flash.**
+
+## What to check after the next kernel build
+
+| Check | Why it can fail |
 |---|---|
-| No `sfdc` line anywhere in logcat | `Vibrator.cpp` logs `sfdc f0 update: %.1f` on the callback, and `sfdc init failed, running without f0 tracking` on failure. Neither appears |
-| `persist.vendor.sfdc.result` is empty | `libics_haptic.so` carries that name and writes it |
-| `persist.sys.sfdc` and `vendor.ics.sfdc.drift` are empty | both are property names in the blob |
-| No sfdc property is labelled in our sepolicy | stock labels `persist.vendor.sfdc` and `persist.vendor.sfdc.result` `vendor_sfdc_prop` |
+| haptics still work at all | `devm_led_classdev_register` failing returns an error out of `vibrator_init`, which fails probe and takes the whole driver with it. Test this first |
+| `/sys/class/leds/vibrator_nt/` exists and carries `f0`, `daq_en`, `daq_data` | the group is attached to `vib_dev.dev->kobj`, so a registered device with no attributes means `sysfs_create_group` failed |
+| `sfdc is not initialized` is gone from logcat | the point of the exercise |
+| `sfdc f0 update: %.1f` appears | `Vibrator.cpp`'s callback, which only fires once tracking runs |
 
-There are no `avc: denied` lines for sfdc, the vibrator HAL or `hal_vibrator`
-either, so this is not a denial being hit and logged. It may be a denial being
-suppressed by `dontaudit` — see
-[selinux-collection.md](../reference/selinux-collection.md) for stripping those
-before believing a quiet log.
+Then permissions, and only then. The attributes are `0644` root-owned, and the
+vibrator HAL runs as `system`, so it can read `f0` and `daq_data` but cannot
+write `daq_en` or `f0_en`. That needs a ueventd rule, and the new sysfs nodes
+will need labelling for the HAL's domain.
 
-## The property question this came from
+**Both are deliberately not written yet.** Adding rules for a path that does not
+exist is how inert configuration gets into a tree, and this device tree has just
+had a round of it removed. Let the nodes appear, read the denials, then write
+exactly what is needed.
 
-Stock sets `persist.vendor.sfdc=true` and `persist.vendor.sfdc.ntc=true`, and
-this tree sets neither. `persist.vendor.sfdc.ntc` is read by `libics_haptic.so`;
-NTC is thermistor-based temperature compensation, which is exactly what f0
-tracking would want.
+## The property that started this
 
-`persist.vendor.sfdc` is *not* read by the blob — the enable name it carries is
-`persist.sys.sfdc`, a different prefix. Stock setting one name while the library
-reads another is unexplained and is worth resolving before either is adopted.
+Stock sets `persist.vendor.sfdc=true` and `persist.vendor.sfdc.ntc=true` and
+this tree sets neither; `sfdc.ntc` is read by `libics_haptic.so` and is the only
+one of 260 stock vendor properties whose consumer this tree both ships and runs.
 
-**Do not set them speculatively.** Of 260 stock vendor properties this build does
-not set, `persist.vendor.sfdc.ntc` is the only one whose consumer is both shipped
-and running, which makes it the one worth understanding rather than the one worth
-copying.
+It is still not worth setting speculatively. With SFDC failing to initialise, a
+property that tunes its behaviour cannot be evaluated. Revisit once tracking
+runs.
+
+Note that `persist.vendor.sfdc` is **not** the enable switch — the name in the
+blob is `persist.sys.sfdc`, a different prefix. Stock setting one name while the
+library reads another is unexplained.
