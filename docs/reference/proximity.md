@@ -53,8 +53,9 @@ only hard contact clears 2999. The thresholds now in place are
 ct_threshold 1739   near_threshold 2000   far_threshold 1900
 ```
 
-which latches on an ear held normally and releases when it leaves. Restoring
-the factory pair means writing 2999 and 2177 back.
+chosen so that an ear held normally latches. Restoring the factory pair means
+writing 2999 and 2177 back. Both values move together, and far stays below
+near: inverted, there is no behaviour to expect.
 
 Both numbers are unusually close to the crosstalk baseline, so **ambient
 infrared is a real risk here in a way it is not at the factory values**. Direct
@@ -106,6 +107,15 @@ which is what the fault looks like from outside.
 Registrations churn with display state by design: the display server drops the
 sensor whenever its policy reaches `OFF`, so gaps in the registration list that
 line up with sleep are not evidence of anything.
+
+The event list needs the same care in the other direction, and misleads more
+readily. Proximity is on-change, so registering delivers the current value as an
+event — and while the part is not changing state, *every* entry in the last-30
+list is a registration delivery rather than something the part did. The tell is
+the timestamp: a delivery carries the `ts` of the original sample, so a part
+that has not moved since boot shows thirty events all stamped a few seconds in
+while their wall clocks span hours. Match each event's wall clock against the
+registration list before reading any of it as activity.
 
 Reading the raw count is not possible from the ROM. SEE publishes only the
 two-state value, `values[1]` and `values[2]` are always zero, and the diag path
