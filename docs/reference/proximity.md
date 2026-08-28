@@ -44,20 +44,33 @@ without moving the thresholds changes the sensitivity.
 
 The factory measured this unit on a bare panel and wrote `ct_threshold=1739`,
 `near_threshold=2999`, `far_threshold=2177`, demanding a rise of 1260 counts
-before declaring near. That pair is what is in place. The screen protector
-fitted since prints a border across the sensor strip; the ambient light sensor
-still reads normally through it, but the proximity emitter is clipped enough
-that an ear returns under 438 counts above the bare-panel baseline.
+before declaring near. That pair is what is in place, and it works: an ear held
+normally trips near, and the part returns to far when it leaves. The screen
+protector fitted since prints a border across the sensor strip, and the ambient
+light sensor reads normally through it.
+
+An earlier reading here held that the protector clipped the emitter enough that
+an ear returned under 438 counts, and that only hard contact could clear 2999.
+The part clears 2999 on an ordinary ear, so whatever that measured, it does not
+describe this optical stack. Taking the standing return at the top of its
+bracket below, an ear is worth at least 822 counts.
 
 Both values move together and far stays below near: inverted, there is no
 behaviour to expect.
 
 **The standing return is no longer 1739.** A `near 2000 / far 1900` pair, chosen
-to meet the attenuated ear, left the part reporting near continuously — it could
-neither release nor ever have been far. That brackets the crosstalk the factory
-measured at 1739: at or above 2000, since the part read near, and at or below
-2177, since the factory `far_threshold` releases it at rest. Somewhere between
+to meet what was believed to be an attenuated ear, left the part reporting near
+continuously — it could neither release nor ever have been far, because both
+thresholds had ended up under the standing return. That brackets the crosstalk
+the factory measured at 1739: at or above 2000, since the part read near, and at
+or below 2177, since the factory `far_threshold` releases it. Somewhere between
 those two, so the protector has cost 261 to 438 counts of baseline.
+
+The lesson is the direction of the error. The pair was lowered to meet a return
+thought too weak, when the actual problem was a baseline that had risen — and
+lowering thresholds toward a rising baseline is how they end up beneath it. A
+candidate pair is only meaningful against a standing return that has been
+bracketed first, and the factory pair is the cheapest way to bracket it.
 
 That is what makes a pair close to the recorded baseline unusable, and it is the
 second-order failure rather than the obvious one. A threshold a few hundred

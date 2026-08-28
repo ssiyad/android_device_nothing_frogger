@@ -10,7 +10,6 @@ Status and blockers live here; task files describe only the work.
 
 | Task | Status | Blocked by |
 |---|---|---|
-| [The proximity part reports near and nothing else](tasks/proximity-pinned-near.md) | open | — |
 | [Catch the reboot to the crash dump screen](tasks/crash-dump-reboot.md) | open | — |
 
 ### Audio
