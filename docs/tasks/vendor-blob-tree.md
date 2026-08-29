@@ -57,7 +57,30 @@ This does not make `blob_fixup` changes take effect; it only makes drift
 impossible to miss. But it is the cheap half of option 2, it costs nothing per
 build, and drift is the consequence that has actually bitten.
 
-## Recommendation
+## Done: option 3
 
-Option 3 now, option 2 when its build cost is known. Option 1 last: storing a
-gigabyte of derived binaries in git buys the least and costs the most.
+`docs/data/vendor-blobs.sha1` holds sha1, size and path for all 1623 files, 166
+KB. `tools/vendor-blob-guard.sh` checks the tree against it and runs from
+`BoardConfig.mk`, so it covers every entry point the way the kernel config guard
+does.
+
+| Invocation | Cost | Catches |
+|---|---|---|
+| default | ~50 ms | added, missing or resized files |
+| `--full` | ~1 s | contents that changed without changing size |
+| `--generate` | ~1 min | rewrites the manifest after a re-extraction |
+
+It reports on stderr and exits 0. Drift is loud, not fatal: a legitimate
+re-extraction produces it until the manifest is regenerated, and failing at
+config time would block every targeted build until someone noticed. If drift
+ever reaches a shipped image, make the exit non-zero and emit `$(error)`.
+
+## Still open: option 2
+
+Extracting during the build is the only thing that also makes `blob_fixup`
+changes take effect. The server has the OTA and `fsck.erofs`; what nobody has
+measured is what it adds per build. `extract-frogger.sh` would time it, but it
+rewrites the tree, so time it deliberately.
+
+Option 1 stays last: storing a gigabyte of derived binaries in git buys the
+least and costs the most.

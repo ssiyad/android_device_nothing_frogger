@@ -156,6 +156,16 @@ TARGET_MERGE_DTBS_WILDCARD := *volcano*
 # and stays quiet when it has nothing to do.
 kernel_config_guard := $(shell $(DEVICE_PATH)/tools/kernel-config-guard.sh)
 
+# vendor/nothing/frogger/ is neither a git repo nor a repo project, and
+# frogger-vendor.mk copies out of it into the image, so two machines can hold
+# different blobs and both build. This compares names and sizes against
+# docs/data/vendor-blobs.sha1 and reports on stderr; it is silent when they
+# match and takes about fifty milliseconds. Pass --full for the hashes.
+#
+# Assigned and discarded for the same reason as the guard above: make parses
+# whatever $(shell) writes to stdout as makefile text.
+vendor_blob_guard := $(shell $(DEVICE_PATH)/tools/vendor-blob-guard.sh)
+
 # Kernel Modules
 BOARD_SYSTEM_KERNEL_MODULES_LOAD := $(strip $(shell cat $(DEVICE_PATH)/modules.load.system_dlkm))
 SYSTEM_KERNEL_MODULES := $(BOARD_SYSTEM_KERNEL_MODULES_LOAD)
