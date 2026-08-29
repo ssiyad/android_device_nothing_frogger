@@ -107,6 +107,34 @@ It also does not matter. The HAL's battery entry sets `no_trip_set`, so no trips
 are written to whichever zone it binds, and the only consequence is which of two
 battery readings about a degree apart reaches the framework.
 
+## PM7550 GPIO4 carries hwid here, not a thermistor
+
+The OEM's Frogger devicetree carries a change-set marked `SQ762-384, config
+thermal ntc 2025/7/28` that comments out the `volt_detect` node, renames
+`sys-therm-13` to `sub_board_ntc`, and points that zone at
+`PMXR2230_ADC5_GEN3_AMUX2_GPIO4_100K_PU` — the channel `volt_detect` had held.
+It repurposes the pin from a hardware-ID divider to a thermistor.
+
+**Do not port it.** The vadc exposes that channel as
+`in_temp_pm7550_volt_detect_input`, and on this unit it reads:
+
+| Channel | Reading |
+|---|---|
+| `pm7550_volt_detect` | **761159** |
+| `pm7550_sys_therm_12` | 36389 |
+| `pm8550b_die_temp` | 36234 |
+| `board_ntc` zone | 36325 |
+
+761 °C is a resistor divider run through a thermistor conversion. The pin still
+carries the hwid network the OEM's change removes, so adopting it would hand
+thermal mitigation a zone reporting 761 °C.
+
+Revisit only on a unit whose `in_temp_pm7550_volt_detect_input` reads like a
+temperature. Two things about `volt_detect` look like leads and are not: its
+driver `drivers/misc/hwid.c` is gated on `CONFIG_HWID`, which Frogger's config
+does not set, so the node binds nothing; and `/proc/hwid` does work, from one of
+the other providers rather than from this path.
+
 ## The skin sensor
 
 Skin is `shell_max`, one of four virtual zones — `shell_front`, `shell_frame`,

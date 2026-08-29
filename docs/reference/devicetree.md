@@ -12,6 +12,14 @@ Consequences:
 
 - **An overlay cannot delete a node from the base DTB.** `/delete-node/` entries
   are silent no-ops, so a base node survives alongside any replacement.
+- **Nor a property.** `/delete-property/` is dropped by dtc when it emits
+  overlay output — the fragment carries only what was added. Verified on the
+  built `dtbo.img` for `i2s0_sd1_active`, whose fragment holds `bias-pull-down`
+  and no trace of the delete beside it. An override that relies on removing a
+  base property does not work; one that relies on *overriding* it does, subject
+  to whatever ordering the consumer applies. The `/delete-property/
+  qcom,i2c_pull` entries in `noth/frogger-common-pinctrl.dtsi` are inert for
+  this reason.
 - **A replacement must not redefine the labels of the node it shadows.**
   Phandle references resolve to the last definition, so a stolen label points
   the original's users at the copy's nodes. A thermal zone that lost its trip
