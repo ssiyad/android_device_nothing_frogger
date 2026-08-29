@@ -29,7 +29,6 @@ Status and blockers live here; task files describe only the work.
 | Task | Status | Blocked by |
 |---|---|---|
 | [Version the extracted vendor blob tree](tasks/vendor-blob-tree.md) | open | — |
-| [Sign vbmeta and decide on re-locking](tasks/avb-verified-boot.md) | open | — |
 | [Make GApps survive a ROM flash](tasks/gapps-persistence.md) | open | — |
 
 ### Features and cleanup

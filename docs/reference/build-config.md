@@ -110,6 +110,32 @@ all four**, and the only symptom would be slower code.
 The `cortex-a76` row is exactly the hardware's HWCAP set, so nothing is
 over-declared in the other direction either.
 
+## `--flags 3` on vbmeta is load-bearing
+
+`BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3` disables AVB verification and
+the hashtree, and it stays. Two independent reasons, either sufficient.
+
+**Re-locking is not happening**, so the yellow verified-boot state that signing
+the chain with the keys in `vendor/lineage-priv/keys/` would buy has nowhere to
+be spent. It would not reach `MEETS_DEVICE_INTEGRITY` either — that needs a
+Google-signed OS, and yellow is not green.
+
+**GApps modifies `/system` after the image is signed.** MindTheGapps sideloads
+into `/system/product/app` and `/product/app`; `GmsCore` and four others are
+there now. Drop `--flags 3` and dm-verity would hash a system partition that is
+then written to, so the device would fail verification on the next boot. The
+flag is what makes the reflash-GApps-every-time workflow possible.
+
+The second reason survives any change of mind about the first, and it survives
+[gapps-persistence](../tasks/gapps-persistence.md) too — an `addon.d` script
+that restores GApps across an OTA is still writing to `/system`.
+
+On the running build `dm-verity` is absent from `dmesg` entirely and
+`ro.boot.veritymode`, `ro.boot.vbmeta.device_state` and
+`ro.boot.vbmeta.avb_version` are all empty, which is what the flag looks like
+from the device. `ro.boot.verifiedbootstate` reads `green` and is spoofed — see
+[play-integrity.md](play-integrity.md).
+
 ## SELinux
 
 The runtime mode is bootconfig, and a permissive build is one that *adds*
