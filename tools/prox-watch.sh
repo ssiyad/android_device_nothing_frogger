@@ -48,6 +48,10 @@ echo "sampling into $OUT -- place the call, then stop with ctrl-c"
 #
 # No apostrophes below -- the block is single-quoted all the way to the device.
 "$ADB" shell '
+    # Swept at start as well as trapped at exit: the trap runs in this shell,
+    # and killing the adb process on the host does not always reach it, so a
+    # run that ends by having its connection torn out leaves both files behind.
+    rm -f /data/local/tmp/prox-watch.*
     d=/data/local/tmp/prox-watch.$$
     trap "rm -f $d.power $d.display" EXIT INT TERM
     g() { grep -m1 -oE "$1" "$2" || echo "${3}=?"; }
