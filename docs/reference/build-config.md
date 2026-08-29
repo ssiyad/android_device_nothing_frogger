@@ -146,6 +146,41 @@ created `Android/data/<package>` scaffolding on it before it went away again.
 A formattable vfat partition that nothing owns is exactly the shape vold goes
 looking for, so an fstab entry justified by "the partition exists" is not free.
 
+## DeviceExtras is disabled by decision
+
+`DeviceExtras` is out of `PRODUCT_PACKAGES` in `device.mk`, along with the two
+rules in `sepolicy/vendor/device_extras.te`. This is settled, not deferred.
+
+`hardware/nothing/sepolicy/DeviceExtras/public/device_extras.te` declares a
+public type, and a public type needs an entry under `new_objects` in
+`system/sepolicy/private/compat/<ver>/<ver>.ignore.cil`. Those files are
+enumerated by hand in `system/sepolicy/compat/Android.bp`; there is no board
+hook, and `BOARD_PLAT_PUBLIC_SEPOLICY_DIR` adds public policy, not mappings. So
+`treble_sepolicy_tests_202404` fails the build.
+
+**The obvious fix removes the feature.** `vendor_proc_power_supply` is a vendor
+type, declared in `hardware/nothing/sepolicy/common/vendor/file.te`. Vendor
+policy may use plat public types; plat policy may not use vendor types at all.
+The type is public *because* that is what lets vendor policy grant it the file.
+Move it to `private/` and the compat failure goes away along with any way to
+express the grant.
+
+Re-enabling therefore means routing the access through a HAL.
+`hal_lineage_health_default` and `hal_nt_charger` both already hold
+`rw_dir_file(…, vendor_proc_power_supply)`, so a host exists — but Lineage
+Health's AIDL is charging control with nowhere for an OTG switch, and using
+`hal_nt_charger` needs an interface, a VINTF entry and `binder_call` from a
+system_ext app to a vendor HAL.
+
+The app is one feature: an OTG toggle and its quick-settings tile, writing
+`/proc/charger/nt_otg_enable`. That is the whole package. A HAL interface for a
+single toggle nothing depends on is not a trade worth making, so it stays out.
+
+Revisit only if DeviceExtras grows a second feature. A cheaper third path exists
+if it ever does — relabel that node to a plat public type, letting plat-private
+policy grant a private `device_extras` directly, at the cost of moving a vendor
+node into the platform namespace and taking `hal_nt_charger`'s rule with it.
+
 ## Out-of-tree patches
 
 `patches/` holds changes this device needs in projects it does not own, with

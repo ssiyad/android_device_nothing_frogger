@@ -178,10 +178,16 @@ PRODUCT_PACKAGES += \
     ipacm
 
 # Device Extras
-# Disabled: hardware/nothing/config.mk keys the DeviceExtras sepolicy dirs off
-# this package, and its public type `device_extras` fails
-# treble_sepolicy_tests_202404 for want of a compat mapping entry.
-# See docs/tasks/device-extras.md.
+# Left disabled deliberately, not pending. config.mk keys the DeviceExtras
+# sepolicy dirs off this package, and its public type `device_extras` fails
+# treble_sepolicy_tests_202404 for want of a compat mapping entry that no board
+# hook can supply.
+#
+# The type is public because that is what lets vendor policy grant it
+# `vendor_proc_power_supply`; making it private to pass the test removes the
+# grant with it, so re-enabling means an interface on hal_nt_charger. That is a
+# HAL, a VINTF entry and an app change for one OTG toggle nothing depends on.
+# See docs/reference/build-config.md.
 #
 # PRODUCT_PACKAGES += \
 #     DeviceExtras

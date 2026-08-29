@@ -42,7 +42,6 @@ Status and blockers live here; task files describe only the work.
 | [Screen recording from the Essential Button](tasks/essential-button-screen-record.md) | parked | needs a SystemUI patch or a recorder of our own |
 | [Further Glyph indicators](tasks/glyph-ideas.md) | open | — |
 | [Features worth taking from elsewhere](tasks/ported-features.md) | open | — |
-| [Re-enable DeviceExtras](tasks/device-extras.md) | open | — |
 | [Express deferred devicetree items as overrides](tasks/devicetree-overrides.md) | open | — |
 | [Add the Goodix touch panel driver](tasks/touchscreen-goodix.md) | blocked | no Goodix-panel unit |
 | [The lock screen clock falls back to Roboto](tasks/lockscreen-clock-font.md) | parked | needs a Lineage-side file; no cheap mechanism |
