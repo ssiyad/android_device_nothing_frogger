@@ -284,3 +284,35 @@ screen is against the table and the sensor cannot be reached. The proximity
 sensor faces the same wrong way, and SystemUI gates the tap on it anyway. Every
 gesture sensor on this device points at the face that is hidden whenever the
 strip is visible.
+
+## Limits of what ships
+
+These are not faults to chase; they are what the available signals allow.
+
+**A muted video recording leaves the red LED dark.** `RED_RECORDING` follows the
+microphone, and a video recorded with audio muted holds none. Camera-open would
+catch it, but a viewfinder is not a capture and lighting red for one would be
+wrong more often than right.
+
+**A timer already running when the process starts fills from empty.** The clock
+app publishes a deadline and no total duration, so the largest remaining time
+seen is taken as full scale. A timer inherited at startup therefore begins from
+an empty bar and fills over what is left of it rather than from where it had
+actually reached.
+
+**Several timers paused at once read as running.** Pause is detected by matching
+the clock app's own paused label, and the label for more than one paused timer
+differs from the single-timer one.
+
+**The beat meter captures the whole output mix.** While it is attached, every
+sound the phone makes drives it. It releases after four seconds of quiet, which
+bounds that window rather than closing it.
+
+**The missed-call blink stops after a minute and leaves the glow.** An
+indefinite blink would hold a wakelock for as long as the notification sat
+there, which is the trade described under Ownership.
+
+**A `default_prop` read is denied to `glyph_app`.** Nothing observed has broken
+because of it, so it is left alone — but something the app asks for is being
+refused silently, and it is the first thing to look at if behaviour ever goes
+strange in a way the logs do not explain.
