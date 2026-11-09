@@ -39,15 +39,15 @@ whole new copy of any binary that changes, so every re-extraction that touches a
 blob grows the repository permanently. For derived data that is the wrong shape,
 and 1 GB is the floor rather than the size.
 
-**2. Extract during the build.** The server has everything needed — the
-`2603091830` OTA at `~/android/downloads/frogger/Frogger_B4.1-260309-1830.zip`
-with `payload.bin` already unpacked beside it, and `fsck.erofs` on `PATH`. This
+**2. Extract during the build.** The build host has everything needed — the
+`2609110959` images unpacked at
+`~/android/downloads/frogger/260911-0959-images/img`, and `fsck.erofs` on
+`PATH`. This
 is the only option that fixes *both* consequences: the tree becomes derived, so
 `blob_fixup` changes take effect and drift stops being possible.
 
-Unmeasured: what it adds to every build. `extract-frogger.sh` exists to run it,
-so timing it is one command — but it rewrites the tree, and a bad run leaves the
-next build broken. Time it deliberately, not in passing.
+Measured: `extract-frogger.sh` takes about 80 s. It rewrites the tree, so a bad
+run leaves the next build broken.
 
 **3. A manifest, checked at build time.** Store the sha1 list under `docs/data/`
 — 1623 lines, about 120 KB, versioned like any other generated list — and have
@@ -78,9 +78,10 @@ ever reaches a shipped image, make the exit non-zero and emit `$(error)`.
 ## Still open: option 2
 
 Extracting during the build is the only thing that also makes `blob_fixup`
-changes take effect. The server has the OTA and `fsck.erofs`; what nobody has
-measured is what it adds per build. `extract-frogger.sh` would time it, but it
-rewrites the tree, so time it deliberately.
+changes take effect. The build host has the images and `fsck.erofs`. A run of
+`extract-frogger.sh` there took about 80 s, copying the images included, so the
+cost per build is small. It still rewrites the tree, so a bad run leaves the
+next build broken.
 
 Option 1 stays last: storing a gigabyte of derived binaries in git buys the
 least and costs the most.

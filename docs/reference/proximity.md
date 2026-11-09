@@ -94,7 +94,7 @@ flash, factory reset and firmware change. Anything added to the optical stack
 afterwards — a screen protector above all — shifts the return without shifting
 the thresholds, and cannot be corrected from here.
 
-`/vendor/etc/sensors/` is byte-identical to the stock `2603091830` vendor
+`/vendor/etc/sensors/` is byte-identical to the stock `2609110959` vendor
 partition across all 76 files, and the ADSP image is stock, so the SEE side is
 not a porting surface. A proximity fault on this device is calibration or
 optics, not configuration.

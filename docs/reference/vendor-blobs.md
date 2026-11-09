@@ -73,8 +73,8 @@ dependency edge for a single blob.
 
 | Source | Use |
 |---|---|
-| Factory images, build `2603091830` | file inventories and blob extraction |
+| Factory images, build `2609110959` | file inventories and blob extraction |
 | OEM kernel source | driver families and Kconfig names |
 
-Blobs and the fingerprint both describe `2603091830`, so the shipped image
+Blobs and the fingerprint both describe `2609110959`, so the shipped image
 advertises the build whose vendor files it contains.

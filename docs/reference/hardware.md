@@ -8,8 +8,8 @@
 | Marketing name | Nothing Phone (4a) |
 | Model | `A069` |
 | Products | `FroggerEEA`, `FroggerIND`, `FroggerJPN`, `FroggerTUR` |
-| Build | `2603091830`, `BQ2A.250913.001-BP2A.250605.031.A3` |
-| Fingerprint | `Nothing/Frogger/Frogger:16/BQ2A.250913.001-BP2A.250605.031.A3/2603091830:user/release-keys` |
+| Build | `2609110959`, `BQ2A.250913.001-BP2A.250605.031.A3` |
+| Fingerprint | `Nothing/Frogger/Frogger:16/BQ2A.250913.001-BP2A.250605.031.A3/2609110959:user/release-keys` |
 | Bootloader | `02032-LANAI-1` |
 | Baseband | `00099-MILOS_GEN_PACK-1` |
 | Boot / vendor SPL | 2026-01-05 / 2026-04-05 |

@@ -417,8 +417,8 @@ PRODUCT_PACKAGES += \
 # Security
 BOOT_SECURITY_PATCH := 2026-01-05
 INIT_BOOT_SECURITY_PATCH := $(BOOT_SECURITY_PATCH)
-# Describes the shipped blobs, which come from the 2603091830 images.
-VENDOR_SECURITY_PATCH := 2025-09-05
+# Describes the shipped blobs, which come from the 2609110959 images.
+VENDOR_SECURITY_PATCH := 2026-04-05
 
 # Sensors
 PRODUCT_COPY_FILES += \
