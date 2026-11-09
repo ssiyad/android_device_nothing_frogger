@@ -45,7 +45,7 @@ does not.
 The limit of this method is worth stating: it compares which functions exist, not
 what they do. A changed constant inside a function body is invisible to it.
 
-## No sound card at all: reflash `dsp` and `modem`
+## No sound card at all: pd-mapper started too late
 
 The symptom is a boot that never finishes, and it looks nothing like an audio
 bug from the outside. The chain, from the bottom:
@@ -66,27 +66,41 @@ The ADSP core is up throughout — `adsprpc` works and battery telemetry keeps
 arriving from it. Only the **audio protection domain** is down, which shows up
 as `audioadsprpcd: fastrpc_get_info_from_dsp ... err val -111`.
 
-**The fix is to reflash stock `dsp` and `modem`**, which carry the ADSP
-firmware:
+**The cause is timing, not firmware.** The kernel boots the ADSP by itself at
+about 4 s. `spf_core_add_child_devices` then polls the APM for
+`ADD_CHILD_DEVICES_APM_TIMEOUT_MS` (10 s), logs `apm is not up`, and never tries
+again. The audio PD does not come up until `pd-mapper` runs, and
+`init.qti.kernel.rc` starts `pd-mapper` at `early-boot`, which is after `/data`
+is mounted.
 
-```sh
-fastboot reboot fastboot              # userspace fastboot; the bootloader's
-                                      # own fastboot answers "unknown command"
-fastboot flash dsp   dsp.img   --slot=a
-fastboot flash dsp   dsp.img   --slot=b
-fastboot flash modem modem.img --slot=a
-fastboot flash modem modem.img --slot=b
+`/data` usually mounts in under a second. It becomes slow on the first boot
+after an OTA, which mounts `/data` with checkpoints disabled. If that boot ends
+uncleanly, for any reason, every later boot runs a full `fsck.f2fs`:
+
+```
+fsck.f2fs: Info: checkpoint state = 1044 :  crc compacted_summary disabled sudden-power-off
+init: Command 'mount_all --late' ... took 14628ms and succeeded
 ```
 
-Neither partition is in `AB_OTA_PARTITIONS`, so **no ROM flash has ever
-rewritten them** — which is exactly why the fault survives reinstalling any
-build, including one that booted before. That property is the diagnostic: if
-every build fails identically, including a known-good one, the problem is below
-the ROM and reflashing ROMs cannot reach it.
+With 14 s of fsck, `pd-mapper` starts at about 22 s and the APM window closed
+at 14 s. The boot fails, ends uncleanly, and the next boot runs the full fsck
+again. So **the loop sustains itself**, and every build fails the same way,
+including one that booted before.
 
-The modem needs a couple of minutes to re-register afterwards, and reports
-`OUT_OF_SERVICE` until it does. `modemst1`/`modemst2` hold the EFS and are not
-touched, so IMEI and calibration survive.
+**The fix is in `init/init.target.rc`**: start `pd-mapper` at `post-fs`. It
+needs only `/vendor` and the firmware mounts, which `mount_all --early` has
+mounted at that point. With the fix and a 14.8 s fsck, `pd-mapper` starts at
+3.3 s and `apm is up` at 3.9 s.
+
+The timeline is in `dmesg`. Grep for `pd_mapper`, `remoteproc-adsp is now up`,
+`apm is`, `checkpoint state` and `mount_all --late`.
+
+**Reflashing `dsp` and `modem` does not help.** An earlier version of this
+section gave that as the fix, and said that no ROM flash rewrites those
+partitions. Both claims are wrong. `proprietary-firmware.txt` adds `dsp`,
+`modem` and the other firmware images to `AB_OTA_PARTITIONS` through
+`BoardConfigVendor.mk`, so every ROM zip writes them. Stock 260309 `dsp` and
+`modem` on both slots left the fault unchanged.
 
 Two things that look like the cause and are not:
 
