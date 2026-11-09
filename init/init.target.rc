@@ -89,6 +89,13 @@ on post-fs
     #Execute virtualization manager
     enable vendor.qvirtservice_rs
     start  vendor.qvirtservice_rs
+    # The kernel boots the ADSP by itself at about 4 s, and spf-core gives the
+    # audio PD 10 s to come up, which it cannot do until pd-mapper runs. Started
+    # at early-boot, pd-mapper waits for /data, and a full fsck of /data after
+    # an unclean shutdown takes 14 s: no sound card, a hung audio HAL, and a
+    # system_server watchdog bootloop. It needs only /vendor and the firmware
+    # mounts, which mount_all --early has done by now.
+    start vendor.pd_mapper
 
 on late-fs
     wait_for_prop hwservicemanager.ready true
