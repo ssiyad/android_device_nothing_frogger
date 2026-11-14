@@ -24,8 +24,8 @@ keeps it and there is no boot-patch step. Kernel string is
 `6.6.114-android15-8-4k-g<kernel-sha>`.
 
 - The driver is vendored as ordinary files at
-  `kernel/nothing/sm7635/drivers/kernelsu`, from KernelSU-Next `v3.3.0`
-  (upstream `3b18216f`). `drivers/Kconfig` sources its `Kconfig` and
+  `kernel/nothing/sm7635/drivers/kernelsu`, from KernelSU-Next `v3.4.2`
+  (upstream `4c706b59`). `drivers/Kconfig` sources its `Kconfig` and
   `drivers/Makefile` has `obj-$(CONFIG_KSU) += kernelsu/`. `repo sync` therefore
   produces a complete tree with nothing to run afterwards.
 - **The version is pinned in `drivers/kernelsu/Kbuild`, and has to be.** Upstream
@@ -33,8 +33,14 @@ keeps it and there is no boot-patch step. Kernel string is
   from `git describe`, but only when the driver's git root differs from the
   kernel's — a guard that exists because vendoring breaks it. Vendored, that test
   fails and the build falls back to version `1` / tag `v0.0.1`, which the manager
-  rejects without saying why. The pin is `33214` / `v3.3.0`, matching the manager
+  rejects without saying why. The pin is `33355` / `v3.4.2`, matching the manager
   apk, and a KernelSU bump means editing it.
+- **A bump is a three-way copy.** Take upstream's `kernel/` at the new tag, replace
+  the `include/uapi` symlink with the repo-root `uapi/` it points at, leave out
+  `.vscode` and `.clangd.example`, then re-apply the diff between the old tag's
+  `kernel/Kbuild`/`Kconfig` and ours. Afterwards `diff -r` against that export
+  must show only `Kbuild` and `Kconfig`. `susfs/` comes along but is not built:
+  it is a separate module, and `Kbuild` does not name it.
 - **`CONFIG_KSU` defaults to `n`**, changed from upstream's `y`. With the upstream
   default, `vendor/ksu.config` looked like the switch while controlling nothing:
   removing the fragment left KernelSU compiled in anyway. Off by default makes
@@ -52,8 +58,15 @@ Modules install through the KernelSU-Next manager, not recovery, and the manager
 holds the root-grant allowlist. The kernel trusts only the manager whose APK
 signature matches `KSU_NEXT_MANAGER_HASH`, left at the upstream default, so the
 official KernelSU-Next manager is the only one accepted — matched to the kernel at
-version `33214`. Use the standard release APK, not the `-spoofed` variant, which
+version `33355`. Use the standard release APK, not the `-spoofed` variant, which
 carries a different signature the kernel will not recognise.
+
+The manager compares its `KERNEL_SU_UAPI_VERSION` (`uapi/supercall.h`) with the
+kernel's, not the release number. When the manager is newer, it shows
+"Kernel update required" with no install button, because the driver is built in
+rather than loaded as a module. The fix is a kernel bump, not anything in the
+app. v3.3.0 was UAPI 2; v3.4.2 is UAPI 5. Turn off auto-update for the manager,
+or a store update breaks it again.
 
 ## The device-side attestation stack
 
